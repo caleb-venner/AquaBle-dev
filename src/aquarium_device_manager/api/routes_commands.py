@@ -8,6 +8,7 @@ from fastapi import APIRouter, HTTPException, Request
 
 from ..command_executor import CommandExecutor
 from ..commands_model import CommandRecord, CommandRequest
+from ..errors import ErrorCode
 
 router = APIRouter(prefix="/api", tags=["commands"])
 
@@ -44,9 +45,6 @@ async def execute_command(
         # Persist command record
         service.save_command(record)
 
-        # Save state to disk
-        await service._save_state()
-
         return record.to_dict()
 
     except HTTPException:
@@ -62,9 +60,10 @@ async def execute_command(
             args=command_request.args,
             timeout=command_request.timeout or 10.0,
         )
-        record.mark_failed(f"Unexpected API error: {exc}")
+        record.mark_failed(
+            f"Unexpected API error: {exc}", ErrorCode.INTERNAL_ERROR
+        )
         service.save_command(record)
-        await service._save_state()
         return record.to_dict()
 
 

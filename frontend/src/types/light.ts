@@ -3,7 +3,7 @@ import type { Weekday } from './doser';
 type Interp = 'step' | 'linear';
 
 export interface ChannelDef {
-  key: string;            // e.g., "R", "G", "B", "W"
+  key: string;            // e.g., "red", "green", "blue", "white"
   label?: string;         // UI name
   min?: number;           // default 0
   max?: number;           // default 100
@@ -15,7 +15,6 @@ export type ChannelLevels = Record<string, number>; // {R:74,G:50,B:82,W:30}
 export interface LightDevice {
   id: string;
   name?: string;
-  timezone: string;       // "Australia/Sydney"
   channels: ChannelDef[]; // order for UI sliders
   profile: Profile;       // discriminated union below
   createdAt?: string;

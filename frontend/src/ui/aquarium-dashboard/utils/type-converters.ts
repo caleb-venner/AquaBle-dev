@@ -14,7 +14,6 @@ export function apiToDoserDevice(apiDevice: ApiDoserDevice): DomainDoserDevice {
   return {
     id: apiDevice.id,
     name: apiDevice.name,
-    timezone: apiDevice.timezone,
     heads: [
       // Mock heads - in reality, these would be extracted from configurations
       {
@@ -66,7 +65,6 @@ export function apiToLightDevice(apiDevice: ApiLightDevice): DomainLightDevice {
   return {
     id: apiDevice.id,
     name: apiDevice.name,
-    timezone: apiDevice.timezone,
     channels: apiDevice.channels.map(ch => ({
       key: ch.key,
       label: ch.label,
@@ -90,7 +88,6 @@ export function createDefaultDoserDevice(address: string, name?: string): Domain
   return {
     id: address,
     name: name || `Doser ${address.slice(-8)}`,
-    timezone: 'UTC',
     heads: [
       {
         index: 1 as const,
@@ -139,16 +136,15 @@ export function createDefaultLightDevice(address: string, name?: string): Domain
   return {
     id: address,
     name: name || `Light ${address.slice(-8)}`,
-    timezone: 'UTC',
     channels: [
-      { key: 'R', label: 'Red', min: 0, max: 100, step: 1 },
-      { key: 'G', label: 'Green', min: 0, max: 100, step: 1 },
-      { key: 'B', label: 'Blue', min: 0, max: 100, step: 1 },
-      { key: 'W', label: 'White', min: 0, max: 100, step: 1 }
+      { key: 'red', label: 'Red', min: 0, max: 100, step: 1 },
+      { key: 'green', label: 'Green', min: 0, max: 100, step: 1 },
+      { key: 'blue', label: 'Blue', min: 0, max: 100, step: 1 },
+      { key: 'white', label: 'White', min: 0, max: 100, step: 1 }
     ],
     profile: {
       mode: 'manual' as const,
-      levels: { R: 0, G: 0, B: 0, W: 0 }
+      levels: { red: 0, green: 0, blue: 0, white: 0 }
     }
   };
 }

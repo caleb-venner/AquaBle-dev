@@ -4,7 +4,7 @@
 
 import type { DashboardState, DashboardTab, ConnectionStability } from "./types";
 import type { DoserDevice, LightDevice, DeviceMetadata, LightMetadata, ConfigurationSummary } from "../../api/configurations";
-import type { StatusResponse, ScanDevice } from "../../types/models";
+import type { StatusResponse } from "../../types/models";
 
 // Global dashboard state
 let dashboardState: DashboardState = {
@@ -16,8 +16,6 @@ let dashboardState: DashboardState = {
   summary: null,
   deviceStatus: null,
   error: null,
-  scanResults: [],
-  isScanning: false,
   connectingDevices: new Set<string>(),
   connectionStability: {},
   isRefreshing: false,
@@ -49,13 +47,6 @@ export function setCurrentTab(tab: DashboardTab): void {
  */
 export function setError(error: string | null): void {
   dashboardState.error = error;
-}
-
-/**
- * Set scanning state
- */
-export function setScanning(scanning: boolean): void {
-  dashboardState.isScanning = scanning;
 }
 
 /**
@@ -98,29 +89,6 @@ export function setSummary(summary: ConfigurationSummary | null): void {
  */
 export function setDeviceStatus(status: StatusResponse | null): void {
   dashboardState.deviceStatus = status;
-}
-
-/**
- * Update scan results
- */
-export function setScanResults(results: ScanDevice[]): void {
-  dashboardState.scanResults = results;
-}
-
-/**
- * Add scan result
- */
-export function addScanResult(result: ScanDevice): void {
-  dashboardState.scanResults = [...dashboardState.scanResults, result];
-}
-
-/**
- * Clear scan results
- */
-export function clearScanResults(): void {
-  dashboardState.scanResults = [];
-  // Also clear connecting state when scan results are cleared
-  dashboardState.connectingDevices.clear();
 }
 
 /**

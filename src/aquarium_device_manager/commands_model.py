@@ -10,6 +10,7 @@ from typing import Any, Dict, Literal, Optional
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 from .commands.encoder import LightWeekday, PumpWeekday
+from .errors import ErrorCode
 
 # Command status types
 CommandStatus = Literal[
@@ -44,6 +45,7 @@ class CommandRecord:
     attempts: int = 0
     result: Optional[Dict[str, Any]] = None
     error: Optional[str] = None
+    error_code: Optional[ErrorCode] = None
     created_at: float = field(default_factory=time.time)
     started_at: Optional[float] = None
     completed_at: Optional[float] = None
@@ -60,6 +62,7 @@ class CommandRecord:
             "attempts": self.attempts,
             "result": self.result,
             "error": self.error,
+            "error_code": self.error_code.value if self.error_code else None,
             "created_at": self.created_at,
             "started_at": self.started_at,
             "completed_at": self.completed_at,
@@ -69,6 +72,9 @@ class CommandRecord:
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> CommandRecord:
         """Create from dictionary loaded from JSON."""
+        error_code_str = data.get("error_code")
+        error_code = ErrorCode(error_code_str) if error_code_str else None
+
         return cls(
             id=data.get("id", ""),
             address=data.get("address", ""),
@@ -78,6 +84,7 @@ class CommandRecord:
             attempts=data.get("attempts", 0),
             result=data.get("result"),
             error=data.get("error"),
+            error_code=error_code,
             created_at=data.get("created_at", 0.0),
             started_at=data.get("started_at"),
             completed_at=data.get("completed_at"),
@@ -96,16 +103,20 @@ class CommandRecord:
         self.result = result
         self.completed_at = time.time()
 
-    def mark_failed(self, error: str) -> None:
+    def mark_failed(
+        self, error: str, error_code: Optional[ErrorCode] = None
+    ) -> None:
         """Mark command as failed."""
         self.status = "failed"
         self.error = error
+        self.error_code = error_code
         self.completed_at = time.time()
 
     def mark_timeout(self) -> None:
         """Mark command as timed out."""
         self.status = "timed_out"
         self.error = "Command execution timed out"
+        self.error_code = ErrorCode.COMMAND_TIMEOUT
         self.completed_at = time.time()
 
     def is_complete(self) -> bool:
@@ -131,6 +142,28 @@ class LightBrightnessArgs(BaseModel):
         """
         if v < 0:
             raise ValueError(f"Color index must be non-negative, got {v}")
+        return v
+
+
+class LightMultiChannelBrightnessArgs(BaseModel):
+    """Arguments for set_manual_multi_channel_brightness command."""
+
+    channels: list[int] = Field(
+        ...,
+        min_length=1,
+        max_length=4,
+        description="List of brightness values (0-100) for each channel",
+    )
+
+    @field_validator("channels")
+    @classmethod
+    def validate_brightness_values(cls, v: list[int]) -> list[int]:
+        """Validate brightness values are within valid range."""
+        for i, brightness in enumerate(v):
+            if not (0 <= brightness <= 100):
+                raise ValueError(
+                    f"Channel {i} brightness must be 0-100, got {brightness}"
+                )
         return v
 
 
@@ -314,6 +347,8 @@ class LightAutoSettingArgs(BaseModel):
 # Command argument validation mapping
 COMMAND_ARG_SCHEMAS = {
     "set_brightness": LightBrightnessArgs,
+    "set_multi_channel_brightness": LightMultiChannelBrightnessArgs,
+    "set_manual_multi_channel_brightness": LightMultiChannelBrightnessArgs,  # compat
     "set_schedule": DoserScheduleArgs,
     "add_auto_setting": LightAutoSettingArgs,
     # Actions without arguments

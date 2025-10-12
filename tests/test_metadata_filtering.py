@@ -12,7 +12,7 @@ from aquarium_device_manager.light_storage import LightStorage
 def test_doser_storage_excludes_metadata_files():
     """Test that DoserStorage.list_devices() excludes .metadata.json files."""
     with tempfile.TemporaryDirectory() as temp_dir:
-        storage = DoserStorage(Path(temp_dir))
+        storage = DoserStorage(Path(temp_dir), {})
 
         # Create a regular device using the proper method
         device = create_default_doser_config("AA:BB:CC:DD:EE:FF", "Test Device")
@@ -38,7 +38,7 @@ def test_doser_storage_excludes_metadata_files():
 def test_light_storage_excludes_metadata_files():
     """Test that LightStorage.list_devices() excludes .metadata.json files."""
     with tempfile.TemporaryDirectory() as temp_dir:
-        storage = LightStorage(Path(temp_dir))
+        storage = LightStorage(Path(temp_dir), {})
 
         # Create a regular device file with proper structure
         device_data = {
@@ -46,7 +46,6 @@ def test_light_storage_excludes_metadata_files():
             "device_data": {
                 "id": "AA:BB:CC:DD:EE:FF",
                 "name": "Test Light",
-                "timezone": "UTC",
                 "channels": [
                     {
                         "key": "red",
@@ -99,18 +98,16 @@ def test_light_storage_excludes_metadata_files():
 def test_doser_storage_metadata_listing_works():
     """Test that metadata listing still works correctly."""
     with tempfile.TemporaryDirectory() as temp_dir:
-        storage = DoserStorage(Path(temp_dir))
-
-        # Create only a metadata file (no full device)
-        metadata_data = {
-            "id": "BB:CC:DD:EE:FF:AA",
-            "name": "Metadata Only Device",
-            "timezone": "UTC",
-            "headNames": {1: "Head 1"},  # Keys should be integers
-            "createdAt": "2023-01-01T00:00:00Z",
+        metadata_dict = {
+            "AA:BB:CC:DD:EE:FF": {
+                "id": "AA:BB:CC:DD:EE:FF",
+                "name": "Test Doser",
+                "timezone": "UTC",
+                "headNames": {1: "Head 1"},
+                "createdAt": "2023-01-01T00:00:00Z",
+            }
         }
-        metadata_file = Path(temp_dir) / "BB_CC_DD_EE_FF_AA.metadata.json"
-        metadata_file.write_text(json.dumps(metadata_data))
+        storage = DoserStorage(Path(temp_dir), metadata_dict)
 
         # List devices should be empty (metadata file excluded)
         devices = storage.list_devices()
@@ -119,5 +116,29 @@ def test_doser_storage_metadata_listing_works():
         # But list_device_metadata should include the metadata-only device
         metadata_list = storage.list_device_metadata()
         assert len(metadata_list) == 1
-        assert metadata_list[0].id == "BB:CC:DD:EE:FF:AA"
+        assert metadata_list[0].id == "AA:BB:CC:DD:EE:FF"
         assert metadata_list[0].headNames == {1: "Head 1"}
+
+
+def test_doser_storage_excludes_light_metadata_files():
+    """Test that DoserStorage.list_device_metadata().
+
+    returns doser metadata from dict.
+    """
+    with tempfile.TemporaryDirectory() as temp_dir:
+        metadata_dict = {
+            "AA:BB:CC:DD:EE:FF": {
+                "id": "AA:BB:CC:DD:EE:FF",
+                "name": "Test Doser",
+                "timezone": "UTC",
+                "headNames": {1: "Head 1"},
+                "createdAt": "2023-01-01T00:00:00Z",
+            }
+        }
+        storage = DoserStorage(Path(temp_dir), metadata_dict)
+
+        # list_device_metadata should return the doser metadata
+        metadata_list = storage.list_device_metadata()
+        assert len(metadata_list) == 1
+        assert metadata_list[0].id == "AA:BB:CC:DD:EE:FF"
+        assert metadata_list[0].name == "Test Doser"

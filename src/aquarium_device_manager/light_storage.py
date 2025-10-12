@@ -8,22 +8,18 @@ expects them.
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
 from pathlib import Path
-from typing import Iterable, Literal, Mapping, Sequence
+from typing import Dict, Iterable, Literal, Mapping
 from uuid import uuid4
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from .storage_utils import filter_device_json_files
+from .storage_utils import ensure_unique_values, filter_device_json_files
+from .time_utils import now_iso as _now_iso
 
 Weekday = Literal["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 InterpolationKind = Literal["step", "linear"]
 TimeString = Field(pattern=r"^\d{2}:\d{2}$")
-
-
-def _now_iso() -> str:
-    return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
 
 
 class LightMetadata(BaseModel):
@@ -31,7 +27,6 @@ class LightMetadata(BaseModel):
 
     id: str
     name: str | None = None
-    timezone: str = "UTC"
     autoReconnect: bool = False  # Auto-reconnect on service start
     createdAt: str | None = None
     updatedAt: str | None = None
@@ -42,19 +37,6 @@ class LightMetadata(BaseModel):
 def _time_to_minutes(value: str) -> int:
     hours, minutes = value.split(":", maxsplit=1)
     return int(hours) * 60 + int(minutes)
-
-
-def _ensure_unique(values: Sequence[str], what: str) -> None:
-    seen = set()
-    duplicates = set()
-    for value in values:
-        if value in seen:
-            duplicates.add(value)
-        else:
-            seen.add(value)
-    if duplicates:
-        plural = "s" if len(duplicates) > 1 else ""
-        raise ValueError(f"Duplicate {what}{plural}: {sorted(duplicates)}")
 
 
 class ChannelDef(BaseModel):
@@ -163,7 +145,7 @@ class AutoProgram(BaseModel):
             raise ValueError("Auto program id cannot be empty")
         if not self.days:
             raise ValueError("Auto program must include at least one day")
-        _ensure_unique(self.days, "day")
+        ensure_unique_values(self.days, "day")
         if _time_to_minutes(self.sunset) <= _time_to_minutes(self.sunrise):
             raise ValueError("Sunset must be after sunrise")
         if self.rampMinutes < 0:
@@ -257,7 +239,6 @@ class LightDevice(BaseModel):
 
     id: str
     name: str | None = None
-    timezone: str
     channels: list[ChannelDef]
     configurations: list[LightConfiguration]
     activeConfigurationId: str | None = None
@@ -273,7 +254,7 @@ class LightDevice(BaseModel):
             raise ValueError("Light device must define at least one channel")
 
         channel_keys = [channel.key for channel in self.channels]
-        _ensure_unique(channel_keys, "channel key")
+        ensure_unique_values(channel_keys, "channel key")
         channel_map = {channel.key: channel for channel in self.channels}
 
         if not self.configurations:
@@ -284,7 +265,7 @@ class LightDevice(BaseModel):
         configuration_ids = [
             configuration.id for configuration in self.configurations
         ]
-        _ensure_unique(configuration_ids, "configuration id")
+        ensure_unique_values(configuration_ids, "configuration id")
 
         for configuration in self.configurations:
             for revision in configuration.revisions:
@@ -323,7 +304,9 @@ class LightDeviceCollection(BaseModel):
     @model_validator(mode="after")
     def validate_unique_ids(self) -> "LightDeviceCollection":
         """Ensure all devices within a collection have unique ids."""
-        _ensure_unique([device.id for device in self.devices], "device id")
+        ensure_unique_values(
+            [device.id for device in self.devices], "device id"
+        )
         return self
 
 
@@ -380,7 +363,7 @@ class LightStorage:
     Utilises unified device storage.
     """
 
-    def __init__(self, storage_dir: Path | str):
+    def __init__(self, storage_dir: Path | str, metadata_dict: Dict[str, dict]):
         """Initialize storage with unified directory structure.
 
         Args:
@@ -388,6 +371,7 @@ class LightStorage:
         """
         self._storage_dir = Path(storage_dir)
         self._storage_dir.mkdir(parents=True, exist_ok=True)
+        self._metadata_dict = metadata_dict
 
     def _get_device_file(self, device_id: str) -> Path:
         """Get the file path for a specific device.
@@ -402,7 +386,7 @@ class LightStorage:
         return self._storage_dir / f"{safe_id}.json"
 
     def _read_device(self, device_id: str) -> LightDevice | None:
-        """Read a device configuration from its individual file."""
+        """Read a device configuration from its individual file (unified format)."""
         device_file = self._get_device_file(device_id)
         if not device_file.exists():
             return None
@@ -418,8 +402,17 @@ class LightStorage:
             if data.get("device_type") != "light":
                 return None
 
-            # Extract the device data (skip metadata)
-            device_data = data.get("device_data", data)
+            # Extract the device data (configuration)
+            device_data = data.get("device_data")
+
+            # If device_data is None, this is a newly discovered device without config
+            if device_data is None:
+                return None
+
+            # Load metadata into shared dict if present
+            if "metadata" in data and data["metadata"]:
+                self._metadata_dict[device_id] = data["metadata"]
+
             return LightDevice.model_validate(device_data)
         except (json.JSONDecodeError, ValueError) as exc:
             # Log error but don't crash
@@ -431,16 +424,39 @@ class LightStorage:
             return None
 
     def _write_device(self, device: LightDevice) -> None:
-        """Write a device configuration to its individual file."""
+        """Write a device configuration to its individual file (unified format).
+
+        Preserves existing last_status if present in the file.
+        """
         device_file = self._get_device_file(device.id)
 
-        # Wrap device data with metadata
+        # Read existing file to preserve last_status
+        existing_last_status = None
+        if device_file.exists():
+            try:
+                existing_data = json.loads(
+                    device_file.read_text(encoding="utf-8")
+                )
+                existing_last_status = existing_data.get("last_status")
+            except (json.JSONDecodeError, OSError):
+                # If we can't read the file, just proceed without last_status
+                pass
+
+        # Build unified device file
         data = {
             "device_type": "light",
             "device_id": device.id,
             "last_updated": _now_iso(),
             "device_data": device.model_dump(mode="json"),
         }
+
+        # Add metadata if present
+        if device.id in self._metadata_dict:
+            data["metadata"] = self._metadata_dict[device.id]
+
+        # Preserve last_status if it existed
+        if existing_last_status:
+            data["last_status"] = existing_last_status
 
         tmp_path = device_file.with_suffix(".tmp")
         tmp_path.write_text(
@@ -645,39 +661,20 @@ class LightStorage:
         # Update timestamp
         model.updatedAt = _now_iso()
 
-        metadata_file = self._get_metadata_file(model.id)
-        data = {
-            "device_type": "light",
-            "metadata": model.model_dump(mode="json"),
-        }
+        # Store in metadata dict
+        self._metadata_dict[model.id] = model.model_dump()
 
-        tmp_path = metadata_file.with_suffix(".tmp")
-        tmp_path.write_text(
-            json.dumps(data, indent=2, sort_keys=True), encoding="utf-8"
-        )
-        tmp_path.replace(metadata_file)
         return model
 
     def get_light_metadata(self, device_id: str) -> LightMetadata | None:
         """Get light metadata by device id."""
-        metadata_file = self._get_metadata_file(device_id)
-        if not metadata_file.exists():
+        metadata_raw = self._metadata_dict.get(device_id)
+        if metadata_raw is None:
             return None
 
         try:
-            raw = metadata_file.read_text(encoding="utf-8").strip()
-            if not raw:
-                return None
-
-            data = json.loads(raw)
-
-            # Validate device type for safety
-            if data.get("device_type") != "light":
-                return None
-
-            metadata_data = data.get("metadata", {})
-            return LightMetadata.model_validate(metadata_data)
-        except (json.JSONDecodeError, ValueError) as exc:
+            return LightMetadata.model_validate(metadata_raw)
+        except ValueError as exc:
             # Log error but don't crash
             import logging
 
@@ -689,14 +686,16 @@ class LightStorage:
     def list_light_metadata(self) -> list[LightMetadata]:
         """List all light metadata."""
         metadata_list = []
-        for metadata_file in self._storage_dir.glob("*.metadata.json"):
-            # Extract device_id from filename:
-            # "ABC_DEF_GHI.metadata.json" -> "ABC:DEF:GHI"
-            filename_stem = metadata_file.name.removesuffix(".metadata.json")
-            device_id = filename_stem.replace("_", ":")
-            metadata = self.get_light_metadata(device_id)
-            if metadata:
+        for device_id, metadata_raw in self._metadata_dict.items():
+            try:
+                metadata = LightMetadata.model_validate(metadata_raw)
                 metadata_list.append(metadata)
+            except ValueError as exc:
+                import logging
+
+                logging.getLogger(__name__).error(
+                    f"Could not parse light metadata {device_id}: {exc}"
+                )
         return metadata_list
 
 

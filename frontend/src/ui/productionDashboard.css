@@ -1689,3 +1689,250 @@ input:checked + .slider:before {
   padding-top: 20px;
   margin-top: 20px;
 }
+
+/* Auto Programs List Styles */
+.existing-programs-section {
+  margin-bottom: 24px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--gray-200);
+}
+
+.existing-programs-section h4 {
+  margin: 0 0 16px 0;
+  color: var(--gray-700);
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.no-programs {
+  color: var(--gray-500);
+  font-style: italic;
+  text-align: center;
+  padding: 20px;
+  background: var(--gray-50);
+  border-radius: var(--border-radius);
+  border: 1px dashed var(--gray-300);
+}
+
+.programs-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.program-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  background: white;
+  border: 1px solid var(--gray-200);
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow-sm);
+  transition: var(--transition);
+}
+
+.program-item:hover {
+  border-color: var(--gray-300);
+  box-shadow: var(--shadow);
+}
+
+.program-info {
+  flex: 1;
+}
+
+.program-title {
+  font-weight: 600;
+  color: var(--gray-800);
+  margin-bottom: 4px;
+}
+
+.program-details {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 8px;
+  font-size: 14px;
+  color: var(--gray-600);
+}
+
+.time-range {
+  font-weight: 500;
+  color: var(--primary);
+}
+
+.brightness-levels {
+  display: flex;
+  gap: 12px;
+  font-size: 12px;
+}
+
+.channel-level {
+  background: var(--gray-100);
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: var(--gray-700);
+  font-weight: 500;
+}
+
+.program-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-sm {
+  padding: 6px 12px;
+  font-size: 12px;
+  border-radius: 4px;
+}
+
+.form-section {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid var(--gray-200);
+}
+
+.form-section h4 {
+  margin: 0 0 16px 0;
+  color: var(--gray-700);
+  font-size: 16px;
+  font-weight: 600;
+}
+
+/* ========================================
+   Device Settings Modal Tabs & Controls
+   ======================================== */
+
+/* Modal Tabs */
+.modal-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 0 24px;
+  border-bottom: 1px solid var(--gray-200);
+  background: var(--gray-50);
+}
+
+.tab-button {
+  padding: 12px 20px;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--gray-600);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.tab-button:hover {
+  color: var(--gray-900);
+  background: var(--gray-100);
+}
+
+.tab-button.active {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+  background: white;
+}
+
+/* Settings Section */
+.settings-section {
+  padding: 24px;
+}
+
+.settings-section h3 {
+  margin: 0 0 8px 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--gray-900);
+}
+
+.settings-section > p {
+  margin: 0 0 24px 0;
+  color: var(--gray-600);
+  font-size: 14px;
+}
+
+.settings-section h4 {
+  margin: 24px 0 8px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--gray-800);
+}
+
+/* Channel Controls */
+.channel-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  margin: 20px 0;
+}
+
+.channel-slider {
+  display: grid;
+  grid-template-columns: 100px 1fr auto;
+  align-items: center;
+  gap: 16px;
+}
+
+.channel-slider label {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--gray-700);
+  margin: 0;
+}
+
+.slider {
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--gray-200);
+  outline: none;
+  transition: background 0.2s ease;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--primary);
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.slider::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--primary);
+  cursor: pointer;
+  border: none;
+  transition: background 0.2s ease;
+}
+
+.slider:hover::-webkit-slider-thumb {
+  background: var(--primary-hover);
+}
+
+.slider:hover::-moz-range-thumb {
+  background: var(--primary-hover);
+}
+
+.channel-value {
+  min-width: 50px;
+  text-align: right;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--gray-900);
+}
+
+/* Icon Button */
+.btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+}

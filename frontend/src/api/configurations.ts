@@ -19,7 +19,6 @@ export interface DoserHead {
 export interface DoserDevice {
   id: string;
   name?: string;
-  timezone: string;
   configurations: any[]; // Complex configuration structure
   activeConfigurationId?: string;
   createdAt?: string;
@@ -50,7 +49,6 @@ export interface LightProfile {
 export interface LightDevice {
   id: string;
   name?: string;
-  timezone: string;
   channels: LightChannel[];
   configurations: any[]; // Complex configuration structure
   activeConfigurationId?: string;
@@ -208,10 +206,6 @@ export function validateDoserConfig(config: DoserDevice): string[] {
     errors.push("Device ID is required");
   }
 
-  if (!config.timezone) {
-    errors.push("Timezone is required");
-  }
-
   if (!config.configurations || config.configurations.length === 0) {
     errors.push("At least one configuration must be present");
   }
@@ -227,10 +221,6 @@ export function validateLightProfile(config: LightDevice): string[] {
 
   if (!config.id) {
     errors.push("Device ID is required");
-  }
-
-  if (!config.timezone) {
-    errors.push("Timezone is required");
   }
 
   if (!config.channels || config.channels.length === 0) {
@@ -258,7 +248,6 @@ export interface SystemTimezone {
 export interface DeviceMetadata {
   id: string;
   name?: string;
-  timezone: string;
   headNames?: { [key: number]: string };
   autoReconnect?: boolean;
   createdAt?: string;
@@ -268,7 +257,6 @@ export interface DeviceMetadata {
 export interface LightMetadata {
   id: string;
   name?: string;
-  timezone: string;
   autoReconnect?: boolean;
   createdAt?: string;
   updatedAt?: string;

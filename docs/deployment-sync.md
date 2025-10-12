@@ -1,37 +1,40 @@
-# 🔄 Deployment Synchronization Strategy
+# Deployment Synchronization Strategy
 
 This document outlines how we keep all three deployment options (Home Assistant add-on, Docker container, and Python package) synchronized and up-to-date during development.
 
-## 🏗️ Shared Foundation
+## Shared Foundation
 
 ### Core Components (Always Synchronized)
+
 - **Backend Service**: `src/aquarium_device_manager/` - Same FastAPI service across all deployments
 - **Frontend Build**: `frontend/dist/` - Single TypeScript build shared by all
 - **Device Management**: BLE service and device classes are identical
 - **Configuration System**: Environment-aware config paths for different deployments
 
 ### Deployment-Specific Files
+
 ```
 .
-├── src/                          # ✅ Shared: Core Python service
-├── frontend/                     # ✅ Shared: TypeScript frontend
-├── docker/                       # 🐳 Docker-specific files
+├── src/                          # Shared: Core Python service
+├── frontend/                     # Shared: TypeScript frontend
+├── docker/                       # Docker-specific files
 │   ├── Dockerfile                #    Multi-stage build
 │   ├── docker-compose.yml        #    Complete stack
 │   └── README.md                 #    Docker setup guide
-├── hassio/                       # 🏠 Home Assistant add-on
+├── hassio/                       # Home Assistant add-on
 │   ├── config.yaml               #    HA add-on configuration
 │   ├── Dockerfile                #    HA-specific wrapper
 │   ├── run.sh                    #    HA startup script
 │   └── README.md                 #    HA add-on guide
-└── scripts/                      # 🔧 Development tools
+└── scripts/                      # Development tools
     ├── build-all.sh              #    Build all deployments
     └── dev-env.sh                #    Unified dev environment
 ```
 
-## 🔄 Synchronization Mechanisms
+## Synchronization Mechanisms
 
 ### 1. Automated CI/CD Pipeline
+
 **File**: `.github/workflows/build-deploy.yml`
 
 ```mermaid
@@ -47,11 +50,13 @@ graph LR
 
 **Process**:
 1. **Frontend Build**: Single build step creates `frontend/dist/`
+
 2. **Artifact Sharing**: Frontend artifacts shared across all deployment builds
 3. **Multi-Platform**: Each deployment builds for all supported architectures
 4. **Version Sync**: All deployments use same version tags from git
 
 ### 2. Shared Docker Base
+
 **Strategy**: Both Docker and HA add-on use the same base image
 
 ```dockerfile
@@ -70,6 +75,7 @@ COPY --from=aquarium-device-manager:latest /app /app
 ```
 
 ### 3. Environment-Aware Configuration
+
 **File**: `src/aquarium_device_manager/config_migration.py`
 
 ```python
@@ -84,6 +90,7 @@ def get_config_dir() -> Path:
 ```
 
 ### 4. Unified Development Environment
+
 **File**: `scripts/dev-env.sh`
 
 - **Single command** to set up development for all deployments
@@ -93,12 +100,14 @@ def get_config_dir() -> Path:
 ## 🧪 Development Workflow
 
 ### Daily Development
+
 1. **Edit core code** in `src/` or `frontend/`
 2. **Test locally** with `make dev` or `python -m src.aquarium_device_manager.service`
 3. **Test Docker** with `docker-compose -f docker/docker-compose.yml up`
 4. **Test HA add-on** by copying `hassio/` to HA development environment
 
 ### Release Process
+
 1. **Version bump** in `pyproject.toml`, `hassio/config.yaml`, and CI
 2. **Create git tag** (`v1.x.x`)
 3. **CI automatically builds and deploys**:
@@ -107,19 +116,22 @@ def get_config_dir() -> Path:
    - Python package to PyPI
 
 ### Validation Points
-- ✅ **Frontend**: Same `npm run build` output used by all
-- ✅ **Backend**: Same Python service with environment-aware paths
-- ✅ **Health Check**: `/api/health` endpoint works in all deployments
-- ✅ **Bluetooth**: Same BLE service with deployment-appropriate permissions
 
-## 🔧 Keeping Deployments Current
+- **Frontend**: Same `npm run build` output used by all
+- **Backend**: Same Python service with environment-aware paths
+- **Health Check**: `/api/health` endpoint works in all deployments
+- **Bluetooth**: Same BLE service with deployment-appropriate permissions
+
+## Keeping Deployments Current
 
 ### Automated Synchronization
+
 - **CI/CD Pipeline**: Builds all deployments on every commit/tag
 - **Shared Artifacts**: Frontend build shared across all Docker builds
 - **Version Tagging**: Git tags automatically propagate to all deployments
 
 ### Manual Synchronization Checks
+
 ```bash
 # Build and test all deployments locally
 ./scripts/build-all.sh
@@ -134,11 +146,12 @@ docker-compose -f docker/docker-compose.yml up       # Docker
 ```
 
 ### Configuration Drift Prevention
+
 - **Environment variables**: Documented in README with examples for each deployment
 - **Configuration schema**: HA add-on schema validates configuration options
 - **Health checks**: Consistent across all deployments for monitoring
 
-## 📋 Maintenance Checklist
+## Maintenance Checklist
 
 When adding new features:
 

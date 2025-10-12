@@ -26,13 +26,13 @@ def test_real_world_metadata_scenario():
         metadata_file.write_text(json.dumps(metadata_content))
 
         # Test that storage systems don't try to load the metadata file as a device
-        doser_storage = DoserStorage(storage_dir)
+        doser_storage = DoserStorage(storage_dir, {})
         doser_devices = doser_storage.list_devices()
         assert (
             len(doser_devices) == 0
         )  # No devices since metadata files are excluded
 
-        light_storage = LightStorage(storage_dir)
+        light_storage = LightStorage(storage_dir, {})
         light_devices = light_storage.list_devices()
         assert (
             len(light_devices) == 0

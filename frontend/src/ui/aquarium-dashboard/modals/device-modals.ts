@@ -1,69 +1,25 @@
 /**
- * Modal components for device configuration
+ * Modal components for device configuration - Visual rendering only
  */
 
 import type { DoserDevice, LightDevice } from "../../../types/models";
-import { getDashboardState } from "../state";
-import { renderModalConnectionStatus, getConnectionHealth, getConnectionMessage } from "../utils/connection-utils";
+import { executeCommand } from "../../../api/commands";
+import type { CommandRequest } from "../../../types/models";
 
 /**
- * Show the doser server configuration modal - for device and head names only
- */
-export function showDoserServerConfigModal(device: DoserDevice): void {
-  const modal = document.createElement('div');
-  modal.className = 'modal-overlay';
-  modal.innerHTML = `
-    <div class="modal-content" style="max-width: 600px;">
-      <div class="modal-header">
-        <h2>Configure Doser</h2>
-        <button class="modal-close" onclick="this.closest('.modal-overlay').remove();">×</button>
-      </div>
-      <div class="modal-body">
-        ${renderDoserServerConfigInterface(device)}
-      </div>
-    </div>
-  `;
-
-  document.body.appendChild(modal);
-
-  // Close on background click
-  modal.addEventListener('click', (e) => {
-    if (e.target === modal) {
-      modal.remove();
-    }
-  });
-}
-
-/**
- * Show the doser device settings modal - for commands and schedules
+ * Show the doser device settings modal - for commands and schedules (visual only)
  */
 export function showDoserDeviceSettingsModal(device: DoserDevice): void {
   const modal = document.createElement('div');
   modal.className = 'modal-overlay';
 
-  // Get current device status for connection info
-  const state = getDashboardState();
-  const deviceStatus = state.deviceStatus?.[device.id] || null;
-  const connectionStatus = renderModalConnectionStatus(deviceStatus, device.id);
-  const connectionHealth = getConnectionHealth(deviceStatus, device.id);
-  const connectionMessage = getConnectionMessage(connectionHealth, device.id);
-
   modal.innerHTML = `
     <div class="modal-content doser-config-modal" style="max-width: 1000px; max-height: 90vh; overflow-y: auto;" data-device-id="${device.id}">
-      <div class="modal-header" style="position: relative; display: flex; align-items: center; justify-content: space-between;">
+      <div class="modal-header">
         <h2>Doser Settings: ${device.name || device.id}</h2>
-        <div style="display: flex; align-items: center; gap: 12px;">
-          ${connectionStatus}
-          <button class="modal-close" onclick="this.closest('.modal-overlay').remove();">×</button>
-        </div>
+        <button class="modal-close" onclick="this.closest('.modal-overlay').remove();">×</button>
       </div>
       <div class="modal-body">
-        ${connectionMessage ? `
-          <div class="connection-warning">
-            <div class="connection-warning-icon">⚠️</div>
-            <div class="connection-warning-text">${connectionMessage}</div>
-          </div>
-        ` : ''}
         ${renderDoserDeviceSettingsInterface(device)}
       </div>
     </div>
@@ -71,33 +27,8 @@ export function showDoserDeviceSettingsModal(device: DoserDevice): void {
 
   document.body.appendChild(modal);
 
-  // Close on background click
-  modal.addEventListener('click', (e) => {
-    if (e.target === modal) {
-      modal.remove();
-    }
-  });
-}
-
-/**
- * Show the light configuration modal
- */
-export function showLightConfigurationModal(device: LightDevice): void {
-  const modal = document.createElement('div');
-  modal.className = 'modal-overlay';
-  modal.innerHTML = `
-    <div class="modal-content light-config-modal" style="max-width: 800px; max-height: 90vh; overflow-y: auto;">
-      <div class="modal-header">
-        <h2>Light Configuration: ${device.name || device.id}</h2>
-        <button class="modal-close" onclick="this.closest('.modal-overlay').remove();">×</button>
-      </div>
-      <div class="modal-body">
-        ${renderLightConfigurationForm(device)}
-      </div>
-    </div>
-  `;
-
-  document.body.appendChild(modal);
+  // Make selectDoseHead globally available for onclick handlers
+  (window as any).selectDoseHead = selectDoseHead;
 
   // Close on background click
   modal.addEventListener('click', (e) => {
@@ -108,35 +39,19 @@ export function showLightConfigurationModal(device: LightDevice): void {
 }
 
 /**
- * Show the light device settings modal - for commands and controls
+ * Show the light device settings modal - for commands and controls (visual only)
  */
 export function showLightDeviceSettingsModal(device: LightDevice): void {
   const modal = document.createElement('div');
   modal.className = 'modal-overlay';
 
-  // Get current device status for connection info
-  const state = getDashboardState();
-  const deviceStatus = state.deviceStatus?.[device.id] || null;
-  const connectionStatus = renderModalConnectionStatus(deviceStatus, device.id);
-  const connectionHealth = getConnectionHealth(deviceStatus, device.id);
-  const connectionMessage = getConnectionMessage(connectionHealth, device.id);
-
   modal.innerHTML = `
-    <div class="modal-content light-settings-modal" style="max-width: 900px; max-height: 90vh; overflow-y: auto;" data-device-id="${device.id}">
-      <div class="modal-header" style="position: relative; display: flex; align-items: center; justify-content: space-between;">
+    <div class="modal-content light-settings-modal" style="max-width: 900px; max-height: 90vh; overflow-y: auto;" data-device-id="${device.id}" data-address="${device.id}">
+      <div class="modal-header">
         <h2>Light Settings: ${device.name || device.id}</h2>
-        <div style="display: flex; align-items: center; gap: 12px;">
-          ${connectionStatus}
-          <button class="modal-close" onclick="this.closest('.modal-overlay').remove();">×</button>
-        </div>
+        <button class="modal-close" onclick="this.closest('.modal-overlay').remove();">×</button>
       </div>
       <div class="modal-body">
-        ${connectionMessage ? `
-          <div class="connection-warning">
-            <div class="connection-warning-icon">⚠️</div>
-            <div class="connection-warning-text">${connectionMessage}</div>
-          </div>
-        ` : ''}
         ${renderLightDeviceSettingsInterface(device)}
       </div>
     </div>
@@ -144,6 +59,12 @@ export function showLightDeviceSettingsModal(device: LightDevice): void {
 
   document.body.appendChild(modal);
 
+  // Store device object on modal element for tab switching
+  const modalContent = modal.querySelector('.modal-content') as any;
+  if (modalContent) {
+    modalContent._deviceData = device;
+  }
+
   // Close on background click
   modal.addEventListener('click', (e) => {
     if (e.target === modal) {
@@ -153,61 +74,7 @@ export function showLightDeviceSettingsModal(device: LightDevice): void {
 }
 
 /**
- * Render the doser server configuration interface
- */
-function renderDoserServerConfigInterface(device: DoserDevice): string {
-  return `
-    <div class="server-config-interface">
-      <!-- Device Name Section -->
-      <div class="config-section">
-        <h3>Device Information</h3>
-        <p class="section-description">Configure the display names for this device and its dosing heads. These settings are saved server-side only.</p>
-
-        <div class="form-group">
-          <label for="server-device-name">Device Name:</label>
-          <input type="text" id="server-device-name" value="${device.name || ''}"
-                 placeholder="Enter custom device name (e.g., 'Main Tank Doser')" class="form-input">
-        </div>
-
-        <div class="device-info">
-          <div class="detail-label">Device Address:</div>
-          <div class="detail-value">${device.id}</div>
-        </div>
-      </div>
-
-      <!-- Head Names Section -->
-      <div class="config-section">
-        <h3>Dosing Head Names</h3>
-        <p class="section-description">Give descriptive names to each dosing head for easier identification.</p>
-
-        <div class="head-names-grid">
-          ${[1, 2, 3, 4].map(headIndex => `
-            <div class="head-name-config">
-              <label for="head-${headIndex}-name">Head ${headIndex}:</label>
-              <input type="text" id="head-${headIndex}-name"
-                     value=""
-                     placeholder="e.g., Calcium, Alkalinity, Magnesium"
-                     class="form-input">
-            </div>
-          `).join('')}
-        </div>
-      </div>
-
-      <!-- Action Buttons -->
-      <div class="modal-actions">
-        <button class="btn btn-secondary" onclick="this.closest('.modal-overlay').remove();">
-          Cancel
-        </button>
-        <button class="btn btn-primary" onclick="window.saveDoserServerConfig('${device.id}')">
-          Save Configuration
-        </button>
-      </div>
-    </div>
-  `;
-}
-
-/**
- * Render the doser device settings interface
+ * Render the doser device settings interface (visual only)
  */
 function renderDoserDeviceSettingsInterface(device: DoserDevice): string {
   return `
@@ -215,7 +82,7 @@ function renderDoserDeviceSettingsInterface(device: DoserDevice): string {
       <!-- Head Selector Section -->
       <div class="config-section">
         <h3>Dosing Heads</h3>
-        <p class="section-description">Select a head to configure its schedule and settings. Click "Send Command" to apply changes to the device.</p>
+        <p class="section-description">Select a head to configure its schedule and settings.</p>
 
         <div class="heads-grid">
           ${renderHeadSelector(device)}
@@ -226,7 +93,6 @@ function renderDoserDeviceSettingsInterface(device: DoserDevice): string {
       <div class="config-section">
         <div id="command-interface">
           <div class="no-head-selected">
-            <div class="empty-state-icon">🎯</div>
             <h4>No Head Selected</h4>
             <p>Select a dosing head above to configure its schedule and settings.</p>
           </div>
@@ -244,7 +110,7 @@ function renderDoserDeviceSettingsInterface(device: DoserDevice): string {
 }
 
 /**
- * Render the 4-head visual selector
+ * Render the 4-head visual selector as individual cards
  */
 function renderHeadSelector(device: DoserDevice): string {
   // Ensure we have all 4 heads
@@ -264,117 +130,168 @@ function renderHeadSelector(device: DoserDevice): string {
     });
   }
 
-  return allHeads.map(head => {
-    const headDisplayName = head.label || `Head ${head.index}`;
-
-    return `
-      <div class="head-selector ${head.active ? 'active' : 'inactive'}"
-           onclick="window.selectHead(${head.index})"
-           data-head-index="${head.index}">
-        <div class="head-icon">
-          <div class="head-number">${head.index}</div>
-          <div class="head-status ${head.active ? 'active' : 'inactive'}"></div>
-        </div>
-        <div class="head-info">
-          <div class="head-label">${headDisplayName}</div>
-          <div class="head-summary">
-            ${head.active ?
-              `${head.schedule.dailyDoseMl || 0}ml ${head.schedule.mode === 'single' ? `at ${head.schedule.startTime || '00:00'}` : 'scheduled'}` :
-              'Disabled'
-            }
-          </div>
-        </div>
-      </div>
-    `;
-  }).join('');
+  return `
+    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px;">
+      ${allHeads.map(head => renderDoseHeadCard(head)).join('')}
+    </div>
+  `;
 }
 
 /**
- * Render the light configuration form
+ * Render a single dose head card
  */
-function renderLightConfigurationForm(device: LightDevice): string {
+function renderDoseHeadCard(head: any): string {
+  const headName = head.label || `Head ${head.index}`;
+  const statusText = head.active ? 'Active' : 'Disabled';
+  const statusColor = head.active ? 'var(--success)' : 'var(--gray-400)';
+  const modeText = getModeText(head.schedule?.mode);
+
   return `
-    <div class="light-config-form">
-      <div class="form-section">
-        <h3>Device Information</h3>
-        <div class="form-grid">
-          <div class="form-group">
-            <label>Device ID:</label>
-            <input type="text" value="${device.id}" readonly style="background: #f5f5f5;">
-          </div>
-          <div class="form-group">
-            <label>Name:</label>
-            <input type="text" id="light-device-name" value="${device.name || ''}" placeholder="Enter device name">
-          </div>
-          <div class="form-group">
-            <label>Timezone:</label>
-            <input type="text" id="light-timezone" value="${device.timezone || 'UTC'}" placeholder="e.g., America/New_York">
-          </div>
+    <div class="dose-head-card ${head.active ? 'active' : 'inactive'}" style="background: white; border: 1px solid var(--gray-200); border-radius: 8px; padding: 16px; cursor: pointer; transition: all 0.2s ease;" onclick="selectDoseHead(${head.index})">
+      <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 12px;">
+        <div>
+          <div style="font-size: 16px; font-weight: 600; color: var(--gray-900); margin-bottom: 4px;">${headName}</div>
+          <div style="font-size: 13px; color: var(--gray-500);">${modeText}</div>
+        </div>
+        <div style="text-align: right;">
+          <div style="font-size: 12px; color: ${statusColor}; font-weight: 600; padding: 4px 8px; background: ${statusColor}20; border-radius: 12px;">${statusText}</div>
         </div>
       </div>
 
-      <!-- Placeholder for channel configuration -->
-      <div class="form-section">
-        <h3>Channel Configuration</h3>
-        <div class="placeholder-content" style="padding: 40px; text-align: center; color: var(--gray-500);">
-          <div style="font-size: 48px; margin-bottom: 20px;">💡</div>
-          <p>Light channel configuration - Coming Soon</p>
-          <p>This section will contain channel setup, intensity controls, and scheduling.</p>
+      ${head.active ? `
+        <div style="margin-bottom: 12px;">
+          <div style="font-size: 13px; color: var(--gray-700); margin-bottom: 4px;">
+            ${head.schedule?.mode === 'single' ?
+              `Daily dose: ${head.schedule.dailyDoseMl || 0}ml at ${head.schedule.startTime || '00:00'}` :
+              head.schedule?.mode === 'every_hour' ?
+              `24H mode: ${head.schedule.dailyDoseMl || 0}ml total` :
+              `Custom schedule configured`
+            }
+          </div>
         </div>
-      </div>
+      ` : ''}
 
-      <!-- Action Buttons -->
-      <div class="modal-actions">
-        <button class="btn btn-secondary" onclick="this.closest('.modal-overlay').remove();">
-          Cancel
-        </button>
-        <button class="btn btn-primary" onclick="window.saveLightConfiguration('${device.id}')">
-          Save Configuration
-        </button>
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <div style="font-size: 12px; color: var(--gray-500);">
+          ${head.recurrence?.days?.length === 7 ? 'Daily' : `${head.recurrence?.days?.length || 0} days/week`}
+        </div>
+        <div style="font-size: 12px; color: var(--primary); font-weight: 500;">
+          Configure →
+        </div>
       </div>
     </div>
   `;
 }
 
 /**
- * Render the light device settings interface
+ * Get mode text for display
+ */
+function getModeText(mode?: string): string {
+  switch (mode) {
+    case 'single': return 'Daily Dose';
+    case 'every_hour': return '24 Hour';
+    case 'custom_periods': return 'Custom Periods';
+    case 'timer': return 'Timer';
+    default: return 'Disabled';
+  }
+}
+
+/**
+ * Handle dose head selection
+ */
+function selectDoseHead(headIndex: number): void {
+  // Find the modal and update the command interface
+  const modal = document.querySelector('.doser-config-modal') as HTMLElement;
+  if (!modal) return;
+
+  const commandInterface = modal.querySelector('#command-interface') as HTMLElement;
+  if (!commandInterface) return;
+
+  // Get the device data from the modal
+  const deviceId = modal.getAttribute('data-device-id');
+  if (!deviceId) return;
+
+  // For now, create a mock head object - in a real implementation this would come from the device data
+  const mockHead = {
+    index: headIndex,
+    label: `Head ${headIndex}`,
+    active: true,
+    schedule: { mode: 'single' as const, dailyDoseMl: 10.0, startTime: '09:00' },
+    recurrence: { days: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] },
+    missedDoseCompensation: false,
+    calibration: { mlPerSecond: 1.0, lastCalibratedAt: new Date().toISOString() }
+  };
+
+  // Update the command interface
+  commandInterface.innerHTML = renderHeadCommandInterface(headIndex, mockHead, deviceId);
+
+  // Update card selection states
+  const cards = modal.querySelectorAll('.dose-head-card');
+  cards.forEach((card, index) => {
+    if (index === headIndex - 1) {
+      card.classList.add('selected');
+    } else {
+      card.classList.remove('selected');
+    }
+  });
+}
+
+/**
+ * Render the light device settings interface with tabs for Manual/Auto modes
  */
 function renderLightDeviceSettingsInterface(device: LightDevice): string {
   return `
     <div class="light-config-interface">
-      <!-- Basic Controls (no heading) -->
-      <div class="basic-controls-grid">
-        <button class="btn btn-success" onclick="window.handleTurnLightOn('${device.id}')">
-          <span>💡</span> Turn On
+      <!-- Tab Navigation -->
+      <div class="modal-tabs">
+        <button class="tab-button active" onclick="switchLightSettingsTab('manual')">
+          Manual Mode
         </button>
-        <button class="btn btn-danger" onclick="window.handleTurnLightOff('${device.id}')">
-          <span>🌙</span> Turn Off
+        <button class="tab-button" onclick="switchLightSettingsTab('auto')">
+          Auto Mode
         </button>
       </div>
 
-      <!-- Mode Selector Section (using doser head pattern) -->
-      <div class="config-section">
-        <h3>Control Modes</h3>
-        <p class="section-description">Select a mode to switch the device and configure its settings.</p>
-
-        <div class="heads-grid">
-          ${renderLightModeSelector(device)}
-        </div>
+      <!-- Tab Content -->
+      <div id="light-settings-tab-content">
+        ${renderLightManualModeTab(device)}
       </div>
+    </div>
+  `;
+}
 
-      <!-- Command Interface Section (using doser pattern) -->
-      <div class="config-section">
-        <div id="light-command-interface">
-          <div class="no-head-selected">
-            <div class="empty-state-icon">⚙️</div>
-            <h4>No Mode Selected</h4>
-            <p>Select a control mode above to configure its settings.</p>
+/**
+ * Render Manual Mode tab content
+ */
+function renderLightManualModeTab(device: LightDevice): string {
+  // TODO: Get channel names dynamically from device model
+  const defaultChannels = ['Red', 'Green', 'Blue', 'White'];
+
+  return `
+    <div class="settings-section">
+      <h3>Manual Brightness Control</h3>
+      <p>Set individual channel brightness levels (device will switch to manual mode)</p>
+
+      <div class="channel-controls">
+        ${defaultChannels.map((channelName, index) => `
+          <div class="form-group">
+            <label for="manual-channel-${index}">${channelName}</label>
+            <input
+              type="number"
+              id="manual-channel-${index}"
+              min="0"
+              max="100"
+              value="50"
+              class="form-control"
+            />
           </div>
-        </div>
+        `).join('')}
       </div>
 
-      <!-- Action Buttons -->
-      <div class="modal-actions">
+      <div class="form-actions">
+        <button class="btn btn-primary" onclick="sendLightManualModeCommand('${device.id}')">
+          Send Command
+        </button>
         <button class="btn btn-secondary" onclick="this.closest('.modal-overlay').remove();">
           Close
         </button>
@@ -384,154 +301,102 @@ function renderLightDeviceSettingsInterface(device: LightDevice): string {
 }
 
 /**
- * Render the light mode selector (based on doser head selector but with Manual/Auto modes)
+ * Render Auto Mode tab content
  */
-function renderLightModeSelector(device: LightDevice): string {
-  const modes = [
-    {
-      index: 1,
-      label: 'Manual Control',
-      icon: '🎛️',
-      description: 'Switch to manual & set brightness',
-      active: device.profile?.mode === 'manual'
-    },
-    {
-      index: 2,
-      label: 'Auto Mode',
-      icon: '🕐',
-      description: 'Switch to auto & configure schedule',
-      active: device.profile?.mode === 'auto'
-    }
-  ];
+function renderLightAutoModeTab(device: LightDevice): string {
+  // TODO: Get channel names dynamically from device model
+  const defaultChannels = ['Red', 'Green', 'Blue', 'White'];
 
-  return modes.map(mode => {
-    return `
-      <div class="head-selector ${mode.active ? 'active' : 'inactive'}"
-           onclick="window.selectLightMode(${mode.index})"
-           data-head-index="${mode.index}">
-        <div class="head-icon">
-          <div class="head-number">${mode.icon}</div>
-          <div class="head-status ${mode.active ? 'active' : 'inactive'}"></div>
-        </div>
-        <div class="head-info">
-          <div class="head-label">${mode.label}</div>
-          <div class="head-summary">
-            ${mode.description}
-          </div>
+  return `
+    <div class="settings-section">
+      <h3>Auto Mode Schedule</h3>
+      <p>Configure sunrise/sunset times and brightness levels (device will switch to auto mode)</p>
+
+      <div class="form-group">
+        <label for="sunrise-time">Sunrise Time (24h)</label>
+        <input
+          type="time"
+          id="sunrise-time"
+          class="form-control"
+          value="08:00"
+        />
+      </div>
+
+      <div class="form-group">
+        <label for="sunset-time">Sunset Time (24h)</label>
+        <input
+          type="time"
+          id="sunset-time"
+          class="form-control"
+          value="20:00"
+        />
+      </div>
+
+      <div class="form-group">
+        <label for="ramp-time">Ramp Time (minutes)</label>
+        <input
+          type="number"
+          id="ramp-time"
+          class="form-control"
+          value="60"
+          min="1"
+          max="300"
+        />
+        <small class="form-text">Time to transition from 0% to 100% brightness</small>
+      </div>
+
+      <div class="form-group">
+        <label>Active Days:</label>
+        <div class="weekday-selector">
+          ${['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => `
+            <label class="weekday-option">
+              <input type="checkbox" value="${day}" checked id="weekday-auto-${day}">
+              <span class="weekday-label">${day}</span>
+            </label>
+          `).join('')}
         </div>
       </div>
-    `;
-  }).join('');
-}
 
-/**
- * Render light mode interface content (based on doser head command interface)
- */
-export function renderLightModeInterface(modeIndex: number, device: LightDevice): string {
-  if (modeIndex === 1) {
-    // Manual Control
-    return `
-      <h3>Manual Brightness Control</h3>
-      <p class="section-description">Set individual channel brightness levels manually.</p>
-
-      <form id="manual-brightness-form" onsubmit="window.handleManualBrightness(event, '${device.id}')">
-        <div class="brightness-controls">
-          ${renderChannelBrightnessInputs(device)}
-        </div>
-        <div class="form-actions">
-          <button type="submit" class="btn btn-primary">Set Brightness</button>
-        </div>
-      </form>
-    `;
-  } else if (modeIndex === 2) {
-    // Auto Mode
-    return `
-      <h3>Auto Program Scheduler</h3>
-      <p class="section-description">Create and send auto programs that run on the device's internal timer.</p>
-
-      <form id="light-config-form" onsubmit="window.handleAddAutoProgram(event, '${device.id}')">
-        <div class="form-grid">
+      <h4>Peak Brightness Levels</h4>
+      <div class="channel-controls">
+        ${defaultChannels.map((channelName, index) => `
           <div class="form-group">
-            <label for="light-label">Program Label:</label>
-            <input type="text" id="light-label" placeholder="e.g., Daily Cycle" class="form-input">
+            <label for="auto-channel-${index}">${channelName}</label>
+            <input
+              type="number"
+              id="auto-channel-${index}"
+              min="0"
+              max="100"
+              value="50"
+              class="form-control"
+            />
           </div>
-        </div>
+        `).join('')}
+      </div>
 
-        <div class="form-grid">
-          <div class="form-group">
-            <label for="sunrise-time">Sunrise Time:</label>
-            <input type="time" id="sunrise-time" name="sunrise-time" value="08:00" class="form-input">
-          </div>
-          <div class="form-group">
-            <label for="sunset-time">Sunset Time:</label>
-            <input type="time" id="sunset-time" name="sunset-time" value="20:00" class="form-input">
-          </div>
-          <div class="form-group">
-            <label for="ramp-minutes">Ramp Time (minutes):</label>
-            <input type="number" id="ramp-minutes" name="ramp-minutes" value="30" min="0" max="150" class="form-input">
-          </div>
-        </div>
+      <div class="form-group">
+        <button class="btn btn-warning" onclick="sendLightResetAutoModeCommand('${device.id}')">
+          Reset Auto Mode Settings
+        </button>
+        <small class="form-text">This will reset all auto mode settings to factory defaults</small>
+      </div>
 
-        <div class="form-group">
-          <label>Peak Brightness (%):</label>
-          <div class="brightness-inputs">
-            ${renderChannelBrightnessInputs(device)}
-          </div>
-        </div>
-
-        <div class="form-group">
-          <label>Active Days:</label>
-          <div class="weekday-selector">
-            ${['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => `
-              <label class="weekday-option">
-                <input type="checkbox" value="${day}" checked>
-                <span class="weekday-label">${day}</span>
-              </label>
-            `).join('')}
-          </div>
-        </div>
-
-        <div class="form-actions">
-          <button type="submit" class="btn btn-primary">Add Program</button>
-        </div>
-      </form>
-    `;
-  }
-
-  return '<p>Select a mode to configure its settings.</p>';
-}
-
-/**
- * Render channel brightness inputs for manual control
- */
-function renderChannelBrightnessInputs(device: LightDevice): string {
-  // If no channels defined, provide default RGBW channels
-  const channels = device.channels && device.channels.length > 0 ? device.channels : [
-    { key: 'R', label: 'Red', min: 0, max: 100, step: 1 },
-    { key: 'G', label: 'Green', min: 0, max: 100, step: 1 },
-    { key: 'B', label: 'Blue', min: 0, max: 100, step: 1 },
-    { key: 'W', label: 'White', min: 0, max: 100, step: 1 }
-  ];
-
-  return channels.map((channel, index) => `
-    <div class="channel-input">
-      <label for="channel-${channel.key}">${channel.label || channel.key}:</label>
-      <input type="number" id="channel-${channel.key}"
-             name="channel-${channel.key}"
-             min="${channel.min || 0}"
-             max="${channel.max || 100}"
-             step="${channel.step || 1}"
-             value="0"
-             class="form-input">
-      <span class="unit">%</span>
+      <div class="form-actions">
+        <button class="btn btn-primary" onclick="sendLightAutoModeCommand('${device.id}')">
+          Send Command
+        </button>
+        <button class="btn btn-secondary" onclick="this.closest('.modal-overlay').remove();">
+          Close
+        </button>
+      </div>
     </div>
-  `).join('');
+  `;
 }
 
 /**
- * Render the command interface for a selected head
+ * Render the command interface for a selected head (visual only)
  */
-function renderHeadCommandInterface(headIndex: number, head: any): string {
+export function renderHeadCommandInterface(headIndex: number, head: any, deviceId: string): string {
   const schedule = head.schedule || { mode: 'single', dailyDoseMl: 10.0, startTime: '09:00' };
   const recurrence = head.recurrence || { days: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] };
 
@@ -550,7 +415,7 @@ function renderHeadCommandInterface(headIndex: number, head: any): string {
 
         <div class="form-group">
           <label for="schedule-mode-${headIndex}">Mode:</label>
-          <select id="schedule-mode-${headIndex}" class="form-select" onchange="window.updateScheduleModeUI(${headIndex}, this.value)">
+          <select id="schedule-mode-${headIndex}" class="form-select">
             <option value="disabled" ${!head.active ? 'selected' : ''}>Disabled</option>
             <option value="single" ${schedule.mode === 'single' ? 'selected' : ''}>Daily - Single dose at set time</option>
             <option value="every_hour" ${schedule.mode === 'every_hour' ? 'selected' : ''}>24 Hour - Hourly dosing</option>
@@ -580,7 +445,7 @@ function renderHeadCommandInterface(headIndex: number, head: any): string {
 
       <!-- Command Actions -->
       <div class="command-actions">
-        <button class="btn btn-success btn-large" onclick="window.sendHeadCommandToDevice(${headIndex})">
+        <button class="btn btn-success btn-large" onclick="sendDoserScheduleCommand('${deviceId}', ${headIndex})">
           Send Command
         </button>
       </div>
@@ -589,7 +454,7 @@ function renderHeadCommandInterface(headIndex: number, head: any): string {
 }
 
 /**
- * Render schedule details based on mode
+ * Render schedule details based on mode (visual only)
  */
 function renderScheduleDetails(headIndex: number, schedule: any): string {
   switch (schedule.mode) {
@@ -647,4 +512,303 @@ function renderScheduleDetails(headIndex: number, schedule: any): string {
   }
 }
 
-export { renderHeadCommandInterface };
+/**
+ * Switch between Manual and Auto mode tabs for light settings
+ */
+function switchLightSettingsTab(mode: 'manual' | 'auto'): void {
+  console.log('switchLightSettingsTab called with mode:', mode);
+
+  const tabs = document.querySelectorAll('.modal-tabs .tab-button');
+  const contentContainer = document.getElementById('light-settings-tab-content');
+
+  if (!contentContainer) {
+    console.error('Content container not found');
+    return;
+  }
+
+  // Update tab button active states
+  tabs.forEach(tab => {
+    tab.classList.remove('active');
+  });
+
+  const activeTab = Array.from(tabs).find(tab =>
+    tab.textContent?.toLowerCase().includes(mode)
+  );
+  if (activeTab) {
+    activeTab.classList.add('active');
+  }
+
+  // Get device data from modal element (stored when modal was created)
+  const modal = document.querySelector('.modal-content.light-settings-modal') as any;
+  if (!modal) {
+    console.error('Modal element not found');
+    return;
+  }
+
+  const device = modal._deviceData;
+  if (!device) {
+    console.error('Device data not found on modal element');
+    return;
+  }
+
+  console.log('Rendering tab for mode:', mode);
+
+  // Render appropriate tab content
+  contentContainer.innerHTML = mode === 'manual'
+    ? renderLightManualModeTab(device)
+    : renderLightAutoModeTab(device);
+
+  console.log('Tab content updated');
+}
+
+/**
+ * Send manual mode command to light device
+ */
+async function sendLightManualModeCommand(address: string): Promise<void> {
+  try {
+    // Get channel values from number inputs
+    const channelElements = document.querySelectorAll<HTMLInputElement>('[id^="manual-channel-"]');
+    const channelValues = Array.from(channelElements).map(el => parseInt(el.value, 10));
+
+    console.log('Sending manual mode command:', { address, channelValues });
+
+    // Validate channel values
+    if (channelValues.some(v => isNaN(v) || v < 0 || v > 100)) {
+      alert('Please enter valid brightness values (0-100) for all channels');
+      return;
+    }
+
+    // Send command to set multi-channel brightness (switches to manual mode)
+    const request: CommandRequest = {
+      action: 'set_multi_channel_brightness',
+      args: {
+        channels: channelValues
+      },
+      timeout: 15.0
+    };
+
+    const result = await executeCommand(address, request);
+
+    if (result.status === 'success') {
+      alert('Manual brightness set successfully! Device switched to manual mode.');
+      // Close the modal
+      document.querySelector('.modal-overlay')?.remove();
+    } else if (result.status === 'failed') {
+      alert(`Command failed: ${result.error || 'Unknown error'}`);
+    } else {
+      alert(`Command status: ${result.status}`);
+    }
+
+  } catch (error) {
+    console.error('Failed to send manual mode command:', error);
+    alert(`Failed to send command: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
+/**
+ * Send auto mode command to light device
+ */
+async function sendLightAutoModeCommand(address: string): Promise<void> {
+  try {
+    const sunriseTime = (document.getElementById('sunrise-time') as HTMLInputElement)?.value;
+    const sunsetTime = (document.getElementById('sunset-time') as HTMLInputElement)?.value;
+    const rampTime = parseInt((document.getElementById('ramp-time') as HTMLInputElement)?.value || '60', 10);
+
+    // Get channel values from number inputs
+    const channelElements = document.querySelectorAll<HTMLInputElement>('[id^="auto-channel-"]');
+    const channelValues = Array.from(channelElements).map(el => parseInt(el.value, 10));
+
+    // Get active days from checkboxes
+    const dayCheckboxes = document.querySelectorAll<HTMLInputElement>('[id^="weekday-auto-"]');
+    const activeDays = Array.from(dayCheckboxes)
+      .filter(cb => cb.checked)
+      .map(cb => cb.value);
+
+    console.log('Sending auto mode command:', {
+      address,
+      sunriseTime,
+      sunsetTime,
+      rampTime,
+      channelValues,
+      activeDays
+    });
+
+    // Validation
+    if (!sunriseTime || !sunsetTime) {
+      alert('Please enter both sunrise and sunset times');
+      return;
+    }
+
+    if (channelValues.some(v => isNaN(v) || v < 0 || v > 100)) {
+      alert('Please enter valid brightness values (0-100) for all channels');
+      return;
+    }
+
+    if (activeDays.length === 0) {
+      alert('Please select at least one active day');
+      return;
+    }
+
+    // Map frontend day names to backend LightWeekday enum values
+    const dayMapping: { [key: string]: string } = {
+      'Mon': 'monday',
+      'Tue': 'tuesday',
+      'Wed': 'wednesday',
+      'Thu': 'thursday',
+      'Fri': 'friday',
+      'Sat': 'saturday',
+      'Sun': 'sunday'
+    };
+
+    const mappedDays = activeDays.map(day => dayMapping[day]).filter(Boolean);
+
+    // Build channel brightness dict (assuming Red, Green, Blue, White order)
+    const channelNames = ['red', 'green', 'blue', 'white'];
+    const channels: { [key: string]: number } = {};
+    channelNames.forEach((name, index) => {
+      if (index < channelValues.length) {
+        channels[name] = channelValues[index];
+      }
+    });
+
+    // Send command to add auto setting
+    const request: CommandRequest = {
+      action: 'add_auto_setting',
+      args: {
+        sunrise: sunriseTime,
+        sunset: sunsetTime,
+        channels: channels,
+        ramp_up_minutes: rampTime,
+        weekdays: mappedDays
+      },
+      timeout: 20.0
+    };
+
+    const result = await executeCommand(address, request);
+
+    if (result.status === 'success') {
+      alert('Auto mode schedule set successfully! Device configured for auto mode.');
+      // Close the modal
+      document.querySelector('.modal-overlay')?.remove();
+    } else if (result.status === 'failed') {
+      alert(`Command failed: ${result.error || 'Unknown error'}`);
+    } else {
+      alert(`Command status: ${result.status}`);
+    }
+
+  } catch (error) {
+    console.error('Failed to send auto mode command:', error);
+    alert(`Failed to send command: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
+/**
+ * Send reset auto mode command to light device
+ */
+async function sendLightResetAutoModeCommand(address: string): Promise<void> {
+  try {
+    const confirmed = confirm('Are you sure you want to reset all auto mode settings to factory defaults? This cannot be undone.');
+    if (!confirmed) return;
+
+    console.log('Sending reset auto mode command:', { address });
+
+    const result = await executeCommand(address, {
+      action: 'reset_auto_settings',
+      args: {}
+    });
+
+    console.log('Reset command result:', result);
+
+    if (result.status === 'success') {
+      alert('Auto mode settings reset successfully');
+      // Close modal
+      document.querySelector('.modal-overlay')?.remove();
+    } else {
+      alert(`Reset failed: ${result.error || 'Unknown error'}`);
+    }
+  } catch (error) {
+    console.error('Failed to send reset command:', error);
+    alert('Failed to reset auto mode settings. Check console for details.');
+  }
+}
+
+/**
+ * Send doser schedule command to device
+ */
+async function sendDoserScheduleCommand(address: string, headIndex: number): Promise<void> {
+  try {
+    console.log('Sending doser schedule command:', { address, headIndex });
+
+    // Get form values
+    const doseAmountInput = document.getElementById(`dose-amount-${headIndex}`) as HTMLInputElement;
+    const doseTimeInput = document.getElementById(`dose-time-${headIndex}`) as HTMLInputElement;
+
+    if (!doseAmountInput || !doseTimeInput) {
+      alert('Form inputs not found. Please refresh the page and try again.');
+      return;
+    }
+
+    const doseAmount = parseFloat(doseAmountInput.value);
+    const doseTime = doseTimeInput.value;
+
+    if (isNaN(doseAmount) || doseAmount <= 0) {
+      alert('Please enter a valid dose amount greater than 0.');
+      return;
+    }
+
+    if (!doseTime) {
+      alert('Please select a dose time.');
+      return;
+    }
+
+    // Parse time
+    const [hourStr, minuteStr] = doseTime.split(':');
+    const hour = parseInt(hourStr, 10);
+    const minute = parseInt(minuteStr, 10);
+
+    // Get selected weekdays
+    const weekdayCheckboxes = document.querySelectorAll(`input[id^="weekday-${headIndex}-"]:checked`);
+    const weekdays = Array.from(weekdayCheckboxes).map(cb => (cb as HTMLInputElement).value);
+
+    // Convert dose amount to tenths of ml (backend expects integer)
+    const volumeTenthsMl = Math.round(doseAmount * 10);
+
+    const args = {
+      head_index: headIndex - 1, // Backend uses 0-based indexing
+      volume_tenths_ml: volumeTenthsMl,
+      hour,
+      minute,
+      weekdays: weekdays.length > 0 ? weekdays : undefined
+    };
+
+    console.log('Command args:', args);
+
+    const result = await executeCommand(address, {
+      action: 'set_schedule',
+      args
+    });
+
+    console.log('Doser schedule command result:', result);
+
+    if (result.status === 'success') {
+      alert(`Schedule set successfully for Head ${headIndex}!`);
+      // Close modal
+      document.querySelector('.modal-overlay')?.remove();
+    } else {
+      alert(`Schedule command failed: ${result.error || 'Unknown error'}`);
+    }
+  } catch (error) {
+    console.error('Failed to send doser schedule command:', error);
+    alert('Failed to set schedule. Check console for details.');
+  }
+}
+
+// Attach global functions for UI interactions
+(window as any).selectDoseHead = selectDoseHead;
+(window as any).switchLightSettingsTab = switchLightSettingsTab;
+(window as any).sendLightManualModeCommand = sendLightManualModeCommand;
+(window as any).sendLightAutoModeCommand = sendLightAutoModeCommand;
+(window as any).sendLightResetAutoModeCommand = sendLightResetAutoModeCommand;
+(window as any).sendDoserScheduleCommand = sendDoserScheduleCommand;
+(window as any).showDoserDeviceSettingsModal = showDoserDeviceSettingsModal;
+(window as any).showLightDeviceSettingsModal = showLightDeviceSettingsModal;

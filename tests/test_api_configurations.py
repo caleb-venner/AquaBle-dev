@@ -28,12 +28,22 @@ def temp_config_dir(monkeypatch):
     from aquarium_device_manager import ble_service
 
     monkeypatch.setattr(ble_service, "CONFIG_DIR", temp_dir)
+    monkeypatch.setattr(ble_service, "DEVICE_CONFIG_PATH", temp_dir / "devices")
+    monkeypatch.setattr(ble_service, "DOSER_CONFIG_PATH", temp_dir / "devices")
+    monkeypatch.setattr(ble_service, "LIGHT_PROFILE_PATH", temp_dir / "devices")
+
+    # Patch the global service instance
+    from aquarium_device_manager.doser_storage import DoserStorage
+    from aquarium_device_manager.light_storage import LightStorage
+    from aquarium_device_manager.service import service
+
     monkeypatch.setattr(
-        ble_service, "DOSER_CONFIG_PATH", temp_dir / "doser_configs.json"
+        service, "_doser_storage", DoserStorage(temp_dir / "devices", {})
     )
     monkeypatch.setattr(
-        ble_service, "LIGHT_PROFILE_PATH", temp_dir / "light_profiles.json"
+        service, "_light_storage", LightStorage(temp_dir / "devices", {})
     )
+    monkeypatch.setattr(service, "_device_metadata", {})
 
     # Also patch the paths in the API routes module
     from aquarium_device_manager.api import routes_configurations
@@ -41,12 +51,12 @@ def temp_config_dir(monkeypatch):
     monkeypatch.setattr(
         routes_configurations,
         "DOSER_CONFIG_PATH",
-        temp_dir / "doser_configs.json",
+        temp_dir / "devices",
     )
     monkeypatch.setattr(
         routes_configurations,
         "DEVICE_CONFIG_PATH",
-        temp_dir / "light_profiles.json",
+        temp_dir / "devices",
     )
 
     yield temp_dir

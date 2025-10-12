@@ -8,22 +8,12 @@ export {
   executeCommand,
   getCommandHistory,
   getCommand,
-  sendManualBrightnessCommands,
-  turnLightOn,
-  turnLightOff,
-  enableAutoMode,
-  setManualMode,
-  resetAutoSettings,
-  addAutoSetting,
 } from "./commands";
 
 // Device management
 export {
   getDeviceStatus,
   getLiveStatus,
-  scanDevices,
-  connectDevice,
-  disconnectDevice,
   refreshDeviceStatus
 } from "./devices";
 

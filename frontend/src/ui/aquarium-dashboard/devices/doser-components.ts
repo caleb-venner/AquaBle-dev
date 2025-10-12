@@ -3,7 +3,7 @@
  */
 
 import { getDashboardState } from "../state";
-import { formatDateTime, getWeekdayName } from "../utils/rendering-utils";
+import { formatDateTime, getWeekdayName } from "../../../utils";
 import { getDoserHeadName, getHeadLifetimeTotal, getHeadConfigData } from "../utils/device-utils";
 import type { CachedStatus } from "../../../types/models";
 

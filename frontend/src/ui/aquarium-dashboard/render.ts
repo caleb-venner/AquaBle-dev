@@ -4,7 +4,6 @@
 
 import { getDashboardState } from "./state";
 import { renderOverviewTab } from "./tabs/overview-tab";
-import { renderDevicesTab } from "./tabs/devices-tab";
 import { renderDevTab } from "./tabs/dev-tab";
 
 /**
@@ -34,15 +33,15 @@ function renderHeader(): string {
         <div class="header-left">
           <div class="header-title">
             <h1>Aquarium BLE Device Manager</h1>
-            <p class="header-subtitle">Production Dashboard - Device Status & Configuration Management</p>
+            <p class="header-subtitle">Production Dashboard - Device Status Monitoring (Read-Only)</p>
           </div>
         </div>
         <div class="header-actions">
+          <button class="btn btn-primary" onclick="window.handleScanDevices()">
+            Scan & Connect
+          </button>
           <button class="btn btn-secondary" onclick="window.handleRefreshAll()" ${state.isRefreshing ? 'disabled' : ''}>
             ${state.isRefreshing ? '<span class="scan-spinner"></span> Refreshing...' : 'Refresh All'}
-          </button>
-          <button class="btn btn-primary" onclick="window.handleScanDevices()" ${state.isScanning ? 'disabled' : ''}>
-            ${state.isScanning ? '<span class="scan-spinner"></span> Scanning...' : '<span>📡</span> Scan Devices'}
           </button>
         </div>
       </div>
@@ -55,7 +54,6 @@ function renderHeader(): string {
  */
 function renderNavigation(): string {
   const state = getDashboardState();
-  const connectedDevices = state.deviceStatus ? Object.keys(state.deviceStatus).length : 0;
 
   return `
     <nav class="prod-nav">
@@ -65,13 +63,6 @@ function renderNavigation(): string {
           onclick="window.switchTab('overview')"
         >
           Overview
-        </button>
-        <button
-          class="nav-tab ${state.currentTab === "devices" ? "active" : ""}"
-          onclick="window.switchTab('devices')"
-        >
-          Devices
-          <span class="nav-badge">${connectedDevices}</span>
         </button>
         <button
           class="nav-tab ${state.currentTab === "dev" ? "active" : ""}"
@@ -106,9 +97,6 @@ function renderContent(): string {
   return `
     <div class="tab-panel ${state.currentTab === "overview" ? "active" : ""}" id="overview-panel">
       ${renderOverviewTab()}
-    </div>
-    <div class="tab-panel ${state.currentTab === "devices" ? "active" : ""}" id="devices-panel">
-      ${renderDevicesTab()}
     </div>
     <div class="tab-panel ${state.currentTab === "dev" ? "active" : ""}" id="dev-panel">
       ${renderDevTab()}

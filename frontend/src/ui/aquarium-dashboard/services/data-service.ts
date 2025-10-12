@@ -146,3 +146,15 @@ export async function loadAllDashboardData(): Promise<void> {
     setDeviceStatus({});
   }
 }
+
+/**
+ * Refresh only device status after connection/disconnection
+ */
+export async function refreshDeviceStatusOnly(): Promise<void> {
+  try {
+    const status = await getDeviceStatus();
+    setDeviceStatus(status);
+  } catch (error) {
+    console.error("❌ Failed to refresh device status:", error);
+  }
+}

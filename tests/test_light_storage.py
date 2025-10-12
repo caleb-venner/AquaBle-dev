@@ -36,7 +36,6 @@ def _example_device(device_id: str = "light-1") -> dict:
     return {
         "id": device_id,
         "name": "Display Light",
-        "timezone": "Australia/Sydney",
         "channels": _channels(),
         "activeConfigurationId": "config-default",
         "configurations": [
@@ -64,13 +63,13 @@ def _example_device(device_id: str = "light-1") -> dict:
 
 def test_storage_roundtrip(storage_path: Path) -> None:
     """Verify light storage roundtrip and profile persistence."""
-    storage = LightStorage(storage_path)
+    storage = LightStorage(storage_path, {})
     stored = storage.upsert_device(_example_device())
 
     assert stored.id == "light-1"
     assert storage_path.exists()
 
-    reloaded = LightStorage(storage_path).get_device("light-1")
+    reloaded = LightStorage(storage_path, {}).get_device("light-1")
     assert reloaded is not None
     active = reloaded.get_active_configuration()
     assert active.latest_revision().profile.mode == "manual"
@@ -91,7 +90,7 @@ def test_manual_profile_must_cover_all_channels(storage_path: Path) -> None:
     device = _example_device()
     device["configurations"][0]["revisions"][0]["profile"]["levels"].pop("G")
 
-    storage = LightStorage(storage_path)
+    storage = LightStorage(storage_path, {})
     with pytest.raises(ValidationError):
         storage.upsert_device(device)
 
@@ -108,7 +107,7 @@ def test_custom_profile_requires_increasing_times(storage_path: Path) -> None:
         ],
     }
 
-    storage = LightStorage(storage_path)
+    storage = LightStorage(storage_path, {})
     with pytest.raises(ValidationError):
         storage.upsert_device(device)
 
@@ -131,14 +130,14 @@ def test_auto_profile_validates_days_and_sun_times(storage_path: Path) -> None:
         ],
     }
 
-    storage = LightStorage(storage_path)
+    storage = LightStorage(storage_path, {})
     with pytest.raises(ValidationError):
         storage.upsert_device(device)
 
 
 def test_create_configuration_adds_revision(storage_path: Path) -> None:
     """Creating a new configuration adds a first revision and can set active."""
-    storage = LightStorage(storage_path)
+    storage = LightStorage(storage_path, {})
     storage.upsert_device(_example_device())
 
     custom_profile = {
@@ -169,7 +168,7 @@ def test_create_configuration_adds_revision(storage_path: Path) -> None:
 
 def test_add_revision_increments_revision(storage_path: Path) -> None:
     """Adding a revision increments the revision counter and can set active."""
-    storage = LightStorage(storage_path)
+    storage = LightStorage(storage_path, {})
     storage.upsert_device(_example_device())
 
     manual_update = deepcopy(_manual_levels())
@@ -194,7 +193,7 @@ def test_add_revision_increments_revision(storage_path: Path) -> None:
 
 def test_set_active_configuration_switches(storage_path: Path) -> None:
     """Setting active configuration updates device.activeConfigurationId."""
-    storage = LightStorage(storage_path)
+    storage = LightStorage(storage_path, {})
     storage.upsert_device(_example_device())
 
     auto_profile = {

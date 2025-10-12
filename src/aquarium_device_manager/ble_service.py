@@ -41,6 +41,7 @@ from .config_migration import (
     get_env_float,
     get_env_with_fallback,
 )
+from .constants import BLE_STATUS_CAPTURE_WAIT
 from .device import (
     Doser,
     LightDevice,
@@ -48,7 +49,7 @@ from .device import (
     get_model_class_from_name,
 )
 from .device.base_device import BaseDevice
-from .exception import DeviceNotFound
+from .errors import DeviceNotFoundError
 
 # Re-implement lightweight internal API functions (previously in core_api)
 SupportedDeviceInfo = Tuple[BLEDevice, Type[BaseDevice]]
@@ -61,7 +62,7 @@ def filter_supported_devices(
 
     This intentionally ignores devices that do not map to a known model
     (for example, TVs or other unrelated BLE peripherals). Calling
-    `get_model_class_from_name` may raise DeviceNotFound for unknown
+    `get_model_class_from_name` may raise DeviceNotFoundError for unknown
     device names; swallow that and continue so discovery is robust.
     """
     supported: list[SupportedDeviceInfo] = []
@@ -71,7 +72,7 @@ def filter_supported_devices(
             continue
         try:
             model_class = get_model_class_from_name(name)
-        except DeviceNotFound:
+        except DeviceNotFoundError:
             # Unknown device name — skip it
             continue
         # type: ignore[attr-defined]
@@ -102,12 +103,15 @@ async def device_session(address: str) -> AsyncIterator[BaseDevice]:
 
 # Persistence and runtime configuration
 CONFIG_DIR = get_config_dir()
-STATE_PATH = CONFIG_DIR / "state.json"
+COMMAND_HISTORY_PATH = CONFIG_DIR / "command_history.json"
 DEVICE_CONFIG_PATH = (
     CONFIG_DIR / "devices"
 )  # Unified directory for all device files
 DOSER_CONFIG_PATH = DEVICE_CONFIG_PATH  # Backward compatibility alias
 LIGHT_PROFILE_PATH = DEVICE_CONFIG_PATH  # Now uses same unified storage
+
+# Legacy state.json path (archived after migration)
+STATE_PATH = CONFIG_DIR / "state.json"
 
 # Environment variable names (new naming)
 AUTO_RECONNECT_ENV = "AQUA_BLE_AUTO_RECONNECT"
@@ -116,7 +120,9 @@ AUTO_DISCOVER_ENV = "AQUA_BLE_AUTO_DISCOVER"
 AUTO_SAVE_CONFIG_ENV = "AQUA_BLE_AUTO_SAVE"
 
 # Get status capture wait with fallback
-STATUS_CAPTURE_WAIT_SECONDS = get_env_float(STATUS_CAPTURE_WAIT_ENV, 1.5)
+STATUS_CAPTURE_WAIT_SECONDS = get_env_float(
+    STATUS_CAPTURE_WAIT_ENV, BLE_STATUS_CAPTURE_WAIT
+)
 
 
 def _get_env_bool(name: str, default: bool) -> bool:
@@ -167,6 +173,7 @@ class BLEService:
         )  # kind -> primary address (for backward compatibility)
         self._cache: Dict[str, CachedStatus] = {}
         self._commands: Dict[str, list] = {}  # Per-device command history
+        self._device_metadata: Dict[str, dict] = {}  # Per-device metadata
         self._auto_reconnect = _get_env_bool(AUTO_RECONNECT_ENV, True)
         self._auto_discover_on_start = _get_env_bool(AUTO_DISCOVER_ENV, False)
         self._auto_save_config = _get_env_bool(AUTO_SAVE_CONFIG_ENV, True)
@@ -176,12 +183,26 @@ class BLEService:
         # Ensure config directory exists
         CONFIG_DIR.mkdir(parents=True, exist_ok=True)
 
+        # Initialize unified device storage
+        from .global_settings import GlobalSettings
+        from .unified_device_storage import UnifiedDeviceStorage
+
+        self._unified_storage = UnifiedDeviceStorage(DEVICE_CONFIG_PATH)
+        self._global_settings = GlobalSettings(CONFIG_DIR)
+        logger.info(
+            "Unified device storage initialized: %s", DEVICE_CONFIG_PATH
+        )
+
         # Initialize storage instances for persistent configurations
         from .doser_storage import DoserStorage
         from .light_storage import LightStorage
 
-        self._doser_storage = DoserStorage(DOSER_CONFIG_PATH)
-        self._light_storage = LightStorage(DEVICE_CONFIG_PATH)
+        self._doser_storage = DoserStorage(
+            DOSER_CONFIG_PATH, self._device_metadata
+        )
+        self._light_storage = LightStorage(
+            DEVICE_CONFIG_PATH, self._device_metadata
+        )
         logger.info(
             "Configuration storage initialized: doser=%s, light=%s",
             DOSER_CONFIG_PATH,
@@ -191,8 +212,17 @@ class BLEService:
         # Initialize timezone configuration
         from .timezone_utils import get_system_timezone
 
-        self._display_timezone = get_system_timezone()
-        logger.info("Display timezone initialized: %s", self._display_timezone)
+        # Try to load from global settings first
+        saved_timezone = self._global_settings.get_display_timezone()
+        if saved_timezone:
+            self._display_timezone = saved_timezone
+            logger.info("Display timezone loaded: %s", self._display_timezone)
+        else:
+            self._display_timezone = get_system_timezone()
+            self._global_settings.set_display_timezone(self._display_timezone)
+            logger.info(
+                "Display timezone initialized: %s", self._display_timezone
+            )
 
     @property
     def _doser(self) -> Optional[Doser]:
@@ -341,6 +371,7 @@ class BLEService:
             raise ValueError(f"Invalid IANA timezone identifier: {timezone}")
 
         self._display_timezone = timezone
+        self._global_settings.set_display_timezone(timezone)
         logger.info("Display timezone updated to: %s", timezone)
 
     async def connect_device(
@@ -482,8 +513,22 @@ class BLEService:
         )
         if persist:
             self._cache[address] = cached
-        if persist:
-            await self._save_state()
+            # Update unified device file with new status
+            from .unified_device_storage import DeviceStatus
+
+            device_status = DeviceStatus(
+                model_name=cached.model_name,
+                raw_payload=cached.raw_payload,
+                parsed=cached.parsed,
+                updated_at=cached.updated_at,
+                channels=cached.channels,
+            )
+            self._unified_storage.update_status(
+                device_id=address,
+                device_type=normalized,  # type: ignore
+                status=device_status,
+            )
+            logger.debug(f"Updated unified device file for {address}")
         return cached
 
     def _build_channels(
@@ -586,15 +631,9 @@ class BLEService:
             logger.info("Auto-discover worker: scanning for supported devices")
             connected_any = await self._auto_discover_and_connect()
             if connected_any and self._cache:
-                try:
-                    await self._save_state()
-                    logger.info(
-                        "Auto-discover worker: saved discovered devices"
-                    )
-                except Exception:  # pragma: no cover - defensive
-                    logger.exception(
-                        "Failed to persist state after auto-discover"
-                    )
+                logger.info(
+                    "Auto-discover worker: discovered devices saved to unified storage"
+                )
             else:
                 if self._auto_reconnect:
                     logger.info(
@@ -630,13 +669,16 @@ class BLEService:
                     await self._ensure_device(address, status.device_type)
                     live = await self._refresh_device_status(status.device_type)
                     self._cache[address] = live
-                    logger.info("Refreshed %s %s", status.device_type, address)
+                    logger.info(
+                        "Refreshed %s %s (saved to unified storage)",
+                        status.device_type,
+                        address,
+                    )
                 except (
                     Exception
                 ) as exc:  # pragma: no cover - runtime diagnostics
                     logger.warning("Failed to refresh %s: %s", address, exc)
                     continue
-            await self._save_state()
         except asyncio.CancelledError:
             logger.info("Reconnect worker cancelled")
             raise
@@ -657,7 +699,8 @@ class BLEService:
                 await self._discover_task
             except asyncio.CancelledError:
                 logger.debug("Auto-discover task cancelled during stop()")
-        await self._save_state()
+
+        # Disconnect all devices
         async with self._lock:
             for kind_devices in self._devices.values():
                 for device in kind_devices.values():
@@ -772,13 +815,20 @@ class BLEService:
             self, address, brightness=brightness, color=color
         )
 
-    async def set_manual_multi_channel_brightness(
+    async def set_multi_channel_brightness(
         self, address: str, brightness: tuple[int, ...]
     ) -> CachedStatus:
-        """Set manual multi-channel brightness for a light device in one payload."""
-        return await device_commands.set_manual_multi_channel_brightness(
-            self, address, brightness
-        )
+        """Set multi-channel brightness for a light device in one payload."""
+        device = cast(LightDevice, await self._ensure_device(address, "light"))
+        try:
+            await device.set_multi_channel_brightness(brightness)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        except (BleakNotFoundError, BleakConnectionError) as exc:
+            raise HTTPException(
+                status_code=404, detail="Light not reachable"
+            ) from exc
+        return await self._refresh_device_status("light", persist=True)
 
     async def turn_light_on(self, address: str) -> CachedStatus:
         """Turn the light device at the address on."""
@@ -846,12 +896,88 @@ class BLEService:
         return results, errors
 
     async def _load_state(self) -> None:
+        """Load device state from unified device files.
+
+        Loads last known status and metadata for all devices.
+        Legacy state.json is only used for migration if found.
+        """
+        # Check if migration is needed (state.json exists but not archived)
+        archived_state = CONFIG_DIR / "state.json.archived"
+        if STATE_PATH.exists() and not archived_state.exists():
+            logger.info(
+                "Detected unmigrated state.json, running automatic migration"
+            )
+            try:
+                from .storage_migration import migrate_storage
+
+                migrate_storage(CONFIG_DIR)
+                logger.info("Migration completed successfully")
+            except Exception as exc:
+                logger.error(f"Migration failed: {exc}")
+                # Fall back to loading old format
+                await self._load_legacy_state()
+                return
+
+        # Load from unified device files
+        all_devices = self._unified_storage.list_all_devices()
+        logger.info(
+            f"Loading state from {len(all_devices)} unified device files"
+        )
+
+        cache: Dict[str, CachedStatus] = {}
+        for unified_device in all_devices:
+            if unified_device.last_status:
+                # Build CachedStatus from unified device file
+                cache[unified_device.device_id] = CachedStatus(
+                    address=unified_device.device_id,
+                    device_type=unified_device.device_type,
+                    raw_payload=unified_device.last_status.raw_payload,
+                    parsed=unified_device.last_status.parsed,
+                    updated_at=unified_device.last_status.updated_at,
+                    model_name=unified_device.last_status.model_name,
+                    channels=unified_device.last_status.channels,
+                )
+
+            # Load metadata if present
+            if unified_device.metadata:
+                self._device_metadata[unified_device.device_id] = (
+                    unified_device.metadata.model_dump()
+                )
+
+        self._cache = cache
+        logger.info(f"Loaded {len(cache)} device statuses from unified storage")
+
+        # Load command history from separate file
+        if COMMAND_HISTORY_PATH.exists():
+            try:
+                command_data = json.loads(
+                    COMMAND_HISTORY_PATH.read_text(encoding="utf-8")
+                )
+                self._commands = {
+                    address: cmd_list
+                    for address, cmd_list in command_data.items()
+                }
+                logger.info(
+                    f"Loaded command history for {len(self._commands)} devices"
+                )
+            except (json.JSONDecodeError, OSError) as exc:
+                logger.error(f"Failed to load command history: {exc}")
+                self._commands = {}
+        else:
+            self._commands = {}
+
+    async def _load_legacy_state(self) -> None:
+        """Load state from legacy state.json format (fallback only)."""
         if not STATE_PATH.exists():
             return
+
+        logger.warning("Loading from legacy state.json format")
         try:
             data = json.loads(STATE_PATH.read_text())
-        except json.JSONDecodeError:
+        except json.JSONDecodeError as exc:
+            logger.error(f"Failed to parse state.json: {exc}")
             return
+
         devices = data.get("devices", {})
         cache: Dict[str, CachedStatus] = {}
         for address, payload in devices.items():
@@ -867,41 +993,48 @@ class BLEService:
         self._cache = cache
 
         # Load command history
-        commands = data.get("commands", {})
-        self._commands = {
-            address: cmd_list for address, cmd_list in commands.items()
-        }
+        if COMMAND_HISTORY_PATH.exists():
+            try:
+                command_data = json.loads(COMMAND_HISTORY_PATH.read_text())
+                self._commands = {
+                    address: cmd_list
+                    for address, cmd_list in command_data.items()
+                }
+            except json.JSONDecodeError:
+                self._commands = {}
+        else:
+            # Check for commands in old state.json format
+            old_commands = data.get("commands", {})
+            if old_commands:
+                logger.info("Migrating command history to separate file")
+                self._commands = {
+                    address: cmd_list
+                    for address, cmd_list in old_commands.items()
+                }
+                # Save to new file
+                COMMAND_HISTORY_PATH.write_text(
+                    json.dumps(self._commands, indent=2, sort_keys=True)
+                )
+            else:
+                self._commands = {}
 
-        # Load timezone setting (required for pre-release)
+        # Load timezone setting
         timezone = data.get("display_timezone")
         if timezone:
             self.set_display_timezone(timezone)
         else:
-            # No saved timezone - this shouldn't happen in pre-release
-            # but ensure we always have a valid timezone
             logger.warning("No saved timezone found, using system default")
             from .timezone_utils import get_system_timezone
 
             system_tz = get_system_timezone()
             self.set_display_timezone(system_tz)
 
-    async def _save_state(self) -> None:
-        data = {
-            "devices": {
-                address: {
-                    "device_type": status.device_type,
-                    "raw_payload": status.raw_payload,
-                    "parsed": status.parsed,
-                    "updated_at": status.updated_at,
-                    "model_name": status.model_name,
-                    "channels": status.channels,
-                }
-                for address, status in self._cache.items()
-            },
-            "commands": self._commands,
-            "display_timezone": self._display_timezone,
+        # Load device metadata
+        device_metadata = data.get("device_metadata", {})
+        self._device_metadata = {
+            device_id: metadata
+            for device_id, metadata in device_metadata.items()
         }
-        STATE_PATH.write_text(json.dumps(data, indent=2, sort_keys=True))
 
     async def _attempt_reconnect(self) -> None:
         if self._cache:

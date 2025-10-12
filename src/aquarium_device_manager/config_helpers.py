@@ -8,8 +8,7 @@ between the service and storage.
 from __future__ import annotations
 
 import logging
-from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, cast
+from typing import TYPE_CHECKING, Any, Dict, Optional, cast
 
 from .commands.encoder import decode_pump_weekdays, pump_weekdays_to_names
 from .doser_status import DoserStatus, HeadSnapshot
@@ -24,9 +23,7 @@ from .doser_storage import (
     SingleSchedule,
     Weekday,
 )
-from .doser_storage import _now_iso as _doser_now_iso
-from .light_storage import _now_iso as _light_now_iso
-from .timezone_utils import get_timezone_for_new_device
+from .time_utils import now_iso as _now_iso
 
 if TYPE_CHECKING:
     from .light_storage import LightDevice
@@ -34,26 +31,19 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-def _now_iso() -> str:
-    """Return current ISO timestamp."""
-    return _doser_now_iso()
-
-
 def create_default_doser_config(
-    address: str, name: str | None = None, timezone: str | None = None
+    address: str, name: str | None = None
 ) -> DoserDevice:
     """Create a default configuration for a new doser device.
 
     Args:
         address: The device MAC address
         name: Optional friendly name for the device
-        timezone: Timezone string (default: auto-detected system timezone)
 
     Returns:
         A DoserDevice with default configuration for 4 heads
     """
     device_name = name or f"Doser {address[-8:]}"
-    device_timezone = timezone or get_timezone_for_new_device()
     timestamp = _now_iso()
 
     # Create default heads (all inactive by default)
@@ -100,7 +90,6 @@ def create_default_doser_config(
     device = DoserDevice(
         id=address,
         name=device_name,
-        timezone=device_timezone,
         configurations=[configuration],
         activeConfigurationId="default",
         createdAt=timestamp,
@@ -229,7 +218,6 @@ def create_doser_config_from_status(
         device = DoserDevice(
             id=address,
             name=device_name,
-            timezone=get_timezone_for_new_device(),
             configurations=[configuration],
             activeConfigurationId="default",
             createdAt=timestamp,
@@ -376,7 +364,6 @@ def create_default_light_profile(
     device = LightDevice(
         id=address,
         name=device_name,
-        timezone=get_timezone_for_new_device(),
         channels=channel_defs,
         configurations=[default_config],
         activeConfigurationId="default",
@@ -469,6 +456,44 @@ def update_light_brightness(
     return device
 
 
+def update_light_multi_channel_brightness(
+    device: LightDevice, brightness_values: list[int]
+) -> LightDevice:
+    """Update light multi-channel brightness for all channels.
+
+    Args:
+        device: The LightDevice to update
+        brightness_values: List of brightness values for channels
+        in order [red, green, blue, white]
+
+    Returns:
+        Updated LightDevice
+    """
+    from .light_storage import ManualProfile
+
+    # Get active profile
+    active_config = device.get_active_configuration()
+    active_profile = active_config.latest_revision()
+
+    # Map brightness values to channel keys
+    channel_keys = ["red", "green", "blue", "white"]
+    levels: dict[str, int] = {}
+    for i, brightness in enumerate(brightness_values):
+        if i < len(channel_keys):
+            levels[channel_keys[i]] = int(brightness)  # Explicit cast to int
+
+    # Update profile
+    active_profile.profile = ManualProfile(mode="manual", levels=levels)
+
+    timestamp = _now_iso()
+    active_config.updatedAt = timestamp
+    device.updatedAt = timestamp
+
+    logger.info(f"Updated light {device.id} multi-channel brightness: {levels}")
+
+    return device
+
+
 def add_light_auto_program(
     device: LightDevice,
     sunrise: str,
@@ -494,11 +519,16 @@ def add_light_auto_program(
 
     from .light_storage import AutoProfile, AutoProgram, LightProfileRevision
 
+    # Create default levels for all channels
     active_config = device.get_active_configuration()
     active_profile = active_config.latest_revision()
 
     # Create default levels for all channels
-    levels = {ch.key: brightness for ch in device.channels}
+    if isinstance(brightness, dict):
+        levels = {ch.key: brightness.get(ch.key, 100) for ch in device.channels}
+    else:
+        # Use single brightness value for all channels
+        levels = {ch.key: brightness for ch in device.channels}
 
     # Convert weekday names to abbreviated format
     weekday_mapping = {
@@ -575,7 +605,6 @@ def create_doser_config_from_command(
         DoserDevice with configuration based on the command
     """
     device_name = f"Doser {address[-8:]}"
-    device_timezone = get_timezone_for_new_device()
     timestamp = _now_iso()
 
     # Create heads array with only the commanded head active
@@ -676,7 +705,6 @@ def create_doser_config_from_command(
     device = DoserDevice(
         id=address,
         name=device_name,
-        timezone=device_timezone,
         configurations=[configuration],
         activeConfigurationId="schedule-config",
         createdAt=timestamp,
@@ -710,8 +738,7 @@ def create_light_config_from_command(
     )
 
     device_name = f"Light {address[-8:]}"
-    device_timezone = get_timezone_for_new_device()
-    timestamp = _light_now_iso()
+    timestamp = _now_iso()
 
     # Default channels (will be updated when device is connected)
     channels = [
@@ -736,11 +763,40 @@ def create_light_config_from_command(
         description = f"Manual brightness set to {command_args['brightness']}%"
         note = f"Created from brightness command: {command_args['brightness']}%"
 
+    elif command_type == "multi_channel_brightness":
+        # Create manual profile from multi-channel brightness command
+        channels = command_args.get("channels", [50, 50, 50, 50])
+        if isinstance(channels, (list, tuple)):
+            # Assume order is [red, green, blue, white]
+            channel_names = ["red", "green", "blue", "white"]
+            levels = {
+                name: channels[i] if i < len(channels) else 50
+                for i, name in enumerate(channel_names)
+            }
+        else:
+            # Fallback to default
+            levels = {"red": 50, "green": 50, "blue": 50, "white": 50}
+
+        profile = ManualProfile(
+            mode="manual",
+            levels=levels,
+        )
+        config_name = "Manual Multi-Channel"
+        description = (
+            f"Multi-channel brightness: R={levels['red']} G={levels['green']} "
+            f"B={levels['blue']} W={levels['white']}"
+        )
+        note = "Created from multi-channel brightness command"
+
     elif command_type == "auto_program":
         # Create auto profile from auto program command
         weekdays = command_args.get("weekdays")
         if weekdays:
-            weekday_strings = [day.value for day in weekdays]
+            # Handle both LightWeekday enum instances and plain strings
+            weekday_strings = [
+                day.value if hasattr(day, "value") else str(day)
+                for day in weekdays
+            ]
         else:
             weekday_strings = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 
@@ -815,7 +871,6 @@ def create_light_config_from_command(
     device = LightDevice(
         id=address,
         name=device_name,
-        timezone=device_timezone,
         channels=channels,
         configurations=[configuration],
         activeConfigurationId="command-config",
@@ -824,26 +879,6 @@ def create_light_config_from_command(
     )
 
     return device
-
-
-def filter_device_json_files(storage_dir: Path) -> List[Path]:
-    """Filter JSON files in storage directory, excluding .metadata.json files.
-
-    This utility function provides consistent filtering logic for both doser and light
-    storage classes to avoid code duplication.
-
-    Args:
-        storage_dir: Directory containing device JSON files
-
-    Returns:
-        List of Path objects for device configuration files (excluding metadata files)
-    """
-    if not storage_dir.exists():
-        return []
-
-    # Get all .json files except .metadata.json files
-    all_json_files = list(storage_dir.glob("*.json"))
-    return [f for f in all_json_files if not f.name.endswith(".metadata.json")]
 
 
 __all__ = [
@@ -856,6 +891,6 @@ __all__ = [
     "create_light_config_from_command",
     "update_light_manual_profile",
     "update_light_brightness",
+    "update_light_multi_channel_brightness",
     "add_light_auto_program",
-    "filter_device_json_files",
 ]

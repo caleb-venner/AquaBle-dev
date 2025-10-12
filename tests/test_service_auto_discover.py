@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 
-from aquarium_device_manager import service as service_mod
+from aquarium_device_manager import ble_service as service_mod
 
 
 def test_auto_discover_skips_auto_reconnect(monkeypatch):
@@ -15,9 +15,6 @@ def test_auto_discover_skips_auto_reconnect(monkeypatch):
     svc._cache.clear()  # ensure empty before start
 
     async def fake_load_state():
-        return None
-
-    async def fake_save_state():
         return None
 
     async def fake_auto_discover():
@@ -39,7 +36,6 @@ def test_auto_discover_skips_auto_reconnect(monkeypatch):
         reconnect_called = True
 
     monkeypatch.setattr(svc, "_load_state", fake_load_state)
-    monkeypatch.setattr(svc, "_save_state", fake_save_state)
     monkeypatch.setattr(svc, "_auto_discover_and_connect", fake_auto_discover)
     monkeypatch.setattr(svc, "_attempt_reconnect", fake_attempt_reconnect)
 
@@ -58,9 +54,6 @@ def test_auto_discover_allows_auto_reconnect_when_none_found(monkeypatch):
     async def fake_load_state():
         return None
 
-    async def fake_save_state():
-        return None
-
     async def fake_auto_discover():
         return False
 
@@ -71,7 +64,6 @@ def test_auto_discover_allows_auto_reconnect_when_none_found(monkeypatch):
         reconnect_called = True
 
     monkeypatch.setattr(svc, "_load_state", fake_load_state)
-    monkeypatch.setattr(svc, "_save_state", fake_save_state)
     monkeypatch.setattr(svc, "_auto_discover_and_connect", fake_auto_discover)
     monkeypatch.setattr(svc, "_attempt_reconnect", fake_attempt_reconnect)
 

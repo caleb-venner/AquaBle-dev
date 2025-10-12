@@ -13,7 +13,8 @@ from pydantic import ValidationError
 
 from .ble_service import BLEService
 from .commands_model import COMMAND_ARG_SCHEMAS, CommandRecord, CommandRequest
-from .exception import CommandValidationError
+from .constants import BLE_DOSER_SCHEDULE_WAIT, COMMAND_TIMEOUT_DEFAULT
+from .errors import CommandValidationError, ErrorCode
 from .serializers import cached_status_to_dict
 
 logger = logging.getLogger(__name__)
@@ -70,11 +71,11 @@ class CommandExecutor:
                 address=address,
                 action=request.action,
                 args=request.args,
-                timeout=request.timeout or 10.0,
+                timeout=request.timeout or COMMAND_TIMEOUT_DEFAULT,
             )
             if request.id is not None:
                 record.id = request.id
-            record.mark_failed(f"Validation error: {exc}")
+            record.mark_failed(str(exc), ErrorCode.VALIDATION_ERROR)
             return record
 
         # Create command record
@@ -82,7 +83,7 @@ class CommandExecutor:
             address=address,
             action=request.action,
             args=request.args,
-            timeout=request.timeout or 10.0,
+            timeout=request.timeout or COMMAND_TIMEOUT_DEFAULT,
         )
         if request.id is not None:
             record.id = request.id
@@ -120,7 +121,9 @@ class CommandExecutor:
 
                 except (BleakNotFoundError, BleakConnectionError) as exc:
                     error_msg = f"Device communication failed: {exc}"
-                    record.mark_failed(error_msg)
+                    record.mark_failed(
+                        error_msg, ErrorCode.BLE_CONNECTION_ERROR
+                    )
                     logger.error(
                         "Command %s failed for device %s: %s",
                         request.action,
@@ -131,7 +134,7 @@ class CommandExecutor:
                 except ValueError as exc:
                     # ValueError typically indicates invalid parameters or device state
                     error_msg = f"Invalid operation: {exc}"
-                    record.mark_failed(error_msg)
+                    record.mark_failed(error_msg, ErrorCode.INVALID_ARGUMENTS)
                     logger.error(
                         "Command %s failed for device %s: %s",
                         request.action,
@@ -144,7 +147,7 @@ class CommandExecutor:
                     error_msg = (
                         f"Unexpected error during command execution: {exc}"
                     )
-                    record.mark_failed(error_msg)
+                    record.mark_failed(error_msg, ErrorCode.INTERNAL_ERROR)
                     logger.error(
                         "Command %s failed for device %s: %s",
                         request.action,
@@ -155,7 +158,9 @@ class CommandExecutor:
 
         except Exception as exc:
             # Lock acquisition failed or unexpected error
-            record.mark_failed(f"Lock acquisition failed: {exc}")
+            record.mark_failed(
+                f"Lock acquisition failed: {exc}", ErrorCode.INTERNAL_ERROR
+            )
             logger.error(
                 "Failed to acquire lock for device %s: %s", address, exc
             )
@@ -188,35 +193,11 @@ class CommandExecutor:
             return cached_status_to_dict(self.ble_service, status)
 
         elif action == "set_multi_channel_brightness":
-            # Handle multiple channel brightness setting
-            channels = args.get("channels", {})
-            if not channels:
-                raise ValueError(
-                    "channels argument required for multi-channel brightness"
-                )
-
-            # Set brightness for each channel
-            for channel_name, brightness in channels.items():
-                await self.ble_service.set_light_brightness(
-                    address,
-                    brightness=brightness,
-                    color=channel_name,
-                )
-
-            # Get final status after all channels are set
-            status = await self.ble_service.request_status(address)
-
-            # Update and persist light configuration
-            await self._save_light_brightness_config(address, args)
-
-            return cached_status_to_dict(self.ble_service, status)
-
-        elif action == "set_manual_multi_channel_brightness":
             # Handle manual multi-channel brightness setting in one payload
             channels = args.get("channels", [])
             if not channels:
                 raise ValueError(
-                    "channels argument required for manual multi-channel brightness"
+                    "channels argument required for multi-channel brightness"
                 )
 
             if not isinstance(channels, (list, tuple)) or len(channels) > 4:
@@ -227,7 +208,7 @@ class CommandExecutor:
             # Convert to tuple of ints
             brightness_tuple = tuple(int(x) for x in channels)
 
-            status = await self.ble_service.set_manual_multi_channel_brightness(
+            status = await self.ble_service.set_multi_channel_brightness(
                 address, brightness_tuple
             )
 
@@ -265,13 +246,23 @@ class CommandExecutor:
                     "Either 'brightness' or 'channels' must be provided"
                 )
 
+            # Convert weekdays to LightWeekday enums if they're strings
+            weekdays_arg = args.get("weekdays")
+            if weekdays_arg and isinstance(weekdays_arg, list):
+                from .commands.encoder import LightWeekday
+
+                weekdays_arg = [
+                    LightWeekday(day) if isinstance(day, str) else day
+                    for day in weekdays_arg
+                ]
+
             status = await self.ble_service.add_light_auto_setting(
                 address,
                 sunrise=parse_time(sunrise_str),
                 sunset=parse_time(sunset_str),
                 brightness=brightness_arg,
                 ramp_up_minutes=args.get("ramp_up_minutes", 0),
-                weekdays=args.get("weekdays"),
+                weekdays=weekdays_arg,
             )
 
             # Update and persist light configuration
@@ -288,7 +279,7 @@ class CommandExecutor:
                 minute=args["minute"],
                 weekdays=args.get("weekdays"),  # Now passes List[PumpWeekday]
                 confirm=args.get("confirm", True),
-                wait_seconds=args.get("wait_seconds", 2.0),
+                wait_seconds=args.get("wait_seconds", BLE_DOSER_SCHEDULE_WAIT),
             )
 
             # Update and persist doser configuration
@@ -353,12 +344,64 @@ class CommandExecutor:
         Args:
             address: Device MAC address
             args: Command arguments from set_brightness
+            or multi-channel brightness commands
         """
         if not self.ble_service._auto_save_config:
             logger.debug("Auto-save config disabled, skipping")
             return
 
         try:
+            # Check if this is a multi-channel command (has 'channels' key)
+            if "channels" in args:
+                # Handle multi-channel brightness command
+                channels = args["channels"]
+                if not isinstance(channels, (list, tuple)):
+                    logger.warning(
+                        f"Invalid channels format for {address}: {channels}"
+                    )
+                    return
+
+                from .config_helpers import (
+                    update_light_multi_channel_brightness,
+                )
+
+                device = self.ble_service._light_storage.get_device(address)
+                if device:
+                    # Update the existing configuration
+                    device = update_light_multi_channel_brightness(
+                        device, list(channels)
+                    )
+                    self.ble_service._light_storage.upsert_device(device)
+                    logger.info(
+                        f"Saved multi-channel light configuration for {address}, "
+                        f"channels={list(channels)}"
+                    )
+                else:
+                    # Create new configuration from the actual command being sent
+                    from .config_helpers import create_light_config_from_command
+
+                    logger.info(
+                        f"Creating new profile for light {address} "
+                        f"from multi-channel brightness command"
+                    )
+                    # Pass command_type to handle channels properly
+                    device = create_light_config_from_command(
+                        address, "multi_channel_brightness", args
+                    )
+                    self.ble_service._light_storage.upsert_device(device)
+                    logger.info(
+                        f"Created and saved new light profile for {address}, "
+                        f"multi-channel brightness"
+                    )
+                return
+
+            # Handle single-channel brightness command
+            if "brightness" not in args:
+                logger.warning(
+                    f"No brightness data found in args for {address}: {args}"
+                )
+                return
+
             from .config_helpers import update_light_brightness
 
             device = self.ble_service._light_storage.get_device(address)

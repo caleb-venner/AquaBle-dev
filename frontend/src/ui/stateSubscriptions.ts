@@ -28,9 +28,7 @@ export function setupStateSubscriptions(): void {
     (state) => {
       const ui = state.ui;
       // Update dashboard for loading/scanning state changes
-      if (ui.isScanning !== previousUI.isScanning ||
-          ui.scanResults.length !== previousUI.scanResults.length ||
-          ui.globalError !== previousUI.globalError) {
+      if (ui.globalError !== previousUI.globalError) {
         updateDashboardView();
       }
 

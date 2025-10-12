@@ -4,7 +4,6 @@ type Weekday = 'Mon'|'Tue'|'Wed'|'Thu'|'Fri'|'Sat'|'Sun'; // UI chips
 export interface DoserDevice {
   id: string;
   name?: string;
-  timezone: string;                // e.g., "Australia/Sydney"
   heads: DoserHead[];              // length ≤ 4
   createdAt?: string;              // ISO
   updatedAt?: string;              // ISO

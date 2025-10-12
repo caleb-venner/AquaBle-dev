@@ -44,6 +44,7 @@ export interface CommandRecord {
   attempts: number;
   result: Record<string, unknown> | null;
   error: string | null;
+  error_code: string | null;
   created_at: number;
   started_at: number | null;
   completed_at: number | null;
@@ -185,7 +186,6 @@ export interface DeviceState {
   lastUpdated: number;
   isLoading: boolean;
   error: string | null;
-  commandHistory: CommandRecord[];
 }
 
 /** Command queue entry */
@@ -200,8 +200,6 @@ export interface QueuedCommand {
 /** Application-wide UI state */
 export interface UIState {
   currentView: "dashboard" | "overview" | "dev";
-  isScanning: boolean;
-  scanResults: ScanDevice[];
   globalError: string | null;
   notifications: Notification[];
 }

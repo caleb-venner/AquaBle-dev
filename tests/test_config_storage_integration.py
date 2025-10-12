@@ -19,7 +19,7 @@ def temp_config_dir(tmp_path):
 @pytest.fixture
 def doser_storage(temp_config_dir):
     """Create doser storage instance with temp path."""
-    return DoserStorage(temp_config_dir / "doser_configs.json")
+    return DoserStorage(temp_config_dir / "doser_configs.json", {})
 
 
 @pytest.fixture

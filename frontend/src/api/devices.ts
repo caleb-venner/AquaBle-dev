@@ -23,13 +23,6 @@ export async function getLiveStatus(): Promise<LiveStatusResponse> {
 }
 
 /**
- * Scan for nearby devices
- */
-export async function scanDevices(): Promise<ScanDevice[]> {
-  return fetchJson<ScanDevice[]>("/api/scan");
-}
-
-/**
  * Connect to a specific device
  */
 export async function connectDevice(address: string): Promise<void> {
@@ -48,4 +41,11 @@ export async function disconnectDevice(address: string): Promise<void> {
  */
 export async function refreshDeviceStatus(address: string): Promise<void> {
   await postJson(`/api/devices/${encodeURIComponent(address)}/status`, {});
+}
+
+/**
+ * Scan for nearby supported devices
+ */
+export async function scanDevices(timeout: number = 5.0): Promise<ScanDevice[]> {
+  return fetchJson<ScanDevice[]>(`/api/scan?timeout=${timeout}`);
 }

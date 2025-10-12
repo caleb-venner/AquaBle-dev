@@ -110,7 +110,6 @@ def test_atomic_update_device_metadata():
     original_metadata = DeviceMetadata(
         id="test-device",
         name="Original Name",
-        timezone="UTC",
         headNames={0: "Head 1", 1: "Head 2"},
     )
 
@@ -118,18 +117,15 @@ def test_atomic_update_device_metadata():
     updated_metadata = atomic_update_device_metadata(
         metadata=original_metadata,
         name="New Name",
-        timezone="America/New_York",
         head_names={0: "Feed A", 1: "Feed B", 2: "Feed C"},
     )
 
     # Verify original is unchanged
     assert original_metadata.name == "Original Name"
-    assert original_metadata.timezone == "UTC"
     assert original_metadata.headNames == {0: "Head 1", 1: "Head 2"}
 
     # Verify updated has new values
     assert updated_metadata.name == "New Name"
-    assert updated_metadata.timezone == "America/New_York"
     assert updated_metadata.headNames == {0: "Feed A", 1: "Feed B", 2: "Feed C"}
 
     # Verify IDs match but timestamps differ
@@ -205,7 +201,7 @@ def test_atomic_operations_preserve_immutability():
     original_device = create_default_doser_config(
         "AA:BB:CC:DD:EE:FF", "Test Device"
     )
-    original_metadata = DeviceMetadata(id="test", name="Test", timezone="UTC")
+    original_metadata = DeviceMetadata(id="test", name="Test")
 
     # Take deep copies for comparison
     device_before = deepcopy(original_device)
@@ -220,9 +216,7 @@ def test_atomic_operations_preserve_immutability():
         minute=59,
     )
 
-    atomic_update_device_metadata(
-        metadata=original_metadata, name="Modified", timezone="Modified"
-    )
+    atomic_update_device_metadata(metadata=original_metadata, name="Modified")
 
     # Verify originals are completely unchanged
     assert original_device.model_dump() == device_before.model_dump()

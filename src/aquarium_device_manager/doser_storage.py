@@ -8,14 +8,14 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import datetime, timezone
 from pathlib import Path
-from typing import Iterable, Literal, Sequence
+from typing import Dict, Iterable, Literal
 from uuid import uuid4
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from .storage_utils import filter_device_json_files
+from .storage_utils import ensure_unique_values, filter_device_json_files
+from .time_utils import now_iso as _now_iso
 
 logger = logging.getLogger(__name__)
 
@@ -24,35 +24,17 @@ ModeKind = Literal["single", "every_hour", "custom_periods", "timer"]
 TimeString = Field(pattern=r"^\d{2}:\d{2}$")
 
 
-def _now_iso() -> str:
-    return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
-
-
 class DeviceMetadata(BaseModel):
     """Lightweight device metadata for server-side name storage only."""
 
     id: str
     name: str | None = None
-    timezone: str = "UTC"
     headNames: dict[int, str] | None = None  # Map of head index to name
     autoReconnect: bool = False  # Auto-reconnect on service start
     createdAt: str | None = None
     updatedAt: str | None = None
 
     model_config = ConfigDict(extra="forbid")
-
-
-def _ensure_unique(values: Sequence[str], what: str) -> None:
-    seen = set()
-    duplicates = set()
-    for value in values:
-        if value in seen:
-            duplicates.add(value)
-        else:
-            seen.add(value)
-    if duplicates:
-        plural = "s" if len(duplicates) > 1 else ""
-        raise ValueError(f"Duplicate {what}{plural}: {sorted(duplicates)}")
 
 
 class Recurrence(BaseModel):
@@ -67,7 +49,7 @@ class Recurrence(BaseModel):
         """Validate recurrence days are present and unique."""
         if not self.days:
             raise ValueError("Recurrence must include at least one day")
-        _ensure_unique(self.days, "weekday")
+        ensure_unique_values(self.days, "weekday")
         return self
 
 
@@ -255,7 +237,9 @@ class ConfigurationRevision(BaseModel):
             raise ValueError(
                 "Configuration revision cannot have more than four heads"
             )
-        _ensure_unique([str(head.index) for head in self.heads], "head index")
+        ensure_unique_values(
+            [str(head.index) for head in self.heads], "head index"
+        )
         return self
 
 
@@ -304,7 +288,6 @@ class DoserDevice(BaseModel):
 
     id: str
     name: str | None = None
-    timezone: str
     configurations: list[DeviceConfiguration]
     activeConfigurationId: str | None = None
     createdAt: str | None = None
@@ -323,7 +306,7 @@ class DoserDevice(BaseModel):
             )
 
         ids = [config.id for config in self.configurations]
-        _ensure_unique(ids, "configuration id")
+        ensure_unique_values(ids, "configuration id")
 
         if self.activeConfigurationId is None:
             self.activeConfigurationId = self.configurations[0].id
@@ -358,7 +341,9 @@ class DoserDeviceCollection(BaseModel):
     @model_validator(mode="after")
     def validate_unique_ids(self) -> "DoserDeviceCollection":
         """Ensure device ids are unique within the collection."""
-        _ensure_unique([device.id for device in self.devices], "device id")
+        ensure_unique_values(
+            [device.id for device in self.devices], "device id"
+        )
         return self
 
 
@@ -369,9 +354,10 @@ class DoserStorage:
     For example: ~/.aqua-ble/doser_configs/58159AE1-5E0A-7915-3207-7868CBF2C600.json
     """
 
-    def __init__(self, path: Path | str):
+    def __init__(self, path: Path | str, metadata_dict: Dict[str, dict]):
         """Initialize the storage backed by the given directory path."""
         self._base_path = Path(path)
+        self._metadata_dict = metadata_dict
 
         # Ensure the directory exists
         self._base_path.mkdir(parents=True, exist_ok=True)
@@ -381,7 +367,7 @@ class DoserStorage:
         return self._base_path / f"{device_id}.json"
 
     def _read_device_file(self, device_id: str) -> DoserDevice | None:
-        """Read a single device from its JSON file."""
+        """Read a single device from its JSON file (unified format)."""
         device_file = self._get_device_file_path(device_id)
         if not device_file.exists():
             return None
@@ -393,12 +379,23 @@ class DoserStorage:
 
             data = json.loads(raw)
 
-            # Handle both old format (direct device data) and new format (with metadata)
+            # Handle both old format (direct device data) and unified format
             if "device_type" in data:
-                # New format with metadata
+                # Unified format with metadata and status
                 if data.get("device_type") != "doser":
                     return None  # Wrong device type
-                device_data = data.get("device_data", data)
+
+                # Extract device_data (configuration)
+                device_data = data.get("device_data")
+
+                # If device_data is None, this is a newly discovered
+                # device without config
+                if device_data is None:
+                    return None
+
+                # Load metadata into shared dict if present
+                if "metadata" in data and data["metadata"]:
+                    self._metadata_dict[device_id] = data["metadata"]
             else:
                 # Old format (direct device data) - backward compatibility
                 device_data = data
@@ -412,16 +409,39 @@ class DoserStorage:
     def _write_device_file(
         self, device_file: Path, device: DoserDevice
     ) -> None:
-        """Write a single device to its JSON file atomically with metadata."""
+        """Write a single device to its JSON file atomically (unified format).
+
+        Preserves existing last_status if present in the file.
+        """
         device_file.parent.mkdir(parents=True, exist_ok=True)
 
-        # Wrap device data with metadata for unified storage
+        # Read existing file to preserve last_status
+        existing_last_status = None
+        if device_file.exists():
+            try:
+                existing_data = json.loads(
+                    device_file.read_text(encoding="utf-8")
+                )
+                existing_last_status = existing_data.get("last_status")
+            except (json.JSONDecodeError, OSError):
+                # If we can't read the file, just proceed without last_status
+                pass
+
+        # Build unified device file
         data = {
             "device_type": "doser",
             "device_id": device.id,
             "last_updated": _now_iso(),
             "device_data": device.model_dump(mode="json"),
         }
+
+        # Add metadata if present
+        if device.id in self._metadata_dict:
+            data["metadata"] = self._metadata_dict[device.id]
+
+        # Preserve last_status if it existed
+        if existing_last_status:
+            data["last_status"] = existing_last_status
 
         tmp_file = device_file.with_suffix(".tmp")
         tmp_file.write_text(
@@ -632,13 +652,14 @@ class DoserStorage:
 
     def get_device_metadata(self, device_id: str) -> DeviceMetadata | None:
         """Get device metadata (names only) by id."""
-        device = self.get_device(device_id)
-        if device is None:
+        metadata_raw = self._metadata_dict.get(device_id)
+        if metadata_raw is None:
             return None
 
         # Extract head names from the latest revision if available
         head_names = {}
-        if device.configurations:
+        device = self.get_device(device_id)
+        if device and device.configurations:
             latest_config = device.configurations[-1]
             if latest_config.revisions:
                 latest_revision = latest_config.revisions[-1]
@@ -647,12 +668,14 @@ class DoserStorage:
                         head_names[head.index] = head.label
 
         return DeviceMetadata(
-            id=device.id,
-            name=device.name,
-            timezone=device.timezone,
-            headNames=head_names if head_names else None,
-            createdAt=device.createdAt,
-            updatedAt=device.updatedAt,
+            id=metadata_raw.get("id", device_id),
+            name=metadata_raw.get("name"),
+            headNames=(
+                head_names if head_names else metadata_raw.get("headNames")
+            ),
+            autoReconnect=metadata_raw.get("autoReconnect", False),
+            createdAt=metadata_raw.get("createdAt"),
+            updatedAt=metadata_raw.get("updatedAt"),
         )
 
     def upsert_device_metadata(
@@ -661,14 +684,17 @@ class DoserStorage:
         """Create or update device metadata (names only)."""
         current_time = _now_iso()
         metadata.updatedAt = current_time
+        if not metadata.createdAt:
+            metadata.createdAt = current_time
 
-        # Check if device already exists
+        # Store in metadata dict
+        self._metadata_dict[metadata.id] = metadata.model_dump()
+
+        # Check if device already exists and update it too
         existing_device = self.get_device(metadata.id)
-
         if existing_device:
             # Update existing device with new names
             existing_device.name = metadata.name
-            existing_device.timezone = metadata.timezone
             existing_device.updatedAt = current_time
 
             # Update head names in the latest revision
@@ -681,39 +707,35 @@ class DoserStorage:
                             head.label = metadata.headNames[head.index]
 
             self.upsert_device(existing_device)
-        else:
-            # Create new metadata-only file
-            if not metadata.createdAt:
-                metadata.createdAt = current_time
-
-            # Save as lightweight metadata file
-            metadata_file = self._base_path / f"{metadata.id}.metadata.json"
-            metadata_file.write_text(
-                metadata.model_dump_json(indent=2, exclude_none=True)
-            )
 
         return metadata
 
     def list_device_metadata(self) -> list[DeviceMetadata]:
-        """List all device metadata (from both full devices and metadata-only files)."""
+        """List all device metadata from the metadata dict."""
         metadata_list = []
+        for device_id, metadata_raw in self._metadata_dict.items():
+            # Extract head names from the latest revision if available
+            head_names = {}
+            device = self.get_device(device_id)
+            if device and device.configurations:
+                latest_config = device.configurations[-1]
+                if latest_config.revisions:
+                    latest_revision = latest_config.revisions[-1]
+                    for head in latest_revision.heads:
+                        if head.label:
+                            head_names[head.index] = head.label
 
-        # Get metadata from full device files
-        for device in self.list_devices():
-            device_metadata = self.get_device_metadata(device.id)
-            if device_metadata:
-                metadata_list.append(device_metadata)
-
-        # Get metadata from metadata-only files
-        for metadata_file in self._base_path.glob("*.metadata.json"):
-            try:
-                metadata_content = metadata_file.read_text()
-                metadata = DeviceMetadata.model_validate_json(metadata_content)
-                # Only add if not already in list (from full device)
-                if not any(m.id == metadata.id for m in metadata_list):
-                    metadata_list.append(metadata)
-            except Exception:
-                continue  # Skip invalid metadata files
+            metadata = DeviceMetadata(
+                id=metadata_raw.get("id", device_id),
+                name=metadata_raw.get("name"),
+                headNames=(
+                    head_names if head_names else metadata_raw.get("headNames")
+                ),
+                autoReconnect=metadata_raw.get("autoReconnect", False),
+                createdAt=metadata_raw.get("createdAt"),
+                updatedAt=metadata_raw.get("updatedAt"),
+            )
+            metadata_list.append(metadata)
 
         return metadata_list
 

@@ -68,7 +68,6 @@ def _example_device(device_id: str = "device-1") -> dict:
     return {
         "id": device_id,
         "name": "Main Doser",
-        "timezone": "Australia/Sydney",
         "activeConfigurationId": "config-default",
         "configurations": [
             {
@@ -97,7 +96,6 @@ def _legacy_device_payload(device_id: str = "device-legacy") -> dict:
     return {
         "id": device_id,
         "name": device["name"],
-        "timezone": device["timezone"],
         "heads": heads,
         "createdAt": device["createdAt"],
         "updatedAt": device["updatedAt"],
@@ -106,13 +104,13 @@ def _legacy_device_payload(device_id: str = "device-legacy") -> dict:
 
 def test_storage_roundtrip(storage_path: Path) -> None:
     """Verify storage write/read roundtrip and active configuration."""
-    storage = DoserStorage(storage_path)
+    storage = DoserStorage(storage_path, {})
     stored = storage.upsert_device(_example_device())
 
     assert stored.id == "device-1"
     assert storage_path.exists()
 
-    reloaded = DoserStorage(storage_path).get_device("device-1")
+    reloaded = DoserStorage(storage_path, {}).get_device("device-1")
     assert reloaded is not None
     assert reloaded.activeConfigurationId == "config-default"
     active_config = reloaded.get_active_configuration()
@@ -145,7 +143,7 @@ def test_head_limit_enforced(storage_path: Path) -> None:
         {**device["heads"][0], "index": 4},
     ]
 
-    storage = DoserStorage(storage_path)
+    storage = DoserStorage(storage_path, {})
     with pytest.raises(ValidationError):
         storage.upsert_device(device)
 
@@ -162,6 +160,6 @@ def test_custom_periods_total_doses_capped(storage_path: Path) -> None:
         ],
     }
 
-    storage = DoserStorage(storage_path)
+    storage = DoserStorage(storage_path, {})
     with pytest.raises(ValidationError):
         storage.upsert_device(device)

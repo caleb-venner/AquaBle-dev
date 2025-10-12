@@ -22,12 +22,16 @@ router = APIRouter(prefix="/api/configurations", tags=["configurations"])
 # Dependency injection for storage instances
 def get_doser_storage() -> DoserStorage:
     """Get DoserStorage instance."""
-    return DoserStorage(DOSER_CONFIG_PATH)
+    from ..service import service
+
+    return service._doser_storage
 
 
 def get_light_storage() -> LightStorage:
     """Get LightStorage instance."""
-    return LightStorage(DEVICE_CONFIG_PATH)
+    from ..service import service
+
+    return service._light_storage
 
 
 # ============================================================================

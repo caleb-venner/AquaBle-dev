@@ -1,79 +1,74 @@
 /**
- * Unified Device Configuration Modal
- * Handles both doser and light device configuration with modern UI
+ * Device Configuration Modal - General device settings (nickname, auto-connect, etc.)
+ * Separate from the device commands/settings modal
  */
 
-import type { CachedStatus } from "../../../types/models";
 import { getDashboardState } from "../state";
-import { renderModalConnectionStatus, getConnectionHealth, getConnectionMessage } from "../utils/connection-utils";
-import { connectDevice } from "../../../api/devices";
+import { updateDoserMetadata, updateLightMetadata } from "../../../api/configurations";
+import { useActions } from "../../../stores/deviceStore";
+
+type DeviceMetadata = {
+  id: string;
+  name?: string;
+  autoReconnect?: boolean;
+  headNames?: Record<number, string>; // Doser only
+  createdAt?: string;
+  updatedAt?: string;
+};
 
 /**
- * Show the unified device configuration modal
+ * Show the device configuration modal (general settings only)
  */
-export async function showDeviceConfigModal(deviceAddress: string): Promise<void> {
-  const state = getDashboardState();
-  let device = state.deviceStatus?.[deviceAddress];
-
-  if (!device) {
-    console.error('Device not found:', deviceAddress);
-    return;
-  }
-
-  // Show loading modal while performing handshake
-  const loadingModal = document.createElement('div');
-  loadingModal.className = 'modal-overlay';
-  loadingModal.innerHTML = `
-    <div class="modal-content" style="max-width: 400px;">
-      <div class="modal-header">
-        <h3>Connecting to Device...</h3>
-      </div>
-      <div class="modal-body" style="text-align: center; padding: 40px;">
-        <div class="scan-spinner" style="font-size: 48px; margin-bottom: 20px;">🔄</div>
-        <p>Establishing connection to ensure device is ready for configuration...</p>
-      </div>
-    </div>
-  `;
-  document.body.appendChild(loadingModal);
-
-  try {
-    // Perform handshake by attempting to reconnect
-    await connectDevice(deviceAddress);
-
-    // Refresh device status after handshake
-    const updatedState = getDashboardState();
-    device = updatedState.deviceStatus?.[deviceAddress] || device;
-  } catch (error) {
-    console.warn('Handshake failed, proceeding with cached status:', error);
-    // Continue with cached device status if handshake fails
-  } finally {
-    loadingModal.remove();
-  }
-
+export async function showDeviceConfigModal(address: string, deviceType: 'doser' | 'light'): Promise<void> {
   const modal = document.createElement('div');
   modal.className = 'modal-overlay';
 
-  // Get current device status for connection info
-  const connectionStatus = renderModalConnectionStatus(device, deviceAddress);
-  const connectionHealth = getConnectionHealth(device, deviceAddress);
-  const connectionMessage = getConnectionMessage(connectionHealth, deviceAddress);
+  // Get current device status
+  const state = getDashboardState();
+  const deviceStatus = state.deviceStatus?.[address];
+  if (!deviceStatus) {
+    console.error('Device not found:', address);
+    return;
+  }
+
+  // Load metadata
+  let metadata: DeviceMetadata | null = null;
+  try {
+    if (deviceType === 'doser') {
+      const doserConfig = state.doserConfigs.find(d => d.id === address);
+      if (doserConfig) {
+        // Fetch metadata from API
+        const response = await fetch(`/api/configurations/dosers/${address}/metadata`);
+        if (response.ok) {
+          metadata = await response.json();
+        }
+      }
+    } else if (deviceType === 'light') {
+      const lightConfig = state.lightConfigs.find(l => l.id === address);
+      if (lightConfig) {
+        // Fetch metadata from API
+        const response = await fetch(`/api/configurations/lights/${address}/metadata`);
+        if (response.ok) {
+          metadata = await response.json();
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Failed to load metadata:', error);
+  }
+
+  // Get display name
+  const displayName = metadata?.name || deviceStatus.model_name || address;
 
   modal.innerHTML = `
-    <div class="modal-content device-config-modal" style="max-width: 700px; max-height: 90vh; overflow-y: auto;" data-device-id="${deviceAddress}">
-      <div class="modal-header" style="position: relative; display: flex; align-items: center; justify-content: space-between;">
-        <div style="display: flex; align-items: center; gap: 12px;">
-          ${connectionStatus}
-        </div>
+    <div class="modal-content device-config-modal" style="max-width: 600px; max-height: 90vh; overflow-y: auto;" data-device-id="${address}" data-device-type="${deviceType}">
+      <div class="modal-header">
+        <h2>Device Configuration: ${displayName}</h2>
         <button class="modal-close" onclick="this.closest('.modal-overlay').remove();">×</button>
       </div>
+
       <div class="modal-body">
-        ${connectionMessage ? `
-          <div class="connection-warning">
-            <div class="connection-warning-icon">⚠️</div>
-            <div class="connection-warning-text">${connectionMessage}</div>
-          </div>
-        ` : ''}
-        ${renderDeviceConfigInterface(device, deviceAddress)}
+        ${renderGeneralSettingsForm(address, deviceType, metadata, deviceStatus)}
       </div>
     </div>
   `;
@@ -87,217 +82,88 @@ export async function showDeviceConfigModal(deviceAddress: string): Promise<void
     }
   });
 
-  // Load current metadata
-  loadDeviceMetadata(deviceAddress, device.device_type);
+  // Setup save handler
+  (window as any).saveDeviceConfig = async () => {
+    await handleSaveConfig(address, deviceType, modal);
+  };
 }
 
 /**
- * Render the device configuration interface
+ * Render the general settings form (no tabs - just the config form)
  */
-function renderDeviceConfigInterface(device: CachedStatus, deviceAddress: string): string {
+function renderGeneralSettingsForm(
+  address: string,
+  deviceType: 'doser' | 'light',
+  metadata: DeviceMetadata | null,
+  deviceStatus: any
+): string {
+  const nickname = metadata?.name || '';
+  const autoReconnect = metadata?.autoReconnect || false;
+
   return `
-    <div class="device-config-interface">
-      <!-- Device Information Section -->
-      <div class="config-section">
-        <h3>Device Information</h3>
-        <div class="device-info-grid">
-          <div class="info-item">
-            <label class="info-label">Device Model Name:</label>
-            <span class="info-value model-name">${device.model_name || 'Unknown'}</span>
-          </div>
-          <div class="info-item">
-            <label class="info-label">Device Address:</label>
-            <span class="info-value mac-address">${deviceAddress}</span>
-          </div>
-        </div>
+    <div class="settings-section">
+      <h3>Device Information</h3>
+
+      <div class="form-group">
+        <label for="device-nickname">Device Nickname</label>
+        <input
+          type="text"
+          id="device-nickname"
+          class="form-control"
+          value="${nickname}"
+          placeholder="${deviceStatus.model_name || 'Device Name'}"
+        />
+        <small class="form-text">Custom name displayed in the interface</small>
       </div>
 
-      <!-- Device Configuration Section -->
-      <div class="config-section">
-        <h3>Device Configuration</h3>
-
-        <!-- Auto-Connect Checkbox -->
-        <div class="setting-item">
-          <div class="setting-header">
-            <label class="setting-label" title="Automatically connect to device if available">
-              <input type="checkbox" id="auto-connect-checkbox" class="setting-checkbox">
-              Auto-Connect
-            </label>
-          </div>
-          <p class="setting-description">Automatically connect to device if available</p>
-        </div>
-
-        <!-- Device Nickname -->
-        <div class="setting-item">
-          <label for="device-nickname" class="setting-label">Device Nickname</label>
-          <input type="text" id="device-nickname" class="form-input"
-                 placeholder="Enter a custom name for this device">
-        </div>
-
-        ${device.device_type === 'doser' ? renderDoserHeadNames() : ''}
+      <div class="form-group">
+        <label class="checkbox-label">
+          <input
+            type="checkbox"
+            id="auto-reconnect"
+            ${autoReconnect ? 'checked' : ''}
+          />
+          <span>Auto Connect on Startup</span>
+        </label>
+        <small class="form-text">Automatically connect to this device when the service starts</small>
       </div>
 
-      <!-- Action Buttons -->
-      <div class="modal-actions">
+      ${deviceType === 'doser' ? renderDoserHeadNames(metadata) : ''}
+
+      <div class="form-actions">
+        <button class="btn btn-primary" onclick="saveDeviceConfig()">
+          Save Settings
+        </button>
         <button class="btn btn-secondary" onclick="this.closest('.modal-overlay').remove();">
           Cancel
         </button>
-        <button class="btn btn-primary" onclick="window.saveDeviceConfig('${deviceAddress}')">
-          Save Configuration
-        </button>
       </div>
     </div>
-
-    <style>
-      .device-config-interface {
-        padding: 0;
-      }
-
-      .config-section {
-        margin-bottom: 32px;
-        padding-bottom: 24px;
-        border-bottom: 1px solid var(--border-color);
-      }
-
-      .config-section:last-of-type {
-        border-bottom: none;
-        margin-bottom: 24px;
-      }
-
-      .config-section h3 {
-        margin: 0 0 16px 0;
-        color: var(--text-primary);
-        font-size: 18px;
-        font-weight: 600;
-      }
-
-      .device-info-grid {
-        display: grid;
-        gap: 12px;
-      }
-
-      .info-item {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 12px 16px;
-        background: var(--card-bg);
-        border: 1px solid var(--border-color);
-        border-radius: 8px;
-      }
-
-      .info-label {
-        font-weight: 600;
-        color: var(--text-secondary);
-        margin: 0;
-      }
-
-      .info-value {
-        font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
-        color: var(--text-primary);
-        font-weight: 500;
-      }
-
-      .mac-address {
-        font-size: 14px;
-        letter-spacing: 0.5px;
-      }
-
-      .setting-item {
-        margin-bottom: 24px;
-      }
-
-      .setting-item:last-child {
-        margin-bottom: 0;
-      }
-
-      .setting-header {
-        display: flex;
-        align-items: center;
-        margin-bottom: 8px;
-      }
-
-      .setting-label {
-        font-weight: 600;
-        color: var(--text-primary);
-        margin: 0;
-        font-size: 16px;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        cursor: pointer;
-      }
-
-      .setting-checkbox {
-        width: 18px;
-        height: 18px;
-        margin: 0;
-        cursor: pointer;
-      }
-
-      .setting-description {
-        margin: 0;
-        color: var(--text-secondary);
-        font-size: 14px;
-        line-height: 1.4;
-        margin-left: 26px;
-      }
-
-      .form-input {
-        width: 100%;
-        padding: 12px 16px;
-        border: 1px solid var(--border-color);
-        border-radius: 8px;
-        background: var(--input-bg);
-        color: var(--text-primary);
-        font-size: 16px;
-        margin-top: 8px;
-        transition: border-color 0.2s ease;
-      }
-
-      .form-input:focus {
-        outline: none;
-        border-color: var(--primary);
-        box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.1);
-      }
-
-      /* Head names grid for dosers */
-      .head-names-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        gap: 16px;
-        margin-top: 16px;
-      }
-
-      .head-name-item {
-        display: flex;
-        flex-direction: column;
-      }
-
-      .head-name-item label {
-        font-weight: 600;
-        color: var(--text-primary);
-        margin-bottom: 8px;
-        font-size: 14px;
-      }
-    </style>
   `;
 }
 
 /**
- * Render doser head names section
+ * Render doser-specific head names fields
  */
-function renderDoserHeadNames(): string {
+function renderDoserHeadNames(metadata: DeviceMetadata | null): string {
+  const headNames = metadata?.headNames || {};
+
   return `
-    <!-- Dosing Head Names -->
-    <div class="setting-item">
-      <label class="setting-label">Dosing Head Names</label>
-      <div class="head-names-grid">
+    <div class="form-group">
+      <h4>Head Names</h4>
+      <p class="form-text">Customize the names for each dosing head</p>
+
+      <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-top: 12px;">
         ${[1, 2, 3, 4].map(headIndex => `
-          <div class="head-name-item">
-            <label for="head-${headIndex}-name">Head ${headIndex}</label>
-            <input type="text" id="head-${headIndex}-name" class="form-input"
-                   placeholder="e.g., Calcium, Alkalinity">
+          <div>
+            <label for="head-name-${headIndex}">Head ${headIndex}</label>
+            <input
+              type="text"
+              id="head-name-${headIndex}"
+              class="form-control"
+              value="${headNames[headIndex] || ''}"
+              placeholder="Head ${headIndex}"
+            />
           </div>
         `).join('')}
       </div>
@@ -306,93 +172,31 @@ function renderDoserHeadNames(): string {
 }
 
 /**
- * Load current device metadata and populate the form
+ * Handle saving device configuration
  */
-async function loadDeviceMetadata(deviceAddress: string, deviceType: string): Promise<void> {
+async function handleSaveConfig(
+  address: string,
+  deviceType: 'doser' | 'light',
+  modal: HTMLElement
+): Promise<void> {
   try {
-    let metadata = null;
+    // Collect form data
+    const nickname = (document.getElementById('device-nickname') as HTMLInputElement)?.value || '';
+    const autoReconnect = (document.getElementById('auto-reconnect') as HTMLInputElement)?.checked || false;
 
-    if (deviceType === 'doser') {
-      const response = await fetch(`/api/configurations/dosers/${encodeURIComponent(deviceAddress)}/metadata`);
-      if (response.ok) {
-        metadata = await response.json();
-      }
-    } else if (deviceType === 'light') {
-      const response = await fetch(`/api/configurations/lights/${encodeURIComponent(deviceAddress)}/metadata`);
-      if (response.ok) {
-        metadata = await response.json();
-      }
-    }
-
-    // Populate form fields
-    if (metadata) {
-      const nicknameInput = document.getElementById('device-nickname') as HTMLInputElement;
-      if (nicknameInput && metadata.name) {
-        nicknameInput.value = metadata.name;
-      }
-
-      // Load auto-reconnect setting
-      const autoConnectCheckbox = document.getElementById('auto-connect-checkbox') as HTMLInputElement;
-      if (autoConnectCheckbox) {
-        autoConnectCheckbox.checked = metadata.autoReconnect || false;
-      }
-
-      // For dosers, populate head nicknames
-      if (deviceType === 'doser' && metadata.headNames) {
-        for (let i = 1; i <= 4; i++) {
-          const headInput = document.getElementById(`head-${i}-name`) as HTMLInputElement;
-          if (headInput && metadata.headNames[i]) {
-            headInput.value = metadata.headNames[i];
-          }
-        }
-      }
-    } else {
-      // Default values for new devices
-      const autoConnectCheckbox = document.getElementById('auto-connect-checkbox') as HTMLInputElement;
-      if (autoConnectCheckbox) {
-        autoConnectCheckbox.checked = false;
-      }
-    }
-
-  } catch (error) {
-    console.error('Failed to load device metadata:', error);
-  }
-}
-
-/**
- * Save device configuration
- */
-async function saveDeviceConfig(deviceAddress: string): Promise<void> {
-  const state = getDashboardState();
-  const device = state.deviceStatus?.[deviceAddress];
-
-  if (!device) {
-    console.error('Device not found:', deviceAddress);
-    return;
-  }
-
-  try {
-    // Get form values
-    const nicknameInput = document.getElementById('device-nickname') as HTMLInputElement;
-    const autoConnectCheckbox = document.getElementById('auto-connect-checkbox') as HTMLInputElement;
-
-    const deviceNickname = nicknameInput?.value.trim() || '';
-    const autoConnect = autoConnectCheckbox?.checked || false;
-
-    // Prepare metadata update
     const metadata: any = {
-      id: deviceAddress,
-      name: deviceNickname || undefined,
-      autoReconnect: autoConnect
+      id: address,
+      name: nickname || undefined,
+      autoReconnect
     };
 
-    // For dosers, collect head nicknames
-    if (device.device_type === 'doser') {
-      const headNames: { [key: number]: string } = {};
+    // Collect head names for dosers
+    if (deviceType === 'doser') {
+      const headNames: Record<number, string> = {};
       for (let i = 1; i <= 4; i++) {
-        const headInput = document.getElementById(`head-${i}-name`) as HTMLInputElement;
-        if (headInput?.value.trim()) {
-          headNames[i] = headInput.value.trim();
+        const input = document.getElementById(`head-name-${i}`) as HTMLInputElement;
+        if (input && input.value.trim()) {
+          headNames[i] = input.value.trim();
         }
       }
       if (Object.keys(headNames).length > 0) {
@@ -400,53 +204,30 @@ async function saveDeviceConfig(deviceAddress: string): Promise<void> {
       }
     }
 
-    // Update metadata
-    let response;
-    if (device.device_type === 'doser') {
-      response = await fetch(`/api/configurations/dosers/${encodeURIComponent(deviceAddress)}/metadata`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(metadata)
-      });
-    } else if (device.device_type === 'light') {
-      response = await fetch(`/api/configurations/lights/${encodeURIComponent(deviceAddress)}/metadata`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(metadata)
-      });
+    // Save via API
+    if (deviceType === 'doser') {
+      await updateDoserMetadata(address, metadata);
+    } else {
+      await updateLightMetadata(address, metadata);
     }
 
-    if (!response?.ok) {
-      throw new Error(`Failed to save metadata: ${response?.statusText}`);
-    }
+    // Show success notification
+    useActions().addNotification({
+      type: 'success',
+      message: 'Settings saved successfully'
+    });
 
-    // Close modal and refresh data
-    const modal = document.querySelector('.modal-overlay');
-    if (modal) {
-      modal.remove();
-    }
+    // Refresh dashboard data
+    const { loadAllDashboardData } = await import('../services/data-service');
+    await loadAllDashboardData();
 
-    // Trigger data refresh
-    if (window.refreshDashboardData) {
-      await window.refreshDashboardData();
-    }
-
-    console.log('Device configuration saved successfully');
-
+    // Close modal
+    modal.remove();
   } catch (error) {
-    console.error('Failed to save device configuration:', error);
-    alert('Failed to save device configuration. Please try again.');
+    console.error('Failed to save settings:', error);
+    useActions().addNotification({
+      type: 'error',
+      message: `Failed to save settings: ${error instanceof Error ? error.message : 'Unknown error'}`
+    });
   }
 }
-
-// Make functions available globally
-declare global {
-  interface Window {
-    showDeviceConfigModal: (deviceAddress: string) => void;
-    saveDeviceConfig: (deviceAddress: string) => Promise<void>;
-    refreshDashboardData?: () => Promise<void>;
-  }
-}
-
-window.showDeviceConfigModal = showDeviceConfigModal;
-window.saveDeviceConfig = saveDeviceConfig;

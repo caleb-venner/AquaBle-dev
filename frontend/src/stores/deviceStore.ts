@@ -10,10 +10,10 @@ import type {
   QueuedCommand,
   UIState,
   CommandRecord,
-  ScanDevice,
   Notification,
   CommandRequest,
 } from "../types/models";
+import { getErrorMessage } from "../errors";
 
 // ========================================
 // STORE INTERFACES
@@ -37,7 +37,6 @@ interface DeviceStore {
     updateDevice: (address: string, status: CachedStatus) => void;
     setDeviceLoading: (address: string, loading: boolean) => void;
     setDeviceError: (address: string, error: string | null) => void;
-    addCommandToHistory: (address: string, command: CommandRecord) => void;
 
     // Command queue management
     queueCommand: (address: string, request: CommandRequest) => Promise<string>;
@@ -48,8 +47,6 @@ interface DeviceStore {
 
     // UI state management
     setCurrentView: (view: UIState["currentView"]) => void;
-    setScanning: (scanning: boolean) => void;
-    setScanResults: (results: ScanDevice[]) => void;
     setGlobalError: (error: string | null) => void;
     addNotification: (notification: Omit<Notification, "id" | "timestamp">) => void;
     removeNotification: (id: string) => void;
@@ -58,7 +55,6 @@ interface DeviceStore {
     // Data refresh
     refreshDevices: () => Promise<void>;
     refreshDevice: (address: string) => Promise<void>;
-    scanForDevices: () => Promise<ScanDevice[]>;
     connectToDevice: (address: string) => Promise<void>;
   };
 }
@@ -74,8 +70,6 @@ const storeInitializer: StateCreator<DeviceStore> = (set, get) => ({
   isProcessingCommands: false,
   ui: {
     currentView: "dashboard",
-    isScanning: false,
-    scanResults: [],
     globalError: null,
     notifications: [],
   },
@@ -92,7 +86,6 @@ const storeInitializer: StateCreator<DeviceStore> = (set, get) => ({
             lastUpdated: Date.now(),
             isLoading: existing?.isLoading ?? false,
             error: null,
-            commandHistory: existing?.commandHistory ?? [],
           });
         });
         set({ devices: deviceMap });
@@ -107,7 +100,6 @@ const storeInitializer: StateCreator<DeviceStore> = (set, get) => ({
           lastUpdated: Date.now(),
           isLoading: false,
           error: null,
-          commandHistory: existing?.commandHistory ?? [],
         });
         set({ devices });
       },
@@ -126,16 +118,6 @@ const storeInitializer: StateCreator<DeviceStore> = (set, get) => ({
         const existing = devices.get(address);
         if (existing) {
           devices.set(address, { ...existing, error, isLoading: false });
-          set({ devices });
-        }
-      },
-
-      addCommandToHistory: (address, command) => {
-        const devices = new Map(get().devices);
-        const existing = devices.get(address);
-        if (existing) {
-          const history = [command, ...existing.commandHistory].slice(0, 50); // Keep last 50
-          devices.set(address, { ...existing, commandHistory: history });
           set({ devices });
         }
       },
@@ -185,39 +167,39 @@ const storeInitializer: StateCreator<DeviceStore> = (set, get) => ({
               const { executeCommand } = await import("../api/commands");
               const result = await executeCommand(nextCommand.address, nextCommand.request);
 
-              // Add to command history
-              actions.addCommandToHistory(nextCommand.address, result);
-
-              // Refresh device status if command was successful
+              // Handle command result
               if (result.status === "success") {
+                // Refresh device status if command was successful
                 await actions.refreshDevice(nextCommand.address);
+                actions.addNotification({
+                  type: "success",
+                  message: `Command completed successfully`,
+                  autoHide: true,
+                });
+              } else if (result.status === "failed" || result.status === "timed_out") {
+                // Command failed - use structured error information
+                const errorMessage = getErrorMessage(result.error_code && result.error ? {
+                  code: result.error_code as any,
+                  message: result.error,
+                  details: result.result as any || {}
+                } : null);
+
+                actions.setDeviceError(nextCommand.address, errorMessage);
+                actions.addNotification({
+                  type: "error",
+                  message: errorMessage,
+                  autoHide: false,
+                });
               }
 
             } catch (error) {
-              const errorMessage = error instanceof Error ? error.message : "Unknown error";
-
-              // Create failed command record
-              const failedCommand: CommandRecord = {
-                id: nextCommand.request.id || nextCommand.id,
-                address: nextCommand.address,
-                action: nextCommand.request.action,
-                args: nextCommand.request.args || null,
-                status: "failed",
-                attempts: nextCommand.retryCount + 1,
-                result: null,
-                error: errorMessage,
-                created_at: nextCommand.queuedAt,
-                started_at: Date.now(),
-                completed_at: Date.now(),
-                timeout: nextCommand.request.timeout || 10,
-              };
-
-              actions.addCommandToHistory(nextCommand.address, failedCommand);
+              // Network/API error - this shouldn't happen in normal operation
+              const errorMessage = error instanceof Error ? error.message : "Network error";
               actions.setDeviceError(nextCommand.address, errorMessage);
               actions.addNotification({
                 type: "error",
-                message: `Command failed: ${errorMessage}`,
-                autoHide: true,
+                message: `Network error: ${errorMessage}`,
+                autoHide: false,
               });
             } finally {
               actions.setDeviceLoading(nextCommand.address, false);
@@ -257,18 +239,6 @@ const storeInitializer: StateCreator<DeviceStore> = (set, get) => ({
       setCurrentView: (view) => {
         set((state) => ({
           ui: { ...state.ui, currentView: view },
-        }));
-      },
-
-      setScanning: (scanning) => {
-        set((state) => ({
-          ui: { ...state.ui, isScanning: scanning },
-        }));
-      },
-
-      setScanResults: (results) => {
-        set((state) => ({
-          ui: { ...state.ui, scanResults: results },
         }));
       },
 
@@ -343,26 +313,6 @@ const storeInitializer: StateCreator<DeviceStore> = (set, get) => ({
           const message = error instanceof Error ? error.message : "Failed to refresh device";
           get().actions.setDeviceError(address, message);
           throw error;
-        }
-      },
-
-      scanForDevices: async () => {
-        try {
-          get().actions.setScanning(true);
-          const { fetchJson } = await import("../api/http");
-          const results = await fetchJson<ScanDevice[]>("/api/scan");
-          get().actions.setScanResults(results);
-          return results;
-        } catch (error) {
-          const message = error instanceof Error ? error.message : "Failed to scan for devices";
-          get().actions.addNotification({
-            type: "error",
-            message,
-            autoHide: true,
-          });
-          throw error;
-        } finally {
-          get().actions.setScanning(false);
         }
       },
 

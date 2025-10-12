@@ -42,6 +42,8 @@ dev-back:
 
 dev:
 	@echo "Starting dev servers (frontend + backend)"
+	@echo "Opening http://localhost:5173 in browser..."
+	@(sleep 1; open "http://localhost:5173") &
 	@echo "Tip: In VS Code, run the 'dev: full stack' task to launch both in background."
 	@$(MAKE) -j2 AQUA_BLE_AUTO_DISCOVER=0 dev-front dev-back
 

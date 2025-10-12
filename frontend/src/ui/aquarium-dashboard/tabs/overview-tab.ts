@@ -4,7 +4,6 @@
 
 import { getDashboardState } from "../state";
 import { renderDeviceSection } from "../devices/device-card";
-import { renderScanSection } from "../components/scan-results";
 
 /**
  * Render the overview tab - shows device connection status
@@ -23,12 +22,7 @@ export function renderOverviewTab(): string {
     return `
       <div class="empty-state">
         <h2>No Devices Connected</h2>
-        <p>Get started by connecting your aquarium devices using the scan and connect options in the top navigation bar.</p>
-        <div class="empty-state-actions">
-          <p class="text-muted">
-            Look for the "Scan" button in the top bar to discover nearby devices
-          </p>
-        </div>
+        <p>This dashboard shows the status of connected aquarium devices. Devices must be connected externally to the backend service.</p>
       </div>
     `;
   }

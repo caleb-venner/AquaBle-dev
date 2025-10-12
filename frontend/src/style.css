@@ -1037,3 +1037,110 @@ code {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
 }
+
+/* ========================================
+   SCAN & CONNECT MODAL STYLES
+   ======================================== */
+
+.scan-connect-modal .modal-body {
+  padding: 24px;
+}
+
+.scan-interface {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.scan-status {
+  text-align: center;
+  padding: 20px;
+  background: #f8fafc;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+}
+
+.scan-message {
+  color: #64748b;
+  font-size: 14px;
+  margin-top: 8px;
+}
+
+.scan-actions {
+  display: flex;
+  justify-content: center;
+}
+
+.scan-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px;
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.scan-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.scan-icon {
+  font-size: 18px;
+}
+
+.devices-list {
+  margin-top: 16px;
+}
+
+.devices-list h3 {
+  margin: 0 0 16px 0;
+  color: #1e293b;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.devices-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.device-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+
+.device-card:hover {
+  border-color: #3b82f6;
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.1);
+}
+
+.device-info {
+  flex: 1;
+}
+
+.device-name {
+  font-weight: 600;
+  color: #1e293b;
+  font-size: 16px;
+}
+
+.device-actions {
+  flex-shrink: 0;
+}
+
+.connect-button {
+  min-width: 80px;
+}
+
+.connect-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

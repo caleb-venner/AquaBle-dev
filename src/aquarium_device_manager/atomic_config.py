@@ -16,15 +16,9 @@ from .doser_storage import (
     DoserHead,
     SingleSchedule,
 )
+from .time_utils import now_iso as _now_iso
 
 logger = logging.getLogger(__name__)
-
-
-def _now_iso() -> str:
-    """Return current ISO timestamp."""
-    from .doser_storage import _now_iso as doser_now_iso
-
-    return doser_now_iso()
 
 
 class ConfigUpdateError(Exception):
@@ -129,14 +123,13 @@ def atomic_update_doser_schedule(
 
 
 def atomic_update_doser_device_props(
-    device: DoserDevice, name: str | None = None, timezone: str | None = None
+    device: DoserDevice, name: str | None = None
 ) -> DoserDevice:
     """Atomically update doser device properties.
 
     Args:
         device: The DoserDevice to update
         name: New device name (optional)
-        timezone: New timezone (optional)
 
     Returns:
         New DoserDevice instance with updated properties
@@ -151,9 +144,6 @@ def atomic_update_doser_device_props(
         # Update device fields that were provided
         if name is not None:
             updated_device.name = name
-
-        if timezone is not None:
-            updated_device.timezone = timezone
 
         # Update timestamp
         timestamp = _now_iso()
@@ -172,7 +162,6 @@ def atomic_update_doser_device_props(
 def atomic_update_device_metadata(
     metadata: DeviceMetadata,
     name: str | None = None,
-    timezone: str | None = None,
     head_names: dict[int, str] | None = None,
 ) -> DeviceMetadata:
     """Atomically update device metadata.
@@ -180,7 +169,6 @@ def atomic_update_device_metadata(
     Args:
         metadata: The DeviceMetadata to update
         name: New device name (optional)
-        timezone: New timezone (optional)
         head_names: New head names mapping (optional)
 
     Returns:
@@ -196,9 +184,6 @@ def atomic_update_device_metadata(
         # Update metadata fields that were provided
         if name is not None:
             updated_metadata.name = name
-
-        if timezone is not None:
-            updated_metadata.timezone = timezone
 
         if head_names is not None:
             updated_metadata.headNames = head_names.copy()
