@@ -11,6 +11,7 @@
 
 import { renderProductionDashboard, initializeDashboardHandlers } from "./ui/aquarium-dashboard/dashboard";
 import { createNotificationSystem } from "./ui/notifications";
+import { setupStateSubscriptions } from "./ui/stateSubscriptions";
 import "./ui/productionDashboard.css";
 
 // Initialize the production dashboard
@@ -23,8 +24,17 @@ async function init() {
       throw new Error("App element not found");
     }
 
+    // Initialize theme from localStorage
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme === 'dark') {
+      document.documentElement.className = 'dark-theme';
+    }
+
     // Initialize notification system
     createNotificationSystem();
+
+    // Setup state subscriptions for automatic updates
+    setupStateSubscriptions();
 
     // Initialize dashboard handlers
     initializeDashboardHandlers();

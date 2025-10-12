@@ -110,7 +110,7 @@ async def test_execute_set_doser_schedule_success(
     assert head_config is not None
     assert head_config.schedule.dailyDoseMl == 5.5
     assert head_config.schedule.startTime == "10:30"
-    assert set(head_config.recurrence.days) == {"Mon", "Wed", "Fri"}
+    assert set(head_config.recurrence.days) == {"monday", "wednesday", "friday"}
 
 
 async def test_execute_add_light_auto_setting_success(
@@ -181,4 +181,4 @@ async def test_execute_add_light_auto_setting_success(
     assert program.sunset == "20:00"
     assert program.rampMinutes == 15
     # Check weekdays conversion from enum to string
-    assert set(program.days) == {"Sat", "Sun"}
+    assert set(program.days) == {"saturday", "sunday"}

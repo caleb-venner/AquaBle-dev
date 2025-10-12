@@ -383,13 +383,13 @@ def pump_weekdays_to_names(weekdays: Sequence[PumpWeekday]) -> list[str]:
     Returns weekday names in the order they appear in the enum.
     """
     name_map = {
-        PumpWeekday.monday: "Mon",
-        PumpWeekday.tuesday: "Tue",
-        PumpWeekday.wednesday: "Wed",
-        PumpWeekday.thursday: "Thu",
-        PumpWeekday.friday: "Fri",
-        PumpWeekday.saturday: "Sat",
-        PumpWeekday.sunday: "Sun",
+        PumpWeekday.monday: "monday",
+        PumpWeekday.tuesday: "tuesday",
+        PumpWeekday.wednesday: "wednesday",
+        PumpWeekday.thursday: "thursday",
+        PumpWeekday.friday: "friday",
+        PumpWeekday.saturday: "saturday",
+        PumpWeekday.sunday: "sunday",
     }
 
     return [name_map[day] for day in weekdays if day in name_map]

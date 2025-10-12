@@ -33,10 +33,12 @@ function renderHeader(): string {
         <div class="header-left">
           <div class="header-title">
             <h1>Aquarium BLE Device Manager</h1>
-            <p class="header-subtitle">Production Dashboard - Device Status Monitoring (Read-Only)</p>
           </div>
         </div>
         <div class="header-actions">
+          <button class="btn btn-outline" onclick="window.toggleTheme()" title="Toggle Dark Mode">
+            🌙
+          </button>
           <button class="btn btn-primary" onclick="window.handleScanDevices()">
             Scan & Connect
           </button>

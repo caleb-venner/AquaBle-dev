@@ -17,7 +17,9 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from .storage_utils import ensure_unique_values, filter_device_json_files
 from .time_utils import now_iso as _now_iso
 
-Weekday = Literal["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+Weekday = Literal[
+    "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"
+]
 InterpolationKind = Literal["step", "linear"]
 TimeString = Field(pattern=r"^\d{2}:\d{2}$")
 

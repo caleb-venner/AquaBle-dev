@@ -85,7 +85,7 @@ def test_config_helpers_update_schedule():
         "volume_tenths_ml": 75,  # 7.5 ml
         "hour": 8,
         "minute": 15,
-        "weekdays": ["Tue", "Thu", "Sat"],
+        "weekdays": ["tuesday", "thursday", "saturday"],
     }
 
     updated = update_doser_schedule_config(device, args)
@@ -96,4 +96,4 @@ def test_config_helpers_update_schedule():
     assert head.active is True
     assert head.schedule.dailyDoseMl == 7.5
     assert head.schedule.startTime == "08:15"
-    assert head.recurrence.days == ["Tue", "Thu", "Sat"]
+    assert head.recurrence.days == ["tuesday", "thursday", "saturday"]

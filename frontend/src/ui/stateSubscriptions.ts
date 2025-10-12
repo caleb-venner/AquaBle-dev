@@ -9,15 +9,38 @@ export function setupStateSubscriptions(): void {
   let previousDevicesSize = deviceStore.getState().devices.size;
   let previousUI = deviceStore.getState().ui;
   let previousQueueLength = deviceStore.getState().commandQueue.length;
+  let previousDeviceData = new Map();
 
   // Subscribe to device changes
   const unsubscribeDevices = deviceStore.subscribe(
     (state) => {
       const devices = state.devices;
-      // Only update if the device data actually changed
+      let hasChanged = false;
+
+      // Check if device count changed
       if (devices.size !== previousDevicesSize) {
-        console.log(`Device state changed: ${devices.size} devices`);
+        console.log(`Device count changed: ${devices.size} devices`);
         previousDevicesSize = devices.size;
+        hasChanged = true;
+      }
+
+      // Check if any device status changed (connection, last updated, etc.)
+      devices.forEach((device, address) => {
+        const previous = previousDeviceData.get(address);
+        if (!previous ||
+            previous.lastUpdated !== device.lastUpdated ||
+            previous.status?.connected !== device.status?.connected ||
+            previous.isLoading !== device.isLoading ||
+            previous.error !== device.error) {
+          console.log(`Device ${address} status changed`);
+          hasChanged = true;
+        }
+      });
+
+      // Update our cache
+      previousDeviceData = new Map(devices);
+
+      if (hasChanged) {
         updateDashboardView();
       }
     }
@@ -90,6 +113,45 @@ function updateDashboardView(): void {
   if (typeof (window as any).updateModernDashboard === 'function') {
     (window as any).updateModernDashboard();
   }
+
+  // Update the production dashboard if it exists
+  const productionDashboard = document.querySelector('.production-dashboard');
+  if (productionDashboard) {
+    // Update the dashboard state with current Zustand store data
+    updateDashboardStateFromZustand();
+
+    // Trigger dashboard refresh
+    if (typeof (window as any).refreshDashboard === 'function') {
+      (window as any).refreshDashboard();
+    } else {
+      // Import and call refreshDashboard directly
+      import('./aquarium-dashboard/render').then(({ refreshDashboard }) => {
+        refreshDashboard();
+      }).catch(err => {
+        console.warn('Could not refresh dashboard:', err);
+      });
+    }
+  }
+}
+
+// Bridge function to sync Zustand store data to dashboard state
+function updateDashboardStateFromZustand(): void {
+  const zustandState = deviceStore.getState();
+
+  // Convert Zustand device data to dashboard state format
+  const deviceStatusObj: { [address: string]: any } = {};
+  zustandState.devices.forEach((device, address) => {
+    if (device.status) {
+      deviceStatusObj[address] = device.status;
+    }
+  });
+
+  // Update dashboard state
+  import('./aquarium-dashboard/state').then(({ setDeviceStatus }) => {
+    setDeviceStatus(deviceStatusObj);
+  }).catch(err => {
+    console.warn('Could not update dashboard state:', err);
+  });
 }
 
 // Throttled update functions to prevent excessive re-renders

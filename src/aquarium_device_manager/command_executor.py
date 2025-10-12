@@ -465,10 +465,18 @@ class CommandExecutor:
 
             device = self.ble_service._light_storage.get_device(address)
             if device:
-                # Convert weekdays to strings
+                # Convert weekdays to full lowercase strings
                 weekdays = args.get("weekdays")
                 if weekdays:
-                    weekdays = [day.value for day in weekdays]
+                    # Handle both enum objects and plain strings, convert to lowercase
+                    weekdays = [
+                        (
+                            day.value.lower()
+                            if hasattr(day, "value")
+                            else str(day).lower()
+                        )
+                        for day in weekdays
+                    ]
 
                 # Update the existing configuration
                 device = add_light_auto_program(

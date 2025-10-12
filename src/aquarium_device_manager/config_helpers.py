@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import logging
 from typing import TYPE_CHECKING, Any, Dict, Optional, cast
+from uuid import uuid4
 
 from .commands.encoder import decode_pump_weekdays, pump_weekdays_to_names
 from .doser_status import DoserStatus, HeadSnapshot
@@ -57,7 +58,15 @@ def create_default_doser_config(
                 mode="single", dailyDoseMl=10.0, startTime="09:00"
             ),
             recurrence=Recurrence(
-                days=["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+                days=[
+                    "monday",
+                    "tuesday",
+                    "wednesday",
+                    "thursday",
+                    "friday",
+                    "saturday",
+                    "sunday",
+                ]
             ),
             missedDoseCompensation=False,
             calibration=Calibration(
@@ -128,13 +137,13 @@ def create_doser_config_from_status(
         # TODO: Parse per-head weekday information from HeadSnapshot.extra bytes
         # Currently, device status may contain weekday info at device level
         recurrence_days = [
-            "Mon",
-            "Tue",
-            "Wed",
-            "Thu",
-            "Fri",
-            "Sat",
-            "Sun",
+            "monday",
+            "tuesday",
+            "wednesday",
+            "thursday",
+            "friday",
+            "saturday",
+            "sunday",
         ]  # Default to all days
         if status.weekday is not None:
             try:
@@ -142,13 +151,13 @@ def create_doser_config_from_status(
                 recurrence_days = pump_weekdays_to_names(pump_weekdays)
                 if not recurrence_days:  # Empty list means no days selected
                     recurrence_days = [
-                        "Mon",
-                        "Tue",
-                        "Wed",
-                        "Thu",
-                        "Fri",
-                        "Sat",
-                        "Sun",
+                        "monday",
+                        "tuesday",
+                        "wednesday",
+                        "thursday",
+                        "friday",
+                        "saturday",
+                        "sunday",
                     ]
             except Exception:
                 # Fall back to all days if decoding fails
@@ -515,8 +524,6 @@ def add_light_auto_program(
     Returns:
         Updated LightDevice
     """
-    from uuid import uuid4
-
     from .light_storage import AutoProfile, AutoProgram, LightProfileRevision
 
     # Create default levels for all channels
@@ -530,23 +537,18 @@ def add_light_auto_program(
         # Use single brightness value for all channels
         levels = {ch.key: brightness for ch in device.channels}
 
-    # Convert weekday names to abbreviated format
-    weekday_mapping = {
-        "monday": "Mon",
-        "tuesday": "Tue",
-        "wednesday": "Wed",
-        "thursday": "Thu",
-        "friday": "Fri",
-        "saturday": "Sat",
-        "sunday": "Sun",
-    }
-
-    # Create new auto program
-    default_weekdays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+    # Create new auto program - use full lowercase weekday names
+    default_weekdays = [
+        "monday",
+        "tuesday",
+        "wednesday",
+        "thursday",
+        "friday",
+        "saturday",
+        "sunday",
+    ]
     if weekdays:
-        program_days = [
-            weekday_mapping.get(day.lower(), day) for day in weekdays
-        ]
+        program_days = [day.lower() for day in weekdays]
     else:
         program_days = default_weekdays
 
@@ -614,16 +616,20 @@ def create_doser_config_from_command(
             # Create the actual scheduled head from command
             weekdays = command_args.get("weekdays")
             if weekdays:
-                weekday_strings = [day.value for day in weekdays]
+                # Convert weekday names to full lowercase format
+                weekday_strings = [
+                    day.value if hasattr(day, "value") else str(day).lower()
+                    for day in weekdays
+                ]
             else:
                 weekday_strings = [
-                    "Mon",
-                    "Tue",
-                    "Wed",
-                    "Thu",
-                    "Fri",
-                    "Sat",
-                    "Sun",
+                    "monday",
+                    "tuesday",
+                    "wednesday",
+                    "thursday",
+                    "friday",
+                    "saturday",
+                    "sunday",
                 ]
 
             # Convert volume from tenths to ml
@@ -635,17 +641,20 @@ def create_doser_config_from_command(
             # Convert PumpWeekday enums to strings for Recurrence
             weekdays = command_args.get("weekdays")
             if weekdays:
-                # weekdays is List[PumpWeekday] - convert to strings
-                weekday_strings = [day.value for day in weekdays]
+                # weekdays is List[PumpWeekday] - convert to full lowercase format
+                weekday_strings = [
+                    day.value if hasattr(day, "value") else str(day).lower()
+                    for day in weekdays
+                ]
             else:
                 weekday_strings = [
-                    "Mon",
-                    "Tue",
-                    "Wed",
-                    "Thu",
-                    "Fri",
-                    "Sat",
-                    "Sun",
+                    "monday",
+                    "tuesday",
+                    "wednesday",
+                    "thursday",
+                    "friday",
+                    "saturday",
+                    "sunday",
                 ]
 
             head = DoserHead(
@@ -672,7 +681,15 @@ def create_doser_config_from_command(
                     mode="single", dailyDoseMl=10.0, startTime="09:00"
                 ),
                 recurrence=Recurrence(
-                    days=["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+                    days=[
+                        "monday",
+                        "tuesday",
+                        "wednesday",
+                        "thursday",
+                        "friday",
+                        "saturday",
+                        "sunday",
+                    ]
                 ),
                 missedDoseCompensation=False,
                 calibration=Calibration(
@@ -793,12 +810,21 @@ def create_light_config_from_command(
         weekdays = command_args.get("weekdays")
         if weekdays:
             # Handle both LightWeekday enum instances and plain strings
+            # Convert to full lowercase format
             weekday_strings = [
-                day.value if hasattr(day, "value") else str(day)
+                day.value if hasattr(day, "value") else str(day).lower()
                 for day in weekdays
             ]
         else:
-            weekday_strings = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+            weekday_strings = [
+                "monday",
+                "tuesday",
+                "wednesday",
+                "thursday",
+                "friday",
+                "saturday",
+                "sunday",
+            ]
 
         # Handle brightness - could be single value or per-channel dict
         brightness_data = command_args.get("brightness") or command_args.get(
@@ -825,7 +851,7 @@ def create_light_config_from_command(
             }
 
         auto_program = AutoProgram(
-            id="auto-program-1",
+            id=str(uuid4()),
             label="Auto Program",
             enabled=True,
             days=weekday_strings,  # type: ignore[arg-type]

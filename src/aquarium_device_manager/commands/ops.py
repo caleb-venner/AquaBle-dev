@@ -130,6 +130,8 @@ async def reset_auto_settings(service: Any, address: str) -> "CachedStatus":
     device = await service._ensure_device(address, "light")
     try:
         await device.reset_settings()
+        # Clear stored configurations from device file
+        service._unified_storage.clear_device_configurations(address)
     except (BleakNotFoundError, BleakConnectionError) as exc:
         raise HTTPException(
             status_code=404, detail="Light not reachable"

@@ -67,8 +67,8 @@ def test_atomic_update_doser_schedule_success():
     assert isinstance(updated_head.schedule, SingleSchedule)
     assert updated_head.schedule.startTime == "14:30"
     assert updated_head.active is True
-    assert "Mon" in updated_head.recurrence.days
-    assert "Fri" in updated_head.recurrence.days
+    assert "monday" in updated_head.recurrence.days
+    assert "friday" in updated_head.recurrence.days
 
     # Verify timestamps were updated - just check that the head was actually updated
     # The timestamps might be the same due to fast execution,
@@ -155,7 +155,7 @@ def test_atomic_create_new_revision():
             schedule=SingleSchedule(
                 mode="single", dailyDoseMl=10.0 + i, startTime="09:00"
             ),
-            recurrence=Recurrence(days=["Mon", "Wed", "Fri"]),
+            recurrence=Recurrence(days=["monday", "wednesday", "friday"]),
             missedDoseCompensation=False,
             calibration=Calibration(
                 mlPerSecond=0.1, lastCalibratedAt="2024-01-01T00:00:00Z"

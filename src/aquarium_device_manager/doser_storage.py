@@ -19,7 +19,9 @@ from .time_utils import now_iso as _now_iso
 
 logger = logging.getLogger(__name__)
 
-Weekday = Literal["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+Weekday = Literal[
+    "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"
+]
 ModeKind = Literal["single", "every_hour", "custom_periods", "timer"]
 TimeString = Field(pattern=r"^\d{2}:\d{2}$")
 

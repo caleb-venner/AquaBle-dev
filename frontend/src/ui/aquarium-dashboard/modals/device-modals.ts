@@ -591,8 +591,6 @@ async function sendLightManualModeCommand(address: string): Promise<void> {
 
     if (result.status === 'success') {
       alert('Manual brightness set successfully! Device switched to manual mode.');
-      // Close the modal
-      document.querySelector('.modal-overlay')?.remove();
     } else if (result.status === 'failed') {
       alert(`Command failed: ${result.error || 'Unknown error'}`);
     } else {
@@ -688,8 +686,6 @@ async function sendLightAutoModeCommand(address: string): Promise<void> {
 
     if (result.status === 'success') {
       alert('Auto mode schedule set successfully! Device configured for auto mode.');
-      // Close the modal
-      document.querySelector('.modal-overlay')?.remove();
     } else if (result.status === 'failed') {
       alert(`Command failed: ${result.error || 'Unknown error'}`);
     } else {
@@ -721,8 +717,6 @@ async function sendLightResetAutoModeCommand(address: string): Promise<void> {
 
     if (result.status === 'success') {
       alert('Auto mode settings reset successfully');
-      // Close modal
-      document.querySelector('.modal-overlay')?.remove();
     } else {
       alert(`Reset failed: ${result.error || 'Unknown error'}`);
     }
@@ -792,8 +786,6 @@ async function sendDoserScheduleCommand(address: string, headIndex: number): Pro
 
     if (result.status === 'success') {
       alert(`Schedule set successfully for Head ${headIndex}!`);
-      // Close modal
-      document.querySelector('.modal-overlay')?.remove();
     } else {
       alert(`Schedule command failed: ${result.error || 'Unknown error'}`);
     }

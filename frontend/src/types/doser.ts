@@ -1,5 +1,5 @@
 type ModeKind = 'single' | 'every_hour' | 'custom_periods' | 'timer';
-type Weekday = 'Mon'|'Tue'|'Wed'|'Thu'|'Fri'|'Sat'|'Sun'; // UI chips
+type Weekday = 'monday'|'tuesday'|'wednesday'|'thursday'|'friday'|'saturday'|'sunday'; // UI chips
 
 export interface DoserDevice {
   id: string;

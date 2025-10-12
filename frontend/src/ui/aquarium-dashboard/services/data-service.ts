@@ -33,6 +33,13 @@ export async function loadAllDashboardData(): Promise<void> {
   setError(null);
 
   try {
+    // Initialize the Zustand store with two-stage loading
+    console.log("🔄 Initializing Zustand store...");
+    const { useActions } = await import("../../../stores/deviceStore");
+    await useActions().initializeStore();
+    console.log("✅ Zustand store initialized");
+
+    // Continue with existing data loading for dashboard-specific state
     // Load configurations, metadata, and device status in parallel
     const results = await Promise.allSettled([
       getDoserConfigurations(),
@@ -152,6 +159,11 @@ export async function loadAllDashboardData(): Promise<void> {
  */
 export async function refreshDeviceStatusOnly(): Promise<void> {
   try {
+    // Refresh Zustand store
+    const { useActions } = await import("../../../stores/deviceStore");
+    await useActions().refreshDevices();
+
+    // Also refresh local dashboard state for compatibility
     const status = await getDeviceStatus();
     setDeviceStatus(status);
   } catch (error) {

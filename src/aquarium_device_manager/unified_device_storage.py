@@ -193,3 +193,21 @@ class UnifiedDeviceStorage:
             device_file.unlink()
             return True
         return False
+
+    def clear_device_configurations(self, device_id: str) -> bool:
+        """Clear all configurations from a device, preserve metadata and status."""
+        try:
+            device = self.read_device(device_id)
+            if device is None:
+                return False
+
+            # Clear device_data (configurations) while preserving metadata and status
+            device.device_data = None
+            self.write_device(device)
+            logger.info(f"Cleared configurations for device {device_id}")
+            return True
+        except Exception as e:
+            logger.error(
+                f"Failed to clear configurations for device {device_id}: {e}"
+            )
+            return False

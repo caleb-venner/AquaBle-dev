@@ -121,7 +121,7 @@ def test_auto_profile_validates_days_and_sun_times(storage_path: Path) -> None:
             {
                 "id": "prog-1",
                 "enabled": True,
-                "days": ["Mon", "Mon"],
+                "days": ["monday", "monday"],
                 "sunrise": "08:00",
                 "sunset": "07:00",
                 "rampMinutes": 30,
@@ -202,7 +202,13 @@ def test_set_active_configuration_switches(storage_path: Path) -> None:
             {
                 "id": "weekday",
                 "enabled": True,
-                "days": ["Mon", "Tue", "Wed", "Thu", "Fri"],
+                "days": [
+                    "monday",
+                    "tuesday",
+                    "wednesday",
+                    "thursday",
+                    "friday",
+                ],
                 "sunrise": "07:30",
                 "sunset": "20:00",
                 "rampMinutes": 45,

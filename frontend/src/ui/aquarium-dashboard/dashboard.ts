@@ -32,6 +32,24 @@ export function initializeDashboardHandlers(): void {
     await showScanConnectModal();
   };
 
+  // Make refreshDashboard globally available
+  (window as any).refreshDashboard = () => {
+    import('./render').then(({ refreshDashboard }) => {
+      refreshDashboard();
+    });
+  };
+
+  // Theme toggle
+  (window as any).toggleTheme = () => {
+    const currentTheme = localStorage.getItem('theme');
+    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+    console.log('Toggling theme from', currentTheme, 'to', newTheme);
+    localStorage.setItem('theme', newTheme);
+    document.documentElement.className = newTheme === 'dark' ? 'dark-theme' : '';
+    console.log('Updated document.documentElement.className to:', document.documentElement.className);
+    (window as any).refreshDashboard();
+  };
+
   // Data refresh
   (window as any).handleRefreshAll = async () => {
     const { useActions } = await import("../../stores/deviceStore");
@@ -113,23 +131,77 @@ export function initializeDashboardHandlers(): void {
   };
 
   (window as any).toggleDeviceConnection = async (address: string) => {
-    const { connectDevice } = await import("../../api/devices");
+    const { connectDevice, disconnectDevice } = await import("../../api/devices");
     const { useActions } = await import("../../stores/deviceStore");
     const { refreshDeviceStatusOnly } = await import('./services/data-service');
 
-    try {
-      await connectDevice(address);
-      await refreshDeviceStatusOnly();
+    // Find and update the connect button
+    const connectButton = document.querySelector(`[onclick*="toggleDeviceConnection('${address}')"]`) as HTMLButtonElement;
+    if (connectButton) {
+      const originalText = connectButton.textContent?.trim();
+      connectButton.disabled = true;
+      connectButton.classList.add('connecting');
+      connectButton.textContent = 'Connecting...';
+    }
 
-      useActions().addNotification({
-        type: 'success',
-        message: `Successfully connected to device`
-      });
+    try {
+      // Check current connection state to determine action
+      const state = getDashboardState();
+      const device = state.deviceStatus?.[address];
+      const isCurrentlyConnected = device?.connected;
+
+      if (isCurrentlyConnected) {
+        // Disconnect if currently connected
+        await disconnectDevice(address);
+        await refreshDeviceStatusOnly();
+
+        // Refresh dashboard UI to reflect disconnection status
+        const { refreshDashboard } = await import('./render');
+        refreshDashboard();
+
+        useActions().addNotification({
+          type: 'success',
+          message: `Successfully disconnected from device`
+        });
+
+        // Update button text to reflect new state
+        if (connectButton) {
+          connectButton.disabled = false;
+          connectButton.classList.remove('connecting');
+          connectButton.innerHTML = 'Connect';
+        }
+      } else {
+        // Connect if currently disconnected
+        await connectDevice(address);
+        await refreshDeviceStatusOnly();
+
+        // Refresh dashboard UI to reflect connection status
+        const { refreshDashboard } = await import('./render');
+        refreshDashboard();
+
+        useActions().addNotification({
+          type: 'success',
+          message: `Successfully connected to device`
+        });
+
+        // Update button text to reflect new state
+        if (connectButton) {
+          connectButton.disabled = false;
+          connectButton.innerHTML = 'Disconnect';
+        }
+      }
     } catch (error) {
       useActions().addNotification({
         type: 'error',
-        message: `Failed to connect to device: ${error instanceof Error ? error.message : 'Unknown error'}`
+        message: `Failed to ${connectButton?.textContent?.includes('Disconnect') ? 'disconnect' : 'connect'} to device: ${error instanceof Error ? error.message : 'Unknown error'}`
       });
+
+      // Restore button to original state
+      if (connectButton) {
+        connectButton.disabled = false;
+        connectButton.classList.remove('connecting');
+        connectButton.innerHTML = connectButton.textContent?.includes('Disconnect') ? 'Disconnect' : 'Connect';
+      }
     }
   };
 

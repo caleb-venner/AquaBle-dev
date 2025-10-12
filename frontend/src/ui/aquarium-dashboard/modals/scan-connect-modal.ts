@@ -126,6 +126,7 @@ function renderDeviceCard(device: ScanDevice): string {
     <div class="device-card" data-address="${device.address}">
       <div class="device-info">
         <div class="device-name">${device.product}</div>
+        <div class="device-address">${device.address}</div>
       </div>
       <div class="device-actions">
         <button class="btn btn-success btn-sm connect-button" data-address="${device.address}">

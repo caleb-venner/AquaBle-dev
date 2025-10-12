@@ -182,11 +182,15 @@ export interface SetScheduleArgs {
 /** Individual device state for UI */
 export interface DeviceState {
   address: string;
-  status: CachedStatus;
+  status: CachedStatus | null; // Can be null if device hasn't been seen yet
+  configuration: DeviceConfiguration | null; // Saved configuration
   lastUpdated: number;
   isLoading: boolean;
   error: string | null;
 }
+
+/** Union type for device configurations - import from API */
+export type DeviceConfiguration = import('../api/configurations').DoserDevice | import('../api/configurations').LightDevice;
 
 /** Command queue entry */
 export interface QueuedCommand {

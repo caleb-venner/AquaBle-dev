@@ -4,7 +4,7 @@
 
 import { getDashboardState } from "../state";
 import { formatDateTime, getWeekdayName } from "../../../utils";
-import { getDoserHeadName, getHeadLifetimeTotal, getHeadConfigData } from "../utils/device-utils";
+import { getDoserHeadName, getHeadConfigData } from "../utils/device-utils";
 import type { CachedStatus } from "../../../types/models";
 
 /**
@@ -42,17 +42,7 @@ export function renderDoserCardStatus(device: CachedStatus & { address: string }
   const savedConfig = state.doserConfigs.find(config => config.id === device.address);
 
   return `
-    <div style="padding: 16px; background: var(--gray-50);">
-      <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 16px;">
-        <div style="background: white; padding: 12px; border-radius: 6px;">
-          <div style="font-size: 11px; font-weight: 600; color: var(--gray-500); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">Current Time</div>
-          <div style="font-size: 16px; font-weight: 700; color: var(--gray-900);">${dateTimeDisplay}</div>
-        </div>
-        <div style="background: white; padding: 12px; border-radius: 6px;">
-          <div style="font-size: 11px; font-weight: 600; color: var(--gray-500); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">Active Heads</div>
-          <div style="font-size: 20px; font-weight: 700, color: var(--primary);">${activeHeads}/${heads.length}</div>
-        </div>
-      </div>
+    <div style="padding: 16px; background: var(--bg-secondary);">
       ${renderPumpHeads(heads, savedConfig, device.address)}
     </div>
   `;
@@ -76,21 +66,21 @@ function renderPumpHeads(heads: any[], savedConfig?: any, deviceAddress?: string
     // Get custom head name from metadata
     const customName = deviceAddress ? getDoserHeadName(deviceAddress, i) : null;
 
-    // Get lifetime total
-    const lifetimeTotal = deviceAddress ? getHeadLifetimeTotal(headIndex, deviceAddress) : 'N/A';
+    // Get dosed today from device head
+    const dosedToday = deviceHead?.dosed_tenths_ml ? `${(deviceHead.dosed_tenths_ml / 10).toFixed(1)}mL` : 'N/A';
 
     allHeads.push({
       index: headIndex,
       deviceHead,
       configData,
       customName,
-      lifetimeTotal
+      dosedToday
     });
   }
 
   return `
-    <div style="background: white; padding: 16px; border-radius: 6px;">
-      <div style="font-size: 13px; font-weight: 600; color: var(--gray-700); margin-bottom: 12px;">Pump Heads</div>
+    <div style="background: var(--card-bg); padding: 16px; border-radius: 6px; border: 1px solid var(--border-color);">
+      <div style="font-size: 13px; font-weight: 600; color: var(--text-primary); margin-bottom: 12px;">Pump Heads</div>
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
         ${allHeads.map((head: any) => renderPumpHead(head)).join('')}
       </div>
@@ -102,7 +92,7 @@ function renderPumpHeads(heads: any[], savedConfig?: any, deviceAddress?: string
  * Render a single pump head
  */
 function renderPumpHead(head: any): string {
-  const { index, deviceHead, configData, customName, lifetimeTotal } = head;
+  const { index, deviceHead, configData, customName, dosedToday } = head;
 
   // Determine head status and mode
   let statusText = 'Disabled';
@@ -146,30 +136,27 @@ function renderPumpHead(head: any): string {
 
   return `
     <div style="background: var(--gray-50); padding: 12px; border-radius: 6px; border-left: 3px solid ${statusColor};">
-      <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px;">
-        <div>
-          <div style="font-size: 13px; font-weight: 600; color: var(--gray-900); margin-bottom: 2px;">${headName}</div>
-          <div style="font-size: 11px; color: var(--gray-500);">${modeText}</div>
-        </div>
-        <div style="text-align: right;">
-          <div style="font-size: 11px; color: ${statusColor}; font-weight: 600;">${statusText}</div>
-        </div>
+      <!-- First Row: Head name, mode, status -->
+      <div style="display: grid; grid-template-columns: 1fr auto auto; gap: 8px; align-items: center; margin-bottom: 8px;">
+        <div style="font-size: 13px; font-weight: 600; color: var(--gray-900);">${headName}</div>
+        <div style="font-size: 11px; color: var(--gray-500);">${modeText}</div>
+        <div style="font-size: 11px; color: ${statusColor}; font-weight: 600;">${statusText}</div>
       </div>
 
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 11px;">
-        <div>
+      <!-- Second Row: Set Dose, Schedule, Dosed Today -->
+      <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; font-size: 11px;">
+        <div style="text-align: center;">
           <div style="color: var(--gray-500); margin-bottom: 2px;">Set Dose</div>
           <div style="font-weight: 600; color: var(--gray-900);">${configData.setDose}</div>
         </div>
-        <div>
-          <div style="color: var(--gray-500); margin-bottom: 2px;">Lifetime</div>
-          <div style="font-weight: 600; color: var(--gray-900);">${lifetimeTotal}</div>
+        <div style="text-align: center;">
+          <div style="color: var(--gray-500); margin-bottom: 2px;">Schedule</div>
+          <div style="font-weight: 600; color: var(--gray-900);">${configData.schedule}</div>
         </div>
-      </div>
-
-      <div style="margin-top: 8px;">
-        <div style="font-size: 10px; color: var(--gray-500); margin-bottom: 2px;">Schedule</div>
-        <div style="font-size: 11px; font-weight: 600; color: var(--gray-700);">${configData.schedule}</div>
+        <div style="text-align: center;">
+          <div style="color: var(--gray-500); margin-bottom: 2px;">Dosed</div>
+          <div style="font-weight: 600; color: var(--gray-900);">${dosedToday}</div>
+        </div>
       </div>
     </div>
   `;

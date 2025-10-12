@@ -88,22 +88,11 @@ def atomic_update_doser_schedule(
             weekday_names = []
             for weekday in weekdays:
                 if hasattr(weekday, "name"):
-                    # Map PumpWeekday enum names to 3-letter day names
-                    day_mapping = {
-                        "monday": "Mon",
-                        "tuesday": "Tue",
-                        "wednesday": "Wed",
-                        "thursday": "Thu",
-                        "friday": "Fri",
-                        "saturday": "Sat",
-                        "sunday": "Sun",
-                    }
-                    weekday_names.append(
-                        day_mapping.get(weekday.name.lower(), weekday.name[:3])
-                    )
+                    # Convert enum names to lowercase full weekday strings
+                    weekday_names.append(weekday.name.lower())
                 else:
-                    # Already a string
-                    weekday_names.append(str(weekday))
+                    # Already a string, ensure it's lowercase
+                    weekday_names.append(str(weekday).lower())
             target_head.recurrence.days = weekday_names
 
         # Update timestamps atomically

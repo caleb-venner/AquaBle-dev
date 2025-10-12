@@ -4,7 +4,48 @@
 
 import { getDashboardState } from "../state";
 import { getWeekdayName, formatDateTime, getDeviceChannelNames } from "../../../utils";
+import { getCurrentScheduleInfo, AutoProgram } from "../../../utils/schedule-utils";
+import { getDeviceStore } from "../../../stores/deviceStore";
 import type { CachedStatus } from "../../../types/models";
+
+/**
+ * Extract auto programs from device configuration
+ */
+function getDeviceAutoPrograms(deviceAddress: string): AutoProgram[] {
+  const store = getDeviceStore();
+  const state = store.getState();
+  const deviceConfig = state.configurations.lights.get(deviceAddress);
+
+  if (!deviceConfig?.configurations) {
+    return [];
+  }
+
+  const activeConfig = deviceConfig.configurations.find(
+    (config: any) => config.id === deviceConfig.activeConfigurationId
+  );
+
+  if (!activeConfig?.revisions || activeConfig.revisions.length === 0) {
+    return [];
+  }
+
+  const latestRevision = activeConfig.revisions[activeConfig.revisions.length - 1];
+  const profile = latestRevision.profile;
+
+  if (profile.mode !== 'auto' || !profile.programs) {
+    return [];
+  }
+
+  return profile.programs.map((program: any) => ({
+    id: program.id,
+    label: program.label,
+    enabled: program.enabled,
+    days: program.days,
+    sunrise: program.sunrise,
+    sunset: program.sunset,
+    rampMinutes: program.rampMinutes,
+    levels: program.levels
+  }));
+}
 
 /**
  * Render light device status
@@ -40,83 +81,27 @@ export function renderLightCardStatus(device: CachedStatus & { address: string }
   const channelNames = getDeviceChannelNames(device.address, getDashboardState);
   const channelCount = channelNames.length;
 
-  return `
-    <div style="padding: 16px; background: var(--gray-50);">
-      <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px;">
-        <div style="background: white; padding: 12px; border-radius: 6px;">
-          <div style="font-size: 11px; font-weight: 600; color: var(--gray-500); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">Current Time</div>
-          <div style="font-size: 16px; font-weight: 700; color: var(--gray-900);">${dateTimeDisplay}</div>
-        </div>
-        <div style="background: white; padding: 12px; border-radius: 6px;">
-          <div style="font-size: 11px; font-weight: 600; color: var(--gray-500); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">Max Brightness</div>
-          <div style="font-size: 20px; font-weight: 700, color: var(--primary);">${maxBrightness}%</div>
-        </div>
-        <div style="background: white; padding: 12px; border-radius: 6px;">
-          <div style="font-size: 11px; font-weight: 600; color: var(--gray-500); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">Channels</div>
-          <div style="font-size: 20px; font-weight: 700; color: var(--gray-900);">${channelCount}</div>
-        </div>
-      </div>
-      ${renderChannelLevels(keyframes, device.channels || undefined, device.address)}
-    </div>
-  `;
-}
-
-/**
- * Render channel brightness levels with interactive controls
- * TODO: Controls removed in Phase 2 cleanup - will be replaced in Phase 3
- */
-export function renderChannelLevels(keyframes: any[], channels?: any[], deviceAddress?: string): string {
-  // Get channel names for the device to determine count
-  const channelNames = deviceAddress ? getDeviceChannelNames(deviceAddress, getDashboardState) : ['Channel 1', 'Channel 2', 'Channel 3', 'Channel 4'];
-  const channelCount = channelNames.length;
-
-  // Get current schedule intensity from keyframes (represents max intensity across all channels)
-  const currentIntensity = keyframes.length > 0
-    ? Math.max(...keyframes.map((kf: any) => kf.percent || 0))
-    : 0;
-
-  if (!deviceAddress) {
-    return `
-      <div style="background: white; padding: 16px; border-radius: 6px;">
-        <div style="color: var(--gray-500); text-align: center; padding: 20px;">
-          Device address required for channel display
-        </div>
-      </div>
-    `;
-  }
+  // Get schedule information for auto mode devices
+  const autoPrograms = getDeviceAutoPrograms(device.address);
+  const scheduleInfo = getCurrentScheduleInfo(autoPrograms);
 
   return `
-    <div style="background: white; padding: 16px; border-radius: 6px;">
-      <div style="font-size: 13px; font-weight: 600; color: var(--gray-700); margin-bottom: 12px;">Channel Status</div>
-
-      ${keyframes.length === 0 ? `
-        <div style="padding: 20px; text-align: center; background: var(--gray-50); border-radius: 6px; border: 2px dashed var(--gray-300); margin-bottom: 16px;">
-          <div style="font-size: 14px; color: var(--gray-600); margin-bottom: 4px;">No schedule data</div>
-          <div style="font-size: 12px; color: var(--gray-500);">Device has no auto programs configured</div>
-        </div>
-      ` : `
-        <div style="background: var(--primary-light); padding: 12px; border-radius: 6px; margin-bottom: 16px; border-left: 4px solid var(--primary);">
-          <div style="font-size: 12px; font-weight: 600; color: var(--primary); margin-bottom: 4px;">Current Schedule Intensity</div>
-          <div style="font-size: 16px; font-weight: 700; color: var(--primary);">${currentIntensity}%</div>
-          <div style="font-size: 11px; color: var(--primary); opacity: 0.8;">Based on auto schedule (affects all channels proportionally)</div>
-        </div>
-      `}
-
-      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px;">
-        ${Array.from({ length: channelCount }, (_, index) => {
-          const channelName = channelNames[index] || `Channel ${index + 1}`;
-          return `
-            <div style="background: var(--gray-50); padding: 12px; border-radius: 6px; text-align: center;">
-              <div style="font-size: 12px; font-weight: 600; color: var(--gray-700); margin-bottom: 4px;">${channelName}</div>
-              <div style="font-size: 14px; color: var(--gray-500);">—</div>
+    <div style="padding: 16px; background: var(--bg-secondary);">
+      ${scheduleInfo.type !== 'none' ? `
+        <div style="background: var(--card-bg); padding: 12px; border-radius: 6px; margin-bottom: 16px; border: 1px solid var(--border-color); border-left: 4px solid ${scheduleInfo.type === 'current' ? 'var(--success)' : 'var(--primary)'};">
+          <div style="font-size: 11px; font-weight: 600; color: var(--gray-500); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">Schedule Status</div>
+          <div style="font-size: 14px; font-weight: 600; color: var(--text-primary); margin-bottom: 8px;">${scheduleInfo.status}</div>
+          ${scheduleInfo.nextTime ? `<div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 8px;">${scheduleInfo.nextTime}</div>` : ''}
+          ${scheduleInfo.program ? `
+            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; font-size: 12px;">
+              <div><span style="color: var(--gray-500);">Sunrise:</span> ${scheduleInfo.program.sunrise}</div>
+              <div><span style="color: var(--gray-500);">Sunset:</span> ${scheduleInfo.program.sunset}</div>
+              <div><span style="color: var(--gray-500);">Ramp:</span> ${scheduleInfo.program.rampMinutes}min</div>
+              <div><span style="color: var(--gray-500);">Channels:</span> ${Object.entries(scheduleInfo.program.levels).map(([key, value]) => `${key.charAt(0).toUpperCase()}:${value}%`).join(' ')}</div>
             </div>
-          `;
-        }).join('')}
-      </div>
-
-      <div style="margin-top: 12px; padding: 8px 12px; background: var(--gray-100); border-radius: 4px; font-size: 11px; color: var(--gray-600);">
-        💡 <strong>Note:</strong> Individual channel values are not reported by the device. Channel controls will be available in a future update.
-      </div>
+          ` : ''}
+        </div>
+      ` : ''}
     </div>
   `;
 }

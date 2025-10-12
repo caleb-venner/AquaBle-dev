@@ -30,7 +30,7 @@ def _example_device(device_id: str = "device-1") -> dict:
                 "dailyDoseMl": 6.5,
                 "startTime": "08:30",
             },
-            "recurrence": {"days": ["Mon", "Wed", "Fri"]},
+            "recurrence": {"days": ["monday", "wednesday", "friday"]},
             "missedDoseCompensation": True,
             "volumeTracking": {
                 "enabled": True,
@@ -56,7 +56,7 @@ def _example_device(device_id: str = "device-1") -> dict:
                 ],
                 "dailyDoseMl": 2.3,
             },
-            "recurrence": {"days": ["Tue", "Thu", "Sat"]},
+            "recurrence": {"days": ["tuesday", "thursday", "saturday"]},
             "missedDoseCompensation": False,
             "calibration": {
                 "mlPerSecond": 1.6,

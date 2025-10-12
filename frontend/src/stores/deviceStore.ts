@@ -23,6 +23,13 @@ interface DeviceStore {
   // Device state
   devices: Map<string, DeviceState>;
 
+  // Configuration data (loaded once at startup)
+  configurations: {
+    dosers: Map<string, import('../api/configurations').DoserDevice>;
+    lights: Map<string, import('../api/configurations').LightDevice>;
+    isLoaded: boolean;
+  };
+
   // Command queue
   commandQueue: QueuedCommand[];
   isProcessingCommands: boolean;
@@ -30,8 +37,19 @@ interface DeviceStore {
   // UI state
   ui: UIState;
 
+  // Polling state
+  polling: {
+    isEnabled: boolean;
+    intervalId: number | null;
+    intervalMs: number;
+  };
+
   // Actions
   actions: {
+    // Configuration management
+    loadConfigurations: () => Promise<void>;
+    setConfigurations: (dosers: import('../api/configurations').DoserDevice[], lights: import('../api/configurations').LightDevice[]) => void;
+
     // Device management
     setDevices: (devices: CachedStatus[]) => void;
     updateDevice: (address: string, status: CachedStatus) => void;
@@ -53,9 +71,15 @@ interface DeviceStore {
     clearNotifications: () => void;
 
     // Data refresh
+    initializeStore: () => Promise<void>;
     refreshDevices: () => Promise<void>;
     refreshDevice: (address: string) => Promise<void>;
     connectToDevice: (address: string) => Promise<void>;
+
+    // Polling management (placeholder for future real-time updates)
+    startPolling: (intervalMs?: number) => void;
+    stopPolling: () => void;
+    setPollingInterval: (intervalMs: number) => void;
   };
 }
 
@@ -66,6 +90,11 @@ interface DeviceStore {
 const storeInitializer: StateCreator<DeviceStore> = (set, get) => ({
   // Initial state
   devices: new Map(),
+  configurations: {
+    dosers: new Map(),
+    lights: new Map(),
+    isLoaded: false,
+  },
   commandQueue: [],
   isProcessingCommands: false,
   ui: {
@@ -73,16 +102,71 @@ const storeInitializer: StateCreator<DeviceStore> = (set, get) => ({
     globalError: null,
     notifications: [],
   },
+  polling: {
+    isEnabled: false,
+    intervalId: null,
+    intervalMs: 30000, // Default 30 seconds
+  },
 
   actions: {
+      // Configuration management
+      loadConfigurations: async () => {
+        try {
+          const { getDoserConfigurations, getLightConfigurations } = await import("../api/configurations");
+          const [dosers, lights] = await Promise.all([
+            getDoserConfigurations(),
+            getLightConfigurations()
+          ]);
+
+          get().actions.setConfigurations(dosers, lights);
+        } catch (error) {
+          console.error("Failed to load configurations:", error);
+          get().actions.setGlobalError("Failed to load device configurations");
+        }
+      },
+
+      setConfigurations: (dosers, lights) => {
+        const doserMap = new Map();
+        const lightMap = new Map();
+
+        dosers.forEach(doser => doserMap.set(doser.id, doser));
+        lights.forEach(light => lightMap.set(light.id, light));
+
+        set((state) => ({
+          configurations: {
+            dosers: doserMap,
+            lights: lightMap,
+            isLoaded: true,
+          }
+        }));
+
+        // Update existing devices to include configuration data
+        const devices = new Map(get().devices);
+        devices.forEach((device, address) => {
+          const config = doserMap.get(address) || lightMap.get(address);
+          if (config) {
+            devices.set(address, {
+              ...device,
+              configuration: config,
+            });
+          }
+        });
+        set({ devices });
+      },
+
       // Device management
       setDevices: (devices) => {
         const deviceMap = new Map<string, DeviceState>();
+        const { configurations } = get();
+
         devices.forEach((status) => {
           const existing = get().devices.get(status.address);
+          const config = configurations.dosers.get(status.address) || configurations.lights.get(status.address);
+
           deviceMap.set(status.address, {
             address: status.address,
             status,
+            configuration: config || null,
             lastUpdated: Date.now(),
             isLoading: existing?.isLoading ?? false,
             error: null,
@@ -94,9 +178,13 @@ const storeInitializer: StateCreator<DeviceStore> = (set, get) => ({
       updateDevice: (address, status) => {
         const devices = new Map(get().devices);
         const existing = devices.get(address);
+        const { configurations } = get();
+        const config = configurations.dosers.get(address) || configurations.lights.get(address);
+
         devices.set(address, {
           address,
           status,
+          configuration: config || existing?.configuration || null,
           lastUpdated: Date.now(),
           isLoading: false,
           error: null,
@@ -286,22 +374,31 @@ const storeInitializer: StateCreator<DeviceStore> = (set, get) => ({
         }));
       },
 
-      // Data refresh
-      refreshDevices: async () => {
-        try {
-          const { fetchJson } = await import("../api/http");
-          const data = await fetchJson<{ [address: string]: CachedStatus }>("/api/status");
-          const devices = Object.values(data) as CachedStatus[];
-          get().actions.setDevices(devices);
-          get().actions.setGlobalError(null);
-        } catch (error) {
-          const message = error instanceof Error ? error.message : "Failed to refresh devices";
-          get().actions.setGlobalError(message);
-          throw error;
-        }
-      },
+    // Data refresh
+    initializeStore: async () => {
+      // Stage 1: Load configurations immediately (these load from cached backend data)
+      await get().actions.loadConfigurations();
 
-      refreshDevice: async (address) => {
+      // Stage 2: Load live status and overlay on configurations
+      await get().actions.refreshDevices();
+
+      // Stage 3: Start polling for real-time updates (placeholder)
+      get().actions.startPolling();
+    },
+
+    refreshDevices: async () => {
+      try {
+        const { fetchJson } = await import("../api/http");
+        const data = await fetchJson<{ [address: string]: CachedStatus }>("/api/status");
+        const devices = Object.values(data) as CachedStatus[];
+        get().actions.setDevices(devices);
+        get().actions.setGlobalError(null);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Failed to refresh devices";
+        get().actions.setGlobalError(message);
+        throw error;
+      }
+    },      refreshDevice: async (address) => {
         try {
           get().actions.setDeviceLoading(address, true);
           const { postJson } = await import("../api/http");
@@ -338,6 +435,69 @@ const storeInitializer: StateCreator<DeviceStore> = (set, get) => ({
           throw error;
         }
       },
+
+      // Polling management (placeholder for future real-time updates)
+      startPolling: (intervalMs = 30000) => {
+        const { polling } = get();
+
+        // Stop existing polling if running
+        if (polling.intervalId) {
+          clearInterval(polling.intervalId);
+        }
+
+        // Start new polling
+        const intervalId = setInterval(() => {
+          // Only poll if we have configurations loaded and devices
+          const { configurations, devices } = get();
+          if (configurations.isLoaded && devices.size > 0) {
+            get().actions.refreshDevices().catch((error) => {
+              console.warn("Polling refresh failed:", error);
+              // Continue polling even if one refresh fails
+            });
+          }
+        }, intervalMs);
+
+        set((state) => ({
+          polling: {
+            ...state.polling,
+            isEnabled: true,
+            intervalId: intervalId as any, // TypeScript types for setInterval can be tricky
+            intervalMs,
+          }
+        }));
+      },
+
+      stopPolling: () => {
+        const { polling } = get();
+
+        if (polling.intervalId) {
+          clearInterval(polling.intervalId);
+        }
+
+        set((state) => ({
+          polling: {
+            ...state.polling,
+            isEnabled: false,
+            intervalId: null,
+          }
+        }));
+      },
+
+      setPollingInterval: (intervalMs) => {
+        const { polling } = get();
+
+        set((state) => ({
+          polling: {
+            ...state.polling,
+            intervalMs,
+          }
+        }));
+
+        // Restart polling with new interval if currently enabled
+        if (polling.isEnabled) {
+          get().actions.startPolling(intervalMs);
+        }
+      },
   },
 });
 
@@ -356,6 +516,8 @@ export const useDevices = () =>
   Array.from(deviceStore.getState().devices.values());
 export const useDevice = (address: string) =>
   deviceStore.getState().devices.get(address);
+export const useConfigurations = () => deviceStore.getState().configurations;
+export const usePolling = () => deviceStore.getState().polling;
 export const useCommandQueue = () => deviceStore.getState().commandQueue;
 export const useUI = () => deviceStore.getState().ui;
 export const useActions = () => deviceStore.getState().actions;
@@ -363,12 +525,12 @@ export const useActions = () => deviceStore.getState().actions;
 // Device type selectors
 export const useLightDevices = () =>
   Array.from(deviceStore.getState().devices.values()).filter(
-    (device) => device.status.device_type === "light",
+    (device) => device.status?.device_type === "light",
   );
 
 export const useDoserDevices = () =>
   Array.from(deviceStore.getState().devices.values()).filter(
-    (device) => device.status.device_type === "doser",
+    (device) => device.status?.device_type === "doser",
   );
 
 // UI state selectors
