@@ -510,6 +510,7 @@ def add_light_auto_program(
     brightness: int | dict[str, int],
     ramp_up_minutes: int = 0,
     weekdays: list[str] | None = None,
+    label: str | None = None,
 ) -> LightDevice:
     """Add an auto program to light device's active profile.
 
@@ -520,6 +521,7 @@ def add_light_auto_program(
         brightness: Target brightness level (int) or per-channel levels (dict)
         ramp_up_minutes: Ramp-up duration in minutes
         weekdays: List of weekdays (default: all days)
+        label: Optional custom label for the schedule (default: Auto {sunrise}-{sunset})
 
     Returns:
         Updated LightDevice
@@ -554,7 +556,7 @@ def add_light_auto_program(
 
     new_program = AutoProgram(
         id=str(uuid4()),
-        label=f"Auto {sunrise}-{sunset}",
+        label=label if label else f"Auto {sunrise}-{sunset}",
         enabled=True,
         days=program_days,  # type: ignore[arg-type]
         sunrise=sunrise,
@@ -782,12 +784,16 @@ def create_light_config_from_command(
 
     elif command_type == "multi_channel_brightness":
         # Create manual profile from multi-channel brightness command
-        channels = command_args.get("channels", [50, 50, 50, 50])
-        if isinstance(channels, (list, tuple)):
+        brightness_channels = command_args.get("channels", [50, 50, 50, 50])
+        if isinstance(brightness_channels, (list, tuple)):
             # Assume order is [red, green, blue, white]
             channel_names = ["red", "green", "blue", "white"]
             levels = {
-                name: channels[i] if i < len(channels) else 50
+                name: (
+                    brightness_channels[i]
+                    if i < len(brightness_channels)
+                    else 50
+                )
                 for i, name in enumerate(channel_names)
             }
         else:
