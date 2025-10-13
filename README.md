@@ -25,13 +25,14 @@ Maintained by **Caleb Venner**. This project builds on the open-source work publ
 - Chihiros C II (RGB, White)
 - Chihiros Universal WRGB
 - Chihiros Z Light TINY
+- Chihiros WRGB II Pro
 - other LED models might work as well but are not tested
 
 ## Future Deployment Options
 
 This project will (shortly) support multiple deployment methods to fit different use cases:
 
-### 🏠 Home Assistant Add-on (Recommended)
+### Home Assistant Add-on (Recommended)
 
 Perfect integration with Home Assistant for smart home automation.
 
