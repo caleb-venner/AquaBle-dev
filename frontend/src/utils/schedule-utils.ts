@@ -20,6 +20,13 @@ export interface ScheduleInfo {
   nextTime?: string;
 }
 
+export interface SequentialSchedule {
+  program: AutoProgram;
+  status: 'current' | 'next' | 'upcoming' | 'disabled';
+  nextTime?: string;
+  sortOrder: number; // For ordering: current=0, next=1, then by time
+}
+
 /**
  * Get current day of week as lowercase string (monday, tuesday, etc.)
  */
@@ -155,4 +162,94 @@ export function getCurrentScheduleInfo(programs: AutoProgram[]): ScheduleInfo {
   }
 
   return { type: 'none', status: 'No scheduled programs found' };
+}
+
+/**
+ * Get all schedules in sequential running order for display
+ */
+export function getAllSchedulesInOrder(programs: AutoProgram[]): SequentialSchedule[] {
+  if (!programs || programs.length === 0) {
+    return [];
+  }
+
+  const now = new Date();
+  const currentWeekday = getCurrentWeekday();
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+  const schedules: SequentialSchedule[] = [];
+
+  // First, check for currently active programs
+  const activePrograms = programs.filter(program =>
+    program.enabled &&
+    program.days.includes(currentWeekday) &&
+    isTimeInProgram(program, currentMinutes)
+  );
+
+  // Add active programs first (green)
+  activePrograms.forEach(program => {
+    schedules.push({
+      program,
+      status: 'current',
+      sortOrder: 0
+    });
+  });
+
+  // Find next upcoming program (blue)
+  const enabledPrograms = programs.filter(program => program.enabled);
+  if (enabledPrograms.length > 0) {
+    const nextOccurrences = enabledPrograms
+      .map(program => {
+        const occurrence = getNextOccurrence(program, currentWeekday, currentMinutes);
+        return occurrence ? { program, ...occurrence } : null;
+      })
+      .filter(Boolean)
+      .sort((a, b) => a!.minutes - b!.minutes);
+
+    if (nextOccurrences.length > 0) {
+      const next = nextOccurrences[0]!;
+      // Only add if not already in active programs
+      if (!activePrograms.find(p => p.id === next.program.id)) {
+        schedules.push({
+          program: next.program,
+          status: 'next',
+          nextTime: `${next.day} at ${next.time}`,
+          sortOrder: 1
+        });
+      }
+    }
+  }
+
+  // Add all other enabled programs (grey) - upcoming ones
+  enabledPrograms.forEach(program => {
+    // Skip if already added as current or next
+    if (!schedules.find(s => s.program.id === program.id)) {
+      const occurrence = getNextOccurrence(program, currentWeekday, currentMinutes);
+      if (occurrence) {
+        schedules.push({
+          program,
+          status: 'upcoming',
+          nextTime: `${occurrence.day} at ${occurrence.time}`,
+          sortOrder: occurrence.minutes
+        });
+      }
+    }
+  });
+
+  // Add disabled programs (red) - to be implemented soon
+  const disabledPrograms = programs.filter(program => !program.enabled);
+  disabledPrograms.forEach(program => {
+    schedules.push({
+      program,
+      status: 'disabled',
+      sortOrder: 999 // Put disabled at the end
+    });
+  });
+
+  // Sort by sortOrder, then by program label for consistent ordering
+  return schedules.sort((a, b) => {
+    if (a.sortOrder !== b.sortOrder) {
+      return a.sortOrder - b.sortOrder;
+    }
+    return a.program.label.localeCompare(b.program.label);
+  });
 }

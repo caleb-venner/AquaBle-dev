@@ -50,6 +50,18 @@ export function initializeDashboardHandlers(): void {
     (window as any).refreshDashboard();
   };
 
+  // Device raw data toggle
+  (window as any).toggleDeviceRawData = (deviceId: string) => {
+    const content = document.getElementById(`${deviceId}-content`);
+    const icon = document.getElementById(`${deviceId}-icon`);
+
+    if (content && icon) {
+      const isExpanded = content.style.display !== 'none';
+      content.style.display = isExpanded ? 'none' : 'block';
+      icon.style.transform = isExpanded ? 'rotate(0deg)' : 'rotate(90deg)';
+    }
+  };
+
   // Data refresh
   (window as any).handleRefreshAll = async () => {
     const { useActions } = await import("../../stores/deviceStore");

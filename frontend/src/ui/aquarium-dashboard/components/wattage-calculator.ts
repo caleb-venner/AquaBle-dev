@@ -18,7 +18,7 @@ export function renderWattageCalculator(): string {
             <label style="display: block; margin-bottom: 4px; font-weight: 600; color: var(--gray-700);">Red (%)</label>
             <input type="number"
                    id="watt-red"
-                   min="0" max="140"
+                   min="0" max="139"
                    value="75"
                    step="1"
                    onchange="window.calculateWattageFromInputs()"
@@ -28,7 +28,7 @@ export function renderWattageCalculator(): string {
             <label style="display: block; margin-bottom: 4px; font-weight: 600; color: var(--gray-700);">Green (%)</label>
             <input type="number"
                    id="watt-green"
-                   min="0" max="140"
+                   min="0" max="139"
                    value="75"
                    step="1"
                    onchange="window.calculateWattageFromInputs()"
@@ -38,7 +38,7 @@ export function renderWattageCalculator(): string {
             <label style="display: block; margin-bottom: 4px; font-weight: 600; color: var(--gray-700);">Blue (%)</label>
             <input type="number"
                    id="watt-blue"
-                   min="0" max="140"
+                   min="0" max="137"
                    value="75"
                    step="1"
                    onchange="window.calculateWattageFromInputs()"

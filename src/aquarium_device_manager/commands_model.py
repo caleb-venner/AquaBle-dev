@@ -234,6 +234,9 @@ class LightAutoSettingArgs(BaseModel):
     weekdays: Optional[list[LightWeekday]] = Field(
         None, description="List of weekdays"
     )
+    label: Optional[str] = Field(
+        None, max_length=100, description="Optional schedule label/name"
+    )
 
     @model_validator(mode="after")
     def validate_brightness_or_channels(self) -> "LightAutoSettingArgs":

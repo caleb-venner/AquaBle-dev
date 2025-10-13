@@ -4,7 +4,7 @@
 
 import { getDashboardState } from "../state";
 import { getWeekdayName, formatDateTime, getDeviceChannelNames } from "../../../utils";
-import { getCurrentScheduleInfo, AutoProgram } from "../../../utils/schedule-utils";
+import { getCurrentScheduleInfo, AutoProgram, getAllSchedulesInOrder, SequentialSchedule } from "../../../utils/schedule-utils";
 import { getDeviceStore } from "../../../stores/deviceStore";
 import type { CachedStatus } from "../../../types/models";
 
@@ -85,23 +85,76 @@ export function renderLightCardStatus(device: CachedStatus & { address: string }
   const autoPrograms = getDeviceAutoPrograms(device.address);
   const scheduleInfo = getCurrentScheduleInfo(autoPrograms);
 
+  // Get all schedules in sequential order
+  const allSchedules = getAllSchedulesInOrder(autoPrograms);
+
   return `
     <div style="padding: 16px; background: var(--bg-secondary);">
-      ${scheduleInfo.type !== 'none' ? `
-        <div style="background: var(--card-bg); padding: 12px; border-radius: 6px; margin-bottom: 16px; border: 1px solid var(--border-color); border-left: 4px solid ${scheduleInfo.type === 'current' ? 'var(--success)' : 'var(--primary)'};">
-          <div style="font-size: 11px; font-weight: 600; color: var(--gray-500); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">Schedule Status</div>
-          <div style="font-size: 14px; font-weight: 600; color: var(--text-primary); margin-bottom: 8px;">${scheduleInfo.status}</div>
-          ${scheduleInfo.nextTime ? `<div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 8px;">${scheduleInfo.nextTime}</div>` : ''}
-          ${scheduleInfo.program ? `
-            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; font-size: 12px;">
-              <div><span style="color: var(--gray-500);">Sunrise:</span> ${scheduleInfo.program.sunrise}</div>
-              <div><span style="color: var(--gray-500);">Sunset:</span> ${scheduleInfo.program.sunset}</div>
-              <div><span style="color: var(--gray-500);">Ramp:</span> ${scheduleInfo.program.rampMinutes}min</div>
-              <div><span style="color: var(--gray-500);">Channels:</span> ${Object.entries(scheduleInfo.program.levels).map(([key, value]) => `${key.charAt(0).toUpperCase()}:${value}%`).join(' ')}</div>
-            </div>
-          ` : ''}
+      ${allSchedules.length > 0 ? `
+        <div style="background: var(--card-bg); padding: 12px; border-radius: 6px; margin-bottom: 16px; border: 1px solid var(--border-color);">
+          <div style="font-size: 11px; font-weight: 600; color: var(--gray-500); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px;">Light Schedules</div>
+          <div style="display: flex; flex-direction: column; gap: 8px;">
+            ${allSchedules.map(schedule => renderScheduleItem(schedule)).join('')}
+          </div>
         </div>
       ` : ''}
+    </div>
+  `;
+}
+
+/**
+ * Render a single schedule item with color coding
+ */
+function renderScheduleItem(schedule: SequentialSchedule): string {
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'current': return 'var(--success)'; // Green
+      case 'next': return 'var(--primary)'; // Blue
+      case 'upcoming': return 'var(--gray-400)'; // Grey
+      case 'disabled': return 'var(--error)'; // Red
+      default: return 'var(--gray-400)';
+    }
+  };
+
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case 'current': return 'Active';
+      case 'next': return 'Next';
+      case 'upcoming': return 'Upcoming';
+      case 'disabled': return 'Disabled';
+      default: return 'Unknown';
+    }
+  };
+
+  const accentColor = getStatusColor(schedule.status);
+  const statusText = getStatusText(schedule.status);
+
+  // Format channel levels (WRGB values)
+  const channelLevels = Object.entries(schedule.program.levels)
+    .map(([channel, value]) => `${channel.charAt(0).toUpperCase()}:${value}%`)
+    .join(' ');
+
+  // Format time range with day prefix if nextTime exists
+  let timeRange: string;
+  if (schedule.nextTime) {
+    // Extract day from nextTime (e.g., "today at 13:00" -> "today")
+    const dayPrefix = schedule.nextTime.split(' at ')[0];
+    timeRange = `${dayPrefix} ${schedule.program.sunrise} - ${schedule.program.sunset}`;
+  } else {
+    timeRange = `${schedule.program.sunrise} - ${schedule.program.sunset}`;
+  }
+
+  return `
+    <div style="padding: 8px 12px; background: var(--bg-primary); border-radius: 4px; border-left: 3px solid ${accentColor};">
+      <div style="flex: 1; min-width: 0;">
+        <div style="font-size: 13px; font-weight: 600; color: var(--text-primary); margin-bottom: 2px;">${schedule.program.label}</div>
+        <div style="font-size: 11px; color: var(--text-secondary);">
+          ${statusText} • ${timeRange} • ${schedule.program.rampMinutes}min ramp
+        </div>
+        <div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">
+          ${channelLevels}
+        </div>
+      </div>
     </div>
   `;
 }

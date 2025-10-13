@@ -15,7 +15,10 @@ export default defineConfig({
     sourcemap: true,
     rollupOptions: {
       input: {
-        main: resolve(__dirname, "index.html")
+        main: resolve(__dirname, "index.html"),
+        "test-hub": resolve(__dirname, "tests/test-hub.html"),
+        "percentages-test": resolve(__dirname, "tests/percentages-test.html"),
+        "wattage-test": resolve(__dirname, "tests/wattage-test.html")
       }
     }
   }

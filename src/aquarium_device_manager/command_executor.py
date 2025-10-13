@@ -486,6 +486,7 @@ class CommandExecutor:
                     brightness=brightness_arg,
                     ramp_up_minutes=args.get("ramp_up_minutes", 0),
                     weekdays=weekdays,
+                    label=args.get("label"),
                 )
                 self.ble_service._light_storage.upsert_device(device)
                 logger.info(

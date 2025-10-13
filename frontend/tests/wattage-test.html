@@ -115,32 +115,12 @@
             transform: translateY(-1px);
             box-shadow: 0 12px 24px rgba(59, 130, 246, 0.2);
         }
-        .test-cases {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 1rem;
-            margin-top: 1rem;
-        }
-        .test-case {
-            background: #ffffff;
-            border: 1px solid #e2e8f0;
-            padding: 1rem;
-            border-radius: 12px;
-            box-shadow: 0 12px 20px rgba(15, 23, 42, 0.05);
-            cursor: pointer;
-            transition: border-color 0.2s ease, box-shadow 0.2s ease;
-        }
-        .test-case:hover {
-            border-color: #bfdbfe;
-            box-shadow: 0 16px 30px rgba(59, 130, 246, 0.15);
-        }
     </style>
 </head>
 <body>
     <nav class="global-nav">
         <a class="nav-link" href="/">🏠 Dashboard</a>
-        <a class="nav-link" href="/dev">🛠️ Dev Tools</a>
-        <a class="nav-link" href="/test-tools.html">🧪 Test Hub</a>
+        <a class="nav-link" href="/tests/test-hub.html">🧪 Test Hub</a>
     </nav>
     <h1>WRGB Pro II Wattage Calculator</h1>
 
@@ -220,44 +200,6 @@
         </div>
     </div>
 
-    <div class="calculator">
-        <h2>Test Cases</h2>
-        <div class="test-cases">
-            <div class="test-case" onclick="setTestCase(0, 0, 0, 0)">
-                <strong>Off</strong><br>
-                R:0% G:0% B:0% W:0%
-            </div>
-            <div class="test-case" onclick="setTestCase(50, 50, 50, 50)">
-                <strong>50% All</strong><br>
-                R:50% G:50% B:50% W:50%
-            </div>
-            <div class="test-case" onclick="setTestCase(100, 100, 100, 100)">
-                <strong>100% All</strong><br>
-                R:100% G:100% B:100% W:100%
-            </div>
-            <div class="test-case" onclick="setTestCase(139, 139, 137, 140)">
-                <strong>Maximum</strong><br>
-                R:139% G:139% B:137% W:140%
-            </div>
-            <div class="test-case" onclick="setTestCase(100, 0, 0, 0)">
-                <strong>Red Only</strong><br>
-                R:100% G:0% B:0% W:0%
-            </div>
-            <div class="test-case" onclick="setTestCase(0, 100, 0, 0)">
-                <strong>Green Only</strong><br>
-                R:0% G:100% B:0% W:0%
-            </div>
-            <div class="test-case" onclick="setTestCase(0, 0, 100, 0)">
-                <strong>Blue Only</strong><br>
-                R:0% G:0% B:100% W:0%
-            </div>
-            <div class="test-case" onclick="setTestCase(0, 0, 0, 100)">
-                <strong>White Only</strong><br>
-                R:0% G:0% B:0% W:100%
-            </div>
-        </div>
-    </div>
-
     <script>
         if (window.top !== window.self) {
             document.body.classList.add('embedded');
@@ -266,7 +208,7 @@
 
     <script type="module">
         // Import functions from the wattage calculator
-        import { calculateLightWattage, getMaxWattage, getTheoreticalMaxWattage, formatWattage } from '../src/wattage-calculator.ts';
+        import { calculateLightWattage, getMaxWattage, getTheoreticalMaxWattage, formatWattage } from '../src/utils/wattage-calculator.ts';
 
         // Initialize the page when everything is loaded
         function initializePage() {
@@ -310,14 +252,6 @@
     </script>
 
     <script>
-        function setTestCase(red, green, blue, white) {
-            document.getElementById('red').value = red;
-            document.getElementById('green').value = green;
-            document.getElementById('blue').value = blue;
-            document.getElementById('white').value = white;
-            calculateWattage();
-        }
-
         function calculateWattage() {
             const red = parseInt(document.getElementById('red').value) || 0;
             const green = parseInt(document.getElementById('green').value) || 0;

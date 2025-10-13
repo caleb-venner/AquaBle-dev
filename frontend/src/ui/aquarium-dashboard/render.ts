@@ -17,6 +17,7 @@ export function renderProductionDashboard(): string {
       <main class="prod-main">
         ${renderContent()}
       </main>
+      ${renderFooter()}
     </div>
   `;
 }
@@ -103,6 +104,21 @@ function renderContent(): string {
     <div class="tab-panel ${state.currentTab === "dev" ? "active" : ""}" id="dev-panel">
       ${renderDevTab()}
     </div>
+  `;
+}
+
+/**
+ * Render the dashboard footer
+ */
+function renderFooter(): string {
+  return `
+    <footer class="prod-footer">
+      <div class="footer-content">
+        <a href="/tests/test-hub.html" target="_blank" class="footer-link">
+          Test
+        </a>
+      </div>
+    </footer>
   `;
 }
 

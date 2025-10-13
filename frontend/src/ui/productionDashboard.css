@@ -1961,3 +1961,35 @@ input:checked + .slider:before {
   justify-content: center;
   min-width: 36px;
 }
+
+/* Footer */
+.prod-footer {
+  background: var(--card-bg);
+  border-top: 1px solid var(--gray-200);
+  padding: 12px 0;
+  margin-top: auto;
+}
+
+.footer-content {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 24px;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.footer-link {
+  color: var(--gray-500);
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 6px 12px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.footer-link:hover {
+  color: var(--primary);
+  background: var(--gray-100);
+}

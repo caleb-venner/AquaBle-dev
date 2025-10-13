@@ -10,6 +10,8 @@
 
 ### Light Devices
 
+- Lock Doser and Light device cards to the same size, cap automode display to 3 schedules. If more than 3 are programmed --> have a small view-all button --> triggers a pop-up window.
+- Allow disabling of light auto modes (deletes from device, saves in data)
 - Add validation to prevent overlapping auto mode schedules.
     (13:00 --> 21:00 && 21:00 --> 22:00 is supported though).
 - Investigate and implement "Custom Mode" - most likely sent as a series of auto mode settings (need to test true device behaviour)

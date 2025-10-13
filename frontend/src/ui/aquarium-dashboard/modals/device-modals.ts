@@ -313,6 +313,18 @@ function renderLightAutoModeTab(device: LightDevice): string {
       <p>Configure sunrise/sunset times and brightness levels (device will switch to auto mode)</p>
 
       <div class="form-group">
+        <label for="schedule-label">Schedule Label</label>
+        <input
+          type="text"
+          id="schedule-label"
+          class="form-control"
+          placeholder="e.g., Morning Schedule, Weekend Lighting"
+          maxlength="50"
+        />
+        <small class="form-text">Optional: Give this schedule a descriptive name</small>
+      </div>
+
+      <div class="form-group">
         <label for="sunrise-time">Sunrise Time (24h)</label>
         <input
           type="time"
@@ -608,6 +620,7 @@ async function sendLightManualModeCommand(address: string): Promise<void> {
  */
 async function sendLightAutoModeCommand(address: string): Promise<void> {
   try {
+    const scheduleLabel = (document.getElementById('schedule-label') as HTMLInputElement)?.value.trim();
     const sunriseTime = (document.getElementById('sunrise-time') as HTMLInputElement)?.value;
     const sunsetTime = (document.getElementById('sunset-time') as HTMLInputElement)?.value;
     const rampTime = parseInt((document.getElementById('ramp-time') as HTMLInputElement)?.value || '60', 10);
@@ -624,6 +637,7 @@ async function sendLightAutoModeCommand(address: string): Promise<void> {
 
     console.log('Sending auto mode command:', {
       address,
+      scheduleLabel,
       sunriseTime,
       sunsetTime,
       rampTime,
@@ -677,7 +691,8 @@ async function sendLightAutoModeCommand(address: string): Promise<void> {
         sunset: sunsetTime,
         channels: channels,
         ramp_up_minutes: rampTime,
-        weekdays: mappedDays
+        weekdays: mappedDays,
+        ...(scheduleLabel && { label: scheduleLabel })  // Include label only if provided
       },
       timeout: 20.0
     };

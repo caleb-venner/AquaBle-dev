@@ -13,32 +13,10 @@
             margin: 0;
             padding: 24px;
         }
-        .global-nav {
+        .controls {
             display: flex;
             gap: 12px;
-            margin-bottom: 24px;
-        }
-        body.embedded .global-nav {
-            display: none;
-        }
-        .nav-link {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 8px 16px;
-            border-radius: 999px;
-            background: #ffffff;
-            border: 1px solid #e2e8f0;
-            color: #2563eb;
-            text-decoration: none;
-            font-weight: 600;
-            letter-spacing: 0.01em;
-            transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
-        }
-        .nav-link:hover {
-            background: #eff6ff;
-            color: #1d4ed8;
-            box-shadow: 0 10px 20px rgba(37, 99, 235, 0.15);
+            margin-bottom: 20px;
         }
         .controls,
         .summary,
@@ -48,10 +26,6 @@
             border-radius: 12px;
             box-shadow: 0 18px 36px rgba(15, 23, 42, 0.08);
             padding: 18px;
-        }
-        .controls {
-            display: flex;
-            gap: 12px;
         }
         button {
             background: #3b82f6;
@@ -88,17 +62,12 @@
     </style>
 </head>
 <body>
-    <nav class="global-nav">
-        <a class="nav-link" href="/">🏠 Dashboard</a>
-        <a class="nav-link" href="/dev">🛠️ Dev Tools</a>
-        <a class="nav-link" href="/test-tools.html">🧪 Test Hub</a>
-    </nav>
     <h1>Percentages.txt Test Suite</h1>
     <p>Testing all 16 test cases from Percentages.txt against the current algorithm</p>
 
     <div class="controls">
-        <button onclick="runAllTests()">Run All Tests</button>
-        <button onclick="clearResults()">Clear Results</button>
+        <button onclick="window.runAllTests()">Run All Tests</button>
+        <button onclick="window.clearResults()">Clear Results</button>
     </div>
 
     <div id="summary" class="summary" style="display: none;"></div>
@@ -111,7 +80,7 @@
     </script>
 
     <script type="module">
-        import { calculateLightWattage } from '../src/wattage-calculator.ts';
+        import { calculateLightWattage } from '../src/utils/wattage-calculator.ts';
 
         // Test cases directly from Percentages.txt
         const testCases = [
