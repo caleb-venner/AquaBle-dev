@@ -27,11 +27,12 @@ Maintained by **Caleb Venner**. This project builds on the open-source work publ
 - Chihiros Z Light TINY
 - other LED models might work as well but are not tested
 
-## Deployment Options
+## Future Deployment Options
 
-This project supports multiple deployment methods to fit different use cases:
+This project will (shortly) support multiple deployment methods to fit different use cases:
 
 ### 🏠 Home Assistant Add-on (Recommended)
+
 Perfect integration with Home Assistant for smart home automation.
 
 - **Easy installation** through HA add-on store
@@ -39,9 +40,10 @@ Perfect integration with Home Assistant for smart home automation.
 - **Data persistence** managed by HA supervisor
 - **Web interface** accessible through HA dashboard
 
-➡️ **[See Home Assistant setup guide](hassio/README.md)**
+**[See Home Assistant setup guide](hassio/README.md)**
 
-### 🐳 Docker Container
+### Docker Container
+
 Ideal for self-hosting, Unraid, or standalone deployment.
 
 - **Multi-architecture** support (amd64, arm64, armv7)
@@ -49,9 +51,10 @@ Ideal for self-hosting, Unraid, or standalone deployment.
 - **Health monitoring** and automatic restarts
 - **Volume persistence** for device configurations
 
-➡️ **[See Docker setup guide](docker/README.md)**
+**[See Docker setup guide](docker/README.md)**
 
-### 🐍 Python Service
+### Python Service
+
 Direct installation for development or advanced users.
 
 - **Native performance** on Raspberry Pi or Linux
@@ -59,7 +62,7 @@ Direct installation for development or advanced users.
 - **Full control** over dependencies and configuration
 - **System service** integration available
 
-➡️ **[See local installation guide](#local-installation)**
+**[See local installation guide](#local-installation)**
 
 ## Requirements
 
@@ -70,6 +73,7 @@ Direct installation for development or advanced users.
 ## Quick Start
 
 ### Home Assistant Add-on
+
 ```yaml
 # Add-on configuration
 log_level: INFO
@@ -78,6 +82,7 @@ auto_reconnect: true
 ```
 
 ### Docker
+
 ```bash
 docker-compose -f docker/docker-compose.yml up -d
 ```
@@ -121,41 +126,6 @@ make dev-back AQUA_BLE_AUTO_DISCOVER=0
 make dev-back AQUA_BLE_AUTO_DISCOVER=1
 ```
 
-## Frontend development (TypeScript SPA)
-
-The project now ships with an experimental SPA scaffold under the
-`frontend/` directory. It consumes the same REST endpoints exposed by the
-FastAPI service.
-
-Install dependencies and launch the Vite dev server (proxying API requests to
-the Python backend running on port 8000):
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-With the development server running, visiting `http://localhost:8000/` will
-transparently proxy requests to Vite (listening on port 5173 by default).
-Point `AQUA_BLE_FRONTEND_DEV` at a different origin if the dev server is
-hosted elsewhere, or set it to `0` to disable the proxy. When both the proxy
-and compiled assets are unavailable the backend now returns a `503` response
-reminding you to start the SPA build.
-
-The old HTMX templates have now been archived from the service. Requests to
-`/ui` or `/debug` will return `410 Gone`; use the SPA or REST API instead.
-
-Create a production build before packaging or running inside Docker:
-
-```bash
-npm run build
-```
-
-By default the FastAPI app serves the compiled bundle from
-`frontend/dist`. If the assets live elsewhere, point the service at the
-correct directory via the `AQUA_BLE_FRONTEND_DIST` environment variable.
-
 ### Service runtime tuning
 
 The service performs a brief wait after issuing a BLE status request to
@@ -187,8 +157,6 @@ Centralized reference for runtime configuration knobs exposed by the service / S
 | `AQUA_BLE_FRONTEND_DIST` | `frontend/dist` | path | Absolute/relative path to built SPA assets (index.html + assets/). | `/opt/app/frontend-build` |
 | `AQUA_BLE_LOG_LEVEL` | `INFO` | str | Logging verbosity for service logger (standard Python levels). | `DEBUG` |
 | `AQUA_BLE_CONFIG_DIR` | `~/.aqua-ble` | path | Configuration directory for device state and profiles. | `~/.config/aqua-ble` |
-
-**Migration Note:** Old environment variable names (`CHIHIROS_*`) are still supported for backward compatibility through automatic fallback. New projects should use the `AQUA_BLE_*` prefix.
 
 Notes:
 
