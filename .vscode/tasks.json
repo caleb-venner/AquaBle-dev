@@ -41,7 +41,7 @@
     {
       "label": "backend: uvicorn",
       "type": "shell",
-      "command": "uvicorn aquarium_device_manager.service:app --reload --host 0.0.0.0 --port 8000",
+      "command": "uvicorn aquable.service:app --reload --host 0.0.0.0 --port 8000",
       "options": {
         "cwd": "${workspaceFolder}",
         "env": {
@@ -72,7 +72,7 @@
     {
       "label": "backend: uvicorn (no reload)",
       "type": "shell",
-      "command": "uvicorn aquarium_device_manager.service:app --host 0.0.0.0 --port 8000",
+      "command": "uvicorn aquable.service:app --host 0.0.0.0 --port 8000",
       "options": {
         "cwd": "${workspaceFolder}",
         "env": {

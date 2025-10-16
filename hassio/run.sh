@@ -1,8 +1,8 @@
 #!/usr/bin/with-contenv bashio
 
 # ==============================================================================
-# Home Assistant Add-on: Aquarium Device Manager
-# Starts the Aquarium Device Manager service with HA configuration
+# Home Assistant Add-on: AquaBle
+# Starts the AquaBle service with HA configuration
 # ==============================================================================
 
 # Read configuration from add-on options
@@ -29,7 +29,7 @@ export AQUA_BLE_FRONTEND_DIST="/app/frontend/dist"
 export PYTHONPATH="/app/src"
 
 # Log startup information
-bashio::log.info "Starting Aquarium Device Manager..."
+bashio::log.info "Starting AquaBle..."
 bashio::log.info "Log level: ${log_level}"
 bashio::log.info "Auto discover: ${auto_discover}"
 bashio::log.info "Auto reconnect: ${auto_reconnect}"
@@ -46,6 +46,6 @@ if ! bashio::services.available "bluetooth"; then
 fi
 
 # Start the application
-bashio::log.info "Starting Aquarium Device Manager service..."
+bashio::log.info "Starting AquaBle service..."
 cd /app
-exec python -m aquarium_device_manager.service
+exec python -m aquable.service

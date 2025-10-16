@@ -33,7 +33,7 @@ function renderHeader(): string {
       <div class="header-content">
         <div class="header-left">
           <div class="header-title">
-            <h1>Aquarium BLE Device Manager</h1>
+            <h1>AquaBle</h1>
           </div>
         </div>
         <div class="header-actions">

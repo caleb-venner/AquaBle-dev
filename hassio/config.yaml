@@ -1,7 +1,7 @@
-name: "Aquarium Device Manager"
+name: "AquaBle"
 description: "Manage Chihiros aquarium devices (dosers, lights) via Bluetooth LE"
 version: "1.0.0"
-slug: "aquarium-device-manager"
+slug: "aquable"
 init: false
 
 # Multi-architecture support
@@ -55,8 +55,8 @@ environment:
   AQUA_BLE_CONFIG_DIR: "/data"
 
 # Add-on documentation
-url: "https://github.com/caleb-venner/aquarium-device-manager"
+url: "https://github.com/caleb-venner/aquable"
 webui: "http://[HOST]:[PORT:8000]"
 
 # Image configuration
-image: "ghcr.io/caleb-venner/aquarium-device-manager/{arch}"
+image: "ghcr.io/caleb-venner/aquable/{arch}"

@@ -3,8 +3,8 @@
 import pytest
 from pydantic import ValidationError
 
-from aquarium_device_manager.commands.encoder import LightWeekday, PumpWeekday
-from aquarium_device_manager.commands_model import (
+from aquable.commands.encoder import LightWeekday, PumpWeekday
+from aquable.commands_model import (
     DoserScheduleArgs,
     LightAutoSettingArgs,
     LightBrightnessArgs,

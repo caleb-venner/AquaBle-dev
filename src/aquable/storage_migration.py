@@ -22,7 +22,7 @@ def migrate_storage(config_dir: Path) -> None:
     """Migrate from dual storage to unified device files.
 
     Args:
-        config_dir: The ~/.aqua-ble directory
+        config_dir: The ~/.aquable directory
     """
     logger.info(f"Starting storage migration for {config_dir}")
 
@@ -197,7 +197,7 @@ def main():
     """Run migration on default config directory."""
     import os
 
-    config_dir_str = os.environ.get("AQUA_BLE_CONFIG_DIR", "~/.aqua-ble")
+    config_dir_str = os.environ.get("AQUA_BLE_CONFIG_DIR", "~/.aquable")
     config_dir = Path(config_dir_str).expanduser()
 
     if not config_dir.exists():

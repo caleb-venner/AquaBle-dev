@@ -9,8 +9,8 @@ import pytest
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
-from aquarium_device_manager.ble_service import CachedStatus
-from aquarium_device_manager.service import app, service
+from aquable.ble_service import CachedStatus
+from aquable.service import app, service
 
 
 def _cached(device_type: str = "doser") -> CachedStatus:

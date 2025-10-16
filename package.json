@@ -1,5 +1,5 @@
 {
-  "name": "aquarium-device-manager",
+  "name": "aquable",
   "private": true,
   "workspaces": [
     "frontend"

@@ -6,7 +6,7 @@ This document outlines how we keep all three deployment options (Home Assistant 
 
 ### Core Components (Always Synchronized)
 
-- **Backend Service**: `src/aquarium_device_manager/` - Same FastAPI service across all deployments
+- **Backend Service**: `src/aquable/` - Same FastAPI service across all deployments
 - **Frontend Build**: `frontend/dist/` - Single TypeScript build shared by all
 - **Device Management**: BLE service and device classes are identical
 - **Configuration System**: Environment-aware config paths for different deployments
@@ -70,13 +70,13 @@ FROM python:3.11-slim AS runtime
 
 ```dockerfile
 # hassio/Dockerfile - Inherits from Docker build
-COPY --from=aquarium-device-manager:latest /app /app
+COPY --from=aquable:latest /app /app
 # ... HA-specific configuration only
 ```
 
 ### 3. Environment-Aware Configuration
 
-**File**: `src/aquarium_device_manager/config_migration.py`
+**File**: `src/aquable/config_migration.py`
 
 ```python
 def get_config_dir() -> Path:
@@ -102,7 +102,7 @@ def get_config_dir() -> Path:
 ### Daily Development
 
 1. **Edit core code** in `src/` or `frontend/`
-2. **Test locally** with `make dev` or `python -m src.aquarium_device_manager.service`
+2. **Test locally** with `make dev` or `python -m src.aquable.service`
 3. **Test Docker** with `docker-compose -f docker/docker-compose.yml up`
 4. **Test HA add-on** by copying `hassio/` to HA development environment
 
@@ -155,7 +155,7 @@ docker-compose -f docker/docker-compose.yml up       # Docker
 
 When adding new features:
 
-- [ ] **Core functionality** added to `src/aquarium_device_manager/`
+- [ ] **Core functionality** added to `src/aquable/`
 - [ ] **Frontend changes** made in `frontend/src/` and tested
 - [ ] **Environment variables** documented in all README files
 - [ ] **Docker health check** updated if needed

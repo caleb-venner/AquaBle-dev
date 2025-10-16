@@ -12,7 +12,7 @@
 import { renderProductionDashboard, initializeDashboardHandlers } from "./ui/aquarium-dashboard/dashboard";
 import { createNotificationSystem } from "./ui/notifications";
 import { setupStateSubscriptions } from "./ui/stateSubscriptions";
-import "./ui/productionDashboard.css";
+import "./ui/dashboard.css";
 
 // Initialize the production dashboard
 async function init() {

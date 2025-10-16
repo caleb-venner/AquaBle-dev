@@ -59,4 +59,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 EXPOSE 8000
 
 # Default command
-CMD ["python", "-m", "aquarium_device_manager.service"]
+CMD ["python", "-m", "aquable.service"]

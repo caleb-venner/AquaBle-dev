@@ -4,9 +4,9 @@ import json
 import tempfile
 from pathlib import Path
 
-from aquarium_device_manager.config_helpers import create_default_doser_config
-from aquarium_device_manager.doser_storage import DoserStorage
-from aquarium_device_manager.light_storage import LightStorage
+from aquable.config_helpers import create_default_doser_config
+from aquable.doser_storage import DoserStorage
+from aquable.light_storage import LightStorage
 
 
 def test_doser_storage_excludes_metadata_files():

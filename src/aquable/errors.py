@@ -38,7 +38,7 @@ class ErrorCode(str, Enum):
 
 
 class AquariumError(Exception):
-    """Base exception class for aquarium device manager errors."""
+    """Base exception class for AquaBle errors."""
 
     def __init__(
         self,

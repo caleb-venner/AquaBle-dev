@@ -36,7 +36,7 @@ front-build:
 # Backend
 
 dev-back:
-	PYTHONPATH=src AQUA_BLE_AUTO_RECONNECT=1 uvicorn aquarium_device_manager.service:app --reload --host 0.0.0.0 --port 8000
+	PYTHONPATH=src AQUA_BLE_AUTO_RECONNECT=1 uvicorn aquable.service:app --reload --host 0.0.0.0 --port 8000
 
 # Combined
 
@@ -72,17 +72,17 @@ test:
 # Cleanup
 
 clean:
-	@echo "🧹 Cleaning aquarium device manager state and configs..."
+	@echo "🧹 Cleaning AquaBle state and configs..."
 	@echo "📋 This will remove:"
 	@echo "   • Device connection state and cache"
 	@echo "   • Saved device configurations (dosers, lights)"
 	@echo "   • Command history and runtime data"
-	@if [ -d "$$HOME/.aqua-ble" ]; then \
-		echo "📁 Removing $$HOME/.aqua-ble directory..."; \
-		rm -rf "$$HOME/.aqua-ble"; \
+	@if [ -d "$$HOME/.aquable" ]; then \
+		echo "📁 Removing $$HOME/.aquable directory..."; \
+		rm -rf "$$HOME/.aquable"; \
 		echo "✅ Cleaned: All device state, configurations, and cache data removed"; \
 	else \
-		echo "✨ Already clean: No $$HOME/.aqua-ble directory found"; \
+		echo "✨ Already clean: No $$HOME/.aquable directory found"; \
 	fi
 
 # Convenience target: clean then dev

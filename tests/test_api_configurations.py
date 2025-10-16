@@ -12,11 +12,11 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from aquarium_device_manager.config_helpers import (
+from aquable.config_helpers import (
     create_default_doser_config,
     create_default_light_profile,
 )
-from aquarium_device_manager.service import app
+from aquable.service import app
 
 
 @pytest.fixture
@@ -25,7 +25,7 @@ def temp_config_dir(monkeypatch):
     temp_dir = Path(tempfile.mkdtemp())
 
     # Patch the configuration paths in ble_service
-    from aquarium_device_manager import ble_service
+    from aquable import ble_service
 
     monkeypatch.setattr(ble_service, "CONFIG_DIR", temp_dir)
     monkeypatch.setattr(ble_service, "DEVICE_CONFIG_PATH", temp_dir / "devices")
@@ -33,9 +33,9 @@ def temp_config_dir(monkeypatch):
     monkeypatch.setattr(ble_service, "LIGHT_PROFILE_PATH", temp_dir / "devices")
 
     # Patch the global service instance
-    from aquarium_device_manager.doser_storage import DoserStorage
-    from aquarium_device_manager.light_storage import LightStorage
-    from aquarium_device_manager.service import service
+    from aquable.doser_storage import DoserStorage
+    from aquable.light_storage import LightStorage
+    from aquable.service import service
 
     monkeypatch.setattr(
         service, "_doser_storage", DoserStorage(temp_dir / "devices", {})
@@ -46,7 +46,7 @@ def temp_config_dir(monkeypatch):
     monkeypatch.setattr(service, "_device_metadata", {})
 
     # Also patch the paths in the API routes module
-    from aquarium_device_manager.api import routes_configurations
+    from aquable.api import routes_configurations
 
     monkeypatch.setattr(
         routes_configurations,

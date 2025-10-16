@@ -3,7 +3,7 @@
 
 set -e
 
-echo "🚀 Building Aquarium Device Manager - All Deployments"
+echo "🚀 Building AquaBle - All Deployments"
 echo "=================================================="
 
 # Build frontend first (shared by all deployments)
@@ -15,12 +15,12 @@ cd ..
 
 # 1. Docker standalone build
 echo "🐳 Building Docker image..."
-docker build -t aquarium-device-manager:latest -f docker/Dockerfile .
+docker build -t aquable:latest -f docker/Dockerfile .
 
 # 2. Home Assistant add-on build (local)
 echo "🏠 Building HA add-on (local test)..."
 # Note: For full HA add-on testing, use the HA CLI or supervisor
-docker build -t aquarium-device-manager:hassio -f hassio/Dockerfile .
+docker build -t aquable:hassio -f hassio/Dockerfile .
 
 # 3. Python package build
 echo "🐍 Building Python package..."
@@ -30,7 +30,7 @@ echo "✅ All builds completed successfully!"
 echo ""
 echo "🧪 Testing options:"
 echo "  Docker:     docker-compose -f docker/docker-compose.yml up"
-echo "  Local:      python -m src.aquarium_device_manager.service"
+echo "  Local:      python -m src.aquable.service"
 echo "  Package:    pip install dist/*.whl"
 echo ""
 echo "📋 Next steps for HA add-on:"

@@ -1,11 +1,11 @@
 version: '3.8'
 
 services:
-  aquarium-manager:
+  aquable:
     build:
       context: ..
       dockerfile: docker/Dockerfile
-    container_name: aquarium-device-manager
+    container_name: aquable
     restart: unless-stopped
 
     # Bluetooth and system access

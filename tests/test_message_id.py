@@ -2,7 +2,7 @@
 
 import pytest
 
-from aquarium_device_manager.commands import encoder
+from aquable.commands import encoder
 
 
 def test_next_message_id_basic_increment():

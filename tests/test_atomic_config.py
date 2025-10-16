@@ -5,15 +5,15 @@ from copy import deepcopy
 
 import pytest
 
-from aquarium_device_manager.atomic_config import (
+from aquable.atomic_config import (
     ConfigUpdateError,
     atomic_create_new_revision,
     atomic_update_device_metadata,
     atomic_update_doser_schedule,
 )
-from aquarium_device_manager.commands.encoder import PumpWeekday
-from aquarium_device_manager.config_helpers import create_default_doser_config
-from aquarium_device_manager.doser_storage import (
+from aquable.commands.encoder import PumpWeekday
+from aquable.config_helpers import create_default_doser_config
+from aquable.doser_storage import (
     Calibration,
     DeviceMetadata,
     DoserHead,

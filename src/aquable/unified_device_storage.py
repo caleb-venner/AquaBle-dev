@@ -6,7 +6,7 @@ a single per-device file structure that includes:
 - Last known status (BLE payload, parsed data, timestamp)
 - User configurations (schedules, profiles, settings)
 
-Each device gets one file: ~/.aqua-ble/devices/{address}.json
+Each device gets one file: ~/.aquable/devices/{address}.json
 """
 
 from __future__ import annotations

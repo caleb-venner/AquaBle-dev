@@ -6,7 +6,7 @@ ARG BUILD_FROM=ghcr.io/hassio-addons/base:14.1.1
 FROM $BUILD_FROM
 
 # Copy the application (built in CI/CD or pre-built)
-COPY --from=aquarium-device-manager:latest /app /app
+COPY --from=aquable:latest /app /app
 
 # Set Home Assistant specific environment
 ENV HASSIO=true
@@ -22,7 +22,7 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 
 # Labels for HA add-on system
 LABEL \
-    io.hass.name="Aquarium Device Manager" \
+    io.hass.name="AquaBle" \
     io.hass.description="Manage Chihiros aquarium devices via Bluetooth LE" \
     io.hass.arch="armhf|aarch64|amd64|armv7" \
     io.hass.type="addon" \

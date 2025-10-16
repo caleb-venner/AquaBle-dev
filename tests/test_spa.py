@@ -10,22 +10,16 @@ import pytest
 from fastapi import HTTPException
 from fastapi.responses import HTMLResponse
 
-from aquarium_device_manager.service import (
-    SPA_UNAVAILABLE_MESSAGE,
-    serve_spa,
-    serve_spa_assets,
-)
+from aquable.service import SPA_UNAVAILABLE_MESSAGE, serve_spa, serve_spa_assets
 
 
 def test_root_reports_missing_spa(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Expose a helpful 503 when neither SPA bundle nor dev server exist."""
+    monkeypatch.setattr("aquable.service.SPA_DIST_AVAILABLE", False)
     monkeypatch.setattr(
-        "aquarium_device_manager.service.SPA_DIST_AVAILABLE", False
-    )
-    monkeypatch.setattr(
-        "aquarium_device_manager.service._proxy_dev_server",
+        "aquable.service._proxy_dev_server",
         AsyncMock(return_value=None),
     )
 
@@ -40,12 +34,8 @@ def test_root_serves_spa_when_dist_present(
     """Return the compiled SPA index when the build directory exists."""
     index_file = tmp_path / "index.html"
     index_file.write_text("<html><body>spa</body></html>", encoding="utf-8")
-    monkeypatch.setattr(
-        "aquarium_device_manager.service.SPA_DIST_AVAILABLE", True
-    )
-    monkeypatch.setattr(
-        "aquarium_device_manager.service.FRONTEND_DIST", tmp_path
-    )
+    monkeypatch.setattr("aquable.service.SPA_DIST_AVAILABLE", True)
+    monkeypatch.setattr("aquable.service.FRONTEND_DIST", tmp_path)
     response = asyncio.run(serve_spa())
     assert response.status_code == 200
     assert "spa" in response.body.decode()
@@ -57,12 +47,8 @@ def test_spa_asset_route_serves_static_file(
     """Return static assets from the compiled SPA directory."""
     asset = tmp_path / "vite.svg"
     asset.write_text("svg", encoding="utf-8")
-    monkeypatch.setattr(
-        "aquarium_device_manager.service.SPA_DIST_AVAILABLE", True
-    )
-    monkeypatch.setattr(
-        "aquarium_device_manager.service.FRONTEND_DIST", tmp_path
-    )
+    monkeypatch.setattr("aquable.service.SPA_DIST_AVAILABLE", True)
+    monkeypatch.setattr("aquable.service.FRONTEND_DIST", tmp_path)
 
     response = asyncio.run(serve_spa_assets("vite.svg"))
     assert response.status_code == 200
@@ -75,12 +61,8 @@ def test_spa_asset_route_returns_index_for_client_paths(
     """Serve the SPA index for non-file client-side routes."""
     index_file = tmp_path / "index.html"
     index_file.write_text("<html><body>spa</body></html>", encoding="utf-8")
-    monkeypatch.setattr(
-        "aquarium_device_manager.service.SPA_DIST_AVAILABLE", True
-    )
-    monkeypatch.setattr(
-        "aquarium_device_manager.service.FRONTEND_DIST", tmp_path
-    )
+    monkeypatch.setattr("aquable.service.SPA_DIST_AVAILABLE", True)
+    monkeypatch.setattr("aquable.service.FRONTEND_DIST", tmp_path)
 
     response = asyncio.run(serve_spa_assets("dashboard"))
     assert response.status_code == 200
@@ -91,12 +73,8 @@ def test_spa_asset_route_404_for_missing_files(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     """Missing assets should not fall back to the SPA index."""
-    monkeypatch.setattr(
-        "aquarium_device_manager.service.SPA_DIST_AVAILABLE", True
-    )
-    monkeypatch.setattr(
-        "aquarium_device_manager.service.FRONTEND_DIST", tmp_path
-    )
+    monkeypatch.setattr("aquable.service.SPA_DIST_AVAILABLE", True)
+    monkeypatch.setattr("aquable.service.FRONTEND_DIST", tmp_path)
 
     with pytest.raises(HTTPException) as excinfo:
         asyncio.run(serve_spa_assets("app.js"))
@@ -106,14 +84,10 @@ def test_spa_asset_route_404_for_missing_files(
 
 def test_root_proxies_dev_server(monkeypatch: pytest.MonkeyPatch) -> None:
     """Serve the SPA from the dev server when no build artifacts exist."""
-    monkeypatch.setattr(
-        "aquarium_device_manager.service.SPA_DIST_AVAILABLE", False
-    )
+    monkeypatch.setattr("aquable.service.SPA_DIST_AVAILABLE", False)
     proxied = HTMLResponse("dev")
     helper = AsyncMock(return_value=proxied)
-    monkeypatch.setattr(
-        "aquarium_device_manager.service._proxy_dev_server", helper
-    )
+    monkeypatch.setattr("aquable.service._proxy_dev_server", helper)
 
     response = asyncio.run(serve_spa())
     assert response is proxied
@@ -124,14 +98,10 @@ def test_spa_asset_route_proxies_dev_server(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Proxy SPA asset requests to the Vite dev server when available."""
-    monkeypatch.setattr(
-        "aquarium_device_manager.service.SPA_DIST_AVAILABLE", False
-    )
+    monkeypatch.setattr("aquable.service.SPA_DIST_AVAILABLE", False)
     proxied = HTMLResponse("console.log('dev')")
     helper = AsyncMock(return_value=proxied)
-    monkeypatch.setattr(
-        "aquarium_device_manager.service._proxy_dev_server", helper
-    )
+    monkeypatch.setattr("aquable.service._proxy_dev_server", helper)
 
     response = asyncio.run(serve_spa_assets("src/main.ts"))
     assert response is proxied

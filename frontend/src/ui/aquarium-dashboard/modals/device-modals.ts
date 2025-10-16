@@ -5,6 +5,8 @@
 import type { DoserDevice, LightDevice } from "../../../types/models";
 import { executeCommand } from "../../../api/commands";
 import type { CommandRequest } from "../../../types/models";
+import { getDeviceChannelNames } from "../../../utils";
+import { getDashboardState } from "../state";
 
 /**
  * Show the doser device settings modal - for commands and schedules (visual only)
@@ -264,8 +266,8 @@ function renderLightDeviceSettingsInterface(device: LightDevice): string {
  * Render Manual Mode tab content
  */
 function renderLightManualModeTab(device: LightDevice): string {
-  // TODO: Get channel names dynamically from device model
-  const defaultChannels = ['Red', 'Green', 'Blue', 'White'];
+  // Get channel names dynamically from device model
+  const channelNames = getDeviceChannelNames(device.id, getDashboardState);
 
   return `
     <div class="settings-section">
@@ -273,7 +275,7 @@ function renderLightManualModeTab(device: LightDevice): string {
       <p>Set individual channel brightness levels (device will switch to manual mode)</p>
 
       <div class="channel-controls">
-        ${defaultChannels.map((channelName, index) => `
+        ${channelNames.map((channelName, index) => `
           <div class="form-group">
             <label for="manual-channel-${index}">${channelName}</label>
             <input
@@ -304,8 +306,28 @@ function renderLightManualModeTab(device: LightDevice): string {
  * Render Auto Mode tab content
  */
 function renderLightAutoModeTab(device: LightDevice): string {
-  // TODO: Get channel names dynamically from device model
-  const defaultChannels = ['Red', 'Green', 'Blue', 'White'];
+  // Get channel names dynamically from device model
+  const channelNames = getDeviceChannelNames(device.id, getDashboardState);
+  const channelCount = channelNames.length;
+
+  // Determine grid layout based on channel count
+  let gridClass = '';
+  let channelsPerRow = 1;
+
+  if (channelCount === 1) {
+    gridClass = 'channel-grid-1';
+    channelsPerRow = 1;
+  } else if (channelCount === 3) {
+    gridClass = 'channel-grid-3';
+    channelsPerRow = 3;
+  } else if (channelCount === 4) {
+    gridClass = 'channel-grid-2x2';
+    channelsPerRow = 2;
+  } else {
+    // Default fallback for other counts
+    gridClass = 'channel-grid-default';
+    channelsPerRow = Math.min(channelCount, 3);
+  }
 
   return `
     <div class="settings-section">
@@ -324,37 +346,38 @@ function renderLightAutoModeTab(device: LightDevice): string {
         <small class="form-text">Optional: Give this schedule a descriptive name</small>
       </div>
 
-      <div class="form-group">
-        <label for="sunrise-time">Sunrise Time (24h)</label>
-        <input
-          type="time"
-          id="sunrise-time"
-          class="form-control"
-          value="08:00"
-        />
-      </div>
+      <div class="time-controls-row">
+        <div class="form-group">
+          <label for="sunrise-time">Sunrise Time (24h)</label>
+          <input
+            type="time"
+            id="sunrise-time"
+            class="form-control"
+            value="08:00"
+          />
+        </div>
 
-      <div class="form-group">
-        <label for="sunset-time">Sunset Time (24h)</label>
-        <input
-          type="time"
-          id="sunset-time"
-          class="form-control"
-          value="20:00"
-        />
-      </div>
+        <div class="form-group">
+          <label for="sunset-time">Sunset Time (24h)</label>
+          <input
+            type="time"
+            id="sunset-time"
+            class="form-control"
+            value="20:00"
+          />
+        </div>
 
-      <div class="form-group">
-        <label for="ramp-time">Ramp Time (minutes)</label>
-        <input
-          type="number"
-          id="ramp-time"
-          class="form-control"
-          value="60"
-          min="1"
-          max="300"
-        />
-        <small class="form-text">Time to transition from 0% to 100% brightness</small>
+        <div class="form-group">
+          <label for="ramp-time">Ramp Time (minutes)</label>
+          <input
+            type="number"
+            id="ramp-time"
+            class="form-control"
+            value="60"
+            min="1"
+            max="300"
+          />
+        </div>
       </div>
 
       <div class="form-group">
@@ -370,9 +393,9 @@ function renderLightAutoModeTab(device: LightDevice): string {
       </div>
 
       <h4>Peak Brightness Levels</h4>
-      <div class="channel-controls">
-        ${defaultChannels.map((channelName, index) => `
-          <div class="form-group">
+      <div class="channel-controls ${gridClass}">
+        ${channelNames.map((channelName, index) => `
+          <div class="form-group channel-item">
             <label for="auto-channel-${index}">${channelName}</label>
             <input
               type="number"
@@ -387,7 +410,7 @@ function renderLightAutoModeTab(device: LightDevice): string {
       </div>
 
       <div class="form-group">
-        <button class="btn btn-warning" onclick="sendLightResetAutoModeCommand('${device.id}')">
+        <button class="btn btn-danger" onclick="sendLightResetAutoModeCommand('${device.id}')">
           Reset Auto Mode Settings
         </button>
         <small class="form-text">This will reset all auto mode settings to factory defaults</small>

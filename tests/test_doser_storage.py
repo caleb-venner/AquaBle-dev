@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from aquarium_device_manager.doser_storage import DoserStorage
+from aquable.doser_storage import DoserStorage
 
 
 @pytest.fixture

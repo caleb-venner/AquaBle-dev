@@ -6,8 +6,8 @@
 
 1. **Clone the repository:**
 ```bash
-git clone https://github.com/caleb-venner/aquarium-device-manager.git
-cd aquarium-device-manager
+git clone https://github.com/caleb-venner/aquable.git
+cd aquable
 ```
 
 2. **Create data directory:**
@@ -27,19 +27,19 @@ docker-compose -f docker/docker-compose.yml up -d
 
 ```bash
 # Create data volume
-docker volume create aquarium-data
+docker volume create aquable-data
 
 # Run container
 docker run -d \
-  --name aquarium-device-manager \
+  --name aquable \
   --restart unless-stopped \
   --privileged \
   --network host \
-  -v aquarium-data:/data \
+  -v aquable-data:/data \
   -v /var/run/dbus:/var/run/dbus:ro \
   -e AQUA_BLE_LOG_LEVEL=INFO \
   -e AQUA_BLE_AUTO_RECONNECT=true \
-  ghcr.io/caleb-venner/aquarium-device-manager:latest
+  ghcr.io/caleb-venner/aquable:latest
 ```
 
 ## Configuration
@@ -84,22 +84,22 @@ Device configurations and status are stored in `/data` within the container.
 
 ## Unraid Setup
 
-1. **Community Applications:** Search for "Aquarium Device Manager"
+1. **Community Applications:** Search for "AquaBle"
 2. **Manual Template:**
-   - Repository: `ghcr.io/caleb-venner/aquarium-device-manager:latest`
+   - Repository: `ghcr.io/caleb-venner/aquable:latest`
    - Network Type: `Host`
    - Privileged: `Yes`
-   - Path: `/data` → `/mnt/user/appdata/aquarium-manager/`
+   - Path: `/data` → `/mnt/user/appdata/aquable/`
 
 ## Troubleshooting
 
 ### Bluetooth Issues
 ```bash
 # Check if container can see Bluetooth
-docker exec -it aquarium-device-manager bluetoothctl list
+docker exec -it aquable bluetoothctl list
 
 # Check logs
-docker logs aquarium-device-manager
+docker logs aquable
 ```
 
 ### Permission Issues

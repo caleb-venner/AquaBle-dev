@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 
-from aquarium_device_manager import ble_service as service_mod
+from aquable import ble_service as service_mod
 
 
 def test_auto_discover_skips_auto_reconnect(monkeypatch):

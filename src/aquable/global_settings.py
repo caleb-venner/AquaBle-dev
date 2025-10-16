@@ -1,7 +1,7 @@
 """Global application settings storage.
 
 Manages settings that apply across all devices, such as display timezone.
-Stored in ~/.aqua-ble/global_settings.json
+Stored in ~/.aquable/global_settings.json
 """
 
 import json
@@ -19,7 +19,7 @@ class GlobalSettings:
         """Initialize global settings manager.
 
         Args:
-            config_dir: The configuration directory (e.g., ~/.aqua-ble)
+            config_dir: The configuration directory (e.g., ~/.aquable)
         """
         self._config_dir = Path(config_dir)
         self._settings_file = self._config_dir / "global_settings.json"

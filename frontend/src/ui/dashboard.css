@@ -1,4 +1,4 @@
-/* Production Dashboard Styles */
+/* Dashboard Styles */
 
 :root {
   --primary: #3b82f6;
@@ -1954,6 +1954,64 @@ input:checked + .slider:before {
   color: var(--text-primary);
 }
 
+/* Channel Grid Layouts */
+.channel-controls.channel-grid-1 {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+  margin: 20px 0;
+}
+
+.channel-controls.channel-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin: 20px 0;
+}
+
+.channel-controls.channel-grid-2x2 {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+  margin: 20px 0;
+}
+
+.channel-controls.channel-grid-default {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin: 20px 0;
+}
+
+.channel-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.channel-item label {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--gray-700);
+  margin: 0;
+}
+
+.channel-item .form-control {
+  width: 100%;
+}
+
+/* Time Controls Row */
+.time-controls-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin: 20px 0;
+}
+
+.time-controls-row .form-group {
+  margin: 0;
+}
+
 /* Icon Button */
 .btn-icon {
   display: inline-flex;
@@ -1992,4 +2050,35 @@ input:checked + .slider:before {
 .footer-link:hover {
   color: var(--primary);
   background: var(--gray-100);
+}
+
+/* Device Cards */
+.device-card {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  justify-content: flex-start !important;
+  padding: 0 !important;
+}
+
+.device-header {
+  padding: 16px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.device-body {
+  padding: 16px;
+  flex: 1;
+}
+
+.device-footer {
+  padding: 16px;
+  border-top: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  margin-top: auto;
+}
+
+.device-footer .btn {
+  padding: 8px 16px;
+  font-size: 14px;
 }

@@ -9,3 +9,4 @@
 - Implement a first-time setup wizard for new devices? Would need to warn the end user that the device(s) will have all settings 'reset'.
 - Create virtual devices for testing different hardware configurations.
 - Consider implementing versioning for device configurations.
+- Is it possible to link another entitiy from home assistant, i.e., a smart plug controlling co2 solenoid, to the webui/controll system?

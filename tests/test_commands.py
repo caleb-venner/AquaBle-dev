@@ -4,10 +4,10 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from aquarium_device_manager.ble_service import BLEService
-from aquarium_device_manager.command_executor import CommandExecutor
-from aquarium_device_manager.commands_model import CommandRecord, CommandRequest
-from aquarium_device_manager.errors import CommandValidationError
+from aquable.ble_service import BLEService
+from aquable.command_executor import CommandExecutor
+from aquable.commands_model import CommandRecord, CommandRequest
+from aquable.errors import CommandValidationError
 
 
 @pytest.fixture
@@ -207,7 +207,7 @@ class TestMultiChannelSetting:
         """Test creating auto setting command for 4-channel light."""
         from datetime import datetime
 
-        from aquarium_device_manager import commands
+        from aquable import commands
 
         sunrise = datetime(2024, 1, 1, 6, 0)
         sunset = datetime(2024, 1, 1, 18, 0)

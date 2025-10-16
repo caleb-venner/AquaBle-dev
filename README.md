@@ -1,8 +1,6 @@
-# Current State
+# AquaBle
 
-This project is in very active development, at a very early stage. Expect further functionality and refinement soon.
-
-## Aquarium BLE Device Manager
+Current project state: in very active development, at a very early stage. Expect further functionality and refinement soon.
 
 Maintained by **Caleb Venner**. This project builds on the open-source work published as [Chihiros LED Control](https://github.com/TheMicDiet/chihiros-led-control) by Michael Dietrich. The original project is licensed under MIT; all redistributions of this codebase continue to honour that license and retain the upstream attribution.
 
@@ -173,16 +171,16 @@ Notes:
 Build and run the service inside a container:
 
 ```bash
-docker build -t chihiros-service .
+docker build -t aquable .
 
 docker run \
   --rm \
-  --name chihiros-service \
+  --name aquable \
   --net=host \
   --cap-add=NET_ADMIN \
   --cap-add=SYS_ADMIN \
   --device /dev/bus/usb \
-  chihiros-service
+  aquable
 ```
 
 Containerised BLE access often requires forwarding the host adapter or

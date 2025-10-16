@@ -1,13 +1,13 @@
-# Aquarium Device Manager - AI Coding Guidelines
+# AquaBle - AI Coding Guidelines
 
 ## Architecture Overview
 
 **FastAPI Backend + Vite TypeScript Frontend**: This project manages Chihiros aquarium devices (lights/dosers) over BLE. Backend uses `bleak` library for Bluetooth communication with a modular device class hierarchy. Frontend is a Vite-built SPA using Zustand for state management with command queue and optimistic updates.
 
 **Key Components**:
-- `BLEService` (`ble_service.py`): Main orchestration class managing device connections, status caching, and unified storage persistence to `~/.aqua-ble/devices/`
+- `BLEService` (`ble_service.py`): Main orchestration class managing device connections, status caching, and unified storage persistence to `~/.aquable/devices/`
 - `UnifiedDeviceStorage` (`unified_device_storage.py`): Manages per-device files containing metadata, status, and configurations in a single JSON file
-- `GlobalSettings` (`global_settings.py`): Manages global settings like display timezone in `~/.aqua-ble/global_settings.json`
+- `GlobalSettings` (`global_settings.py`): Manages global settings like display timezone in `~/.aquable/global_settings.json`
 - Device Classes (`device/`): `BaseDevice` with specific implementations (Doser, LightDevice, etc.) handling BLE connection lifecycle
 - Command System (`commands/encoder.py`): Encodes BLE commands with message ID management (skipping 0x5A/90), checksums, and structured byte arrays
 - REST API (`api/routes_*.py`): FastAPI endpoints for device control and status with consistent error responses
@@ -67,7 +67,7 @@ class LightDevice(BaseDevice):
 **Status Caching Pattern**:
 - `CachedStatus` dataclass stores device state with `raw_payload` (hex string) and `parsed` (dict)
 - Status updates trigger cache refresh with configurable `AQUA_BLE_STATUS_WAIT` (default 1.5s)
-- Device status persists to unified device files: `~/.aqua-ble/devices/{address}.json` containing metadata, last_status, and device_data
+- Device status persists to unified device files: `~/.aquable/devices/{address}.json` containing metadata, last_status, and device_data
 - Each device file is self-contained with all device information in one place
 
 **Error Handling**:
@@ -77,8 +77,8 @@ class LightDevice(BaseDevice):
 
 **Configuration Management**:
 - Environment variables migrated from `CHIHIROS_*` to `AQUA_BLE_*` prefix with fallback support
-- Unified device files in `~/.aqua-ble/devices/` directory containing metadata, status, and configurations
-- Global settings (timezone, etc.) stored in `~/.aqua-ble/global_settings.json`
+- Unified device files in `~/.aquable/devices/` directory containing metadata, status, and configurations
+- Global settings (timezone, etc.) stored in `~/.aquable/global_settings.json`
 - Automatic migration from legacy `state.json` format on first startup
 - Runtime config via `AQUA_BLE_CONFIG_DIR` (defaults to `~/.aqua-ble`)
 
@@ -142,13 +142,13 @@ await actions.processCommandQueue(); // Processes queue sequentially
 
 ## Key Files to Reference
 
-- `src/aquarium_device_manager/ble_service.py`: Main service orchestration and device management
-- `src/aquarium_device_manager/unified_device_storage.py`: Unified per-device storage with metadata, status, and configurations
-- `src/aquarium_device_manager/global_settings.py`: Global settings management (timezone, etc.)
-- `src/aquarium_device_manager/storage_migration.py`: Automatic migration from legacy state.json format
-- `src/aquarium_device_manager/device/base_device.py`: BLE connection lifecycle and messaging
-- `src/aquarium_device_manager/commands/encoder.py`: Command encoding logic and message ID management
+- `src/aquable/ble_service.py`: Main service orchestration and device management
+- `src/aquable/unified_device_storage.py`: Unified per-device storage with metadata, status, and configurations
+- `src/aquable/global_settings.py`: Global settings management (timezone, etc.)
+- `src/aquable/storage_migration.py`: Automatic migration from legacy state.json format
+- `src/aquable/device/base_device.py`: BLE connection lifecycle and messaging
+- `src/aquable/commands/encoder.py`: Command encoding logic and message ID management
 - `frontend/src/stores/deviceStore.ts`: Frontend state management and command queue
 - `pyproject.toml`: Dependencies (Python 3.10+, bleak, fastapi) and build configuration
 - `Makefile`: Development workflow shortcuts (`make dev`, `make test`, `make lint`)
-- `~/.aqua-ble/`: Configuration directory (global_settings.json, devices/, auto-created)
+- `~/.aquable/`: Configuration directory (global_settings.json, devices/, auto-created)

@@ -61,7 +61,7 @@ async def health_check():
         device_count = len(cached_statuses)
         return {
             "status": "healthy",
-            "service": "aquarium-device-manager",
+            "service": "aquable",
             "version": "1.0.0",
             "devices": {
                 "cached": device_count,
@@ -73,7 +73,7 @@ async def health_check():
         return {
             "status": "unhealthy",
             "error": str(e),
-            "service": "aquarium-device-manager",
+            "service": "aquable",
         }
 
 
@@ -175,7 +175,7 @@ def main() -> None:  # pragma: no cover - thin CLI wrapper
     port = int(get_env_with_fallback("AQUA_BLE_SERVICE_PORT", "8000") or "8000")
 
     uvicorn.run(
-        "aquarium_device_manager.service:app",
+        "aquable.service:app",
         host=host,
         port=port,
     )

@@ -2,7 +2,7 @@
 
 Contains the BLEService orchestration class and supporting CachedStatus dataclass.
 This is a mechanical extract so tests and callers can continue to import
-from aquarium_device_manager.service while the implementation lives here.
+from aquable.service while the implementation lives here.
 """
 
 from __future__ import annotations
@@ -131,7 +131,7 @@ def _get_env_bool(name: str, default: bool) -> bool:
 
 
 # Module logger
-logger = logging.getLogger("aquarium_device_manager.service")
+logger = logging.getLogger("aquable.service")
 _default_level = (
     get_env_with_fallback("AQUA_BLE_LOG_LEVEL", "INFO") or "INFO"
 ).upper()

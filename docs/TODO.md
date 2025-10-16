@@ -2,6 +2,10 @@
 
 ## High Priority; do now
 
+### General / UI
+
+- Improve dark mode device card settings modals.
+
 ### Doser Devices
 
 - Implement manual and one-time dosing commands.

@@ -7,7 +7,7 @@ requires = [
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "aquarium-device-manager"
+name = "aquable"
 version = "2.0.0"
 description = "Python service for controlling aquarium devices over Bluetooth Low Energy"
 readme = "README.md"
@@ -15,8 +15,8 @@ readme = "README.md"
 requires-python = ">=3.10"
 
 [project.urls]
-"Source Code" = "https://github.com/calebvenner/chihiros-device-manager"
-"Bug Reports" = "https://github.com/calebvenner/chihiros-device-manager/issues"
+"Source Code" = "https://github.com/calebvenner/aquable"
+"Bug Reports" = "https://github.com/calebvenner/aquable/issues"
 "Original Project" = "https://github.com/TheMicDiet/chihiros-led-control"
 
 [tool.setuptools]
@@ -32,7 +32,7 @@ where = [
 [tool.setuptools_scm]
 
 [project.scripts]
-aquarium-service = "aquarium_device_manager.service:main"
+aquable-service = "aquable.service:main"
 
 [tool.black]
 line-length = 80

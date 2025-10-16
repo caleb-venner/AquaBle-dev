@@ -55,4 +55,4 @@ ENV AQUA_BLE_FRONTEND_DIST=/app/web/dist
 EXPOSE 8000
 
 # Run the service
-CMD ["python", "-m", "uvicorn", "aquarium_device_manager.service:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["python", "-m", "uvicorn", "aquable.service:app", "--host", "0.0.0.0", "--port", "8000"]

@@ -7,11 +7,11 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from aquarium_device_manager.ble_service import BLEService, CachedStatus
-from aquarium_device_manager.command_executor import CommandExecutor
-from aquarium_device_manager.commands.encoder import LightWeekday, PumpWeekday
-from aquarium_device_manager.commands_model import CommandRequest
-from aquarium_device_manager.config_helpers import (
+from aquable.ble_service import BLEService, CachedStatus
+from aquable.command_executor import CommandExecutor
+from aquable.commands.encoder import LightWeekday, PumpWeekday
+from aquable.commands_model import CommandRequest
+from aquable.config_helpers import (
     create_default_doser_config,
     create_default_light_profile,
 )
@@ -31,7 +31,7 @@ def event_loop():
 @pytest.fixture
 def ble_service(tmp_path: Path) -> BLEService:
     """Fixture for a BLEService instance with temporary storage."""
-    with patch("aquarium_device_manager.ble_service.CONFIG_DIR", tmp_path):
+    with patch("aquable.ble_service.CONFIG_DIR", tmp_path):
         service = BLEService()
         # Disable auto-saving at the service level for more controlled testing
         service._auto_save_config = True
@@ -170,7 +170,7 @@ async def test_execute_add_light_auto_setting_success(
     profile_revision = active_config.latest_revision()
 
     # After add_auto_setting, the profile should be converted to AutoProfile
-    from aquarium_device_manager.light_storage import AutoProfile
+    from aquable.light_storage import AutoProfile
 
     assert isinstance(profile_revision.profile, AutoProfile)
 

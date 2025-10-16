@@ -4,8 +4,8 @@ from unittest.mock import patch
 
 import pytest
 
-from aquarium_device_manager.ble_service import BLEService
-from aquarium_device_manager.doser_storage import DoserStorage
+from aquable.ble_service import BLEService
+from aquable.doser_storage import DoserStorage
 
 
 @pytest.fixture
@@ -25,11 +25,9 @@ def doser_storage(temp_config_dir):
 @pytest.fixture
 def mock_ble_service(doser_storage, temp_config_dir):
     """Create a mocked BLE service with real storage."""
-    with patch(
-        "aquarium_device_manager.ble_service.CONFIG_DIR", temp_config_dir
-    ):
+    with patch("aquable.ble_service.CONFIG_DIR", temp_config_dir):
         with patch(
-            "aquarium_device_manager.ble_service.DOSER_CONFIG_PATH",
+            "aquable.ble_service.DOSER_CONFIG_PATH",
             temp_config_dir / "doser_configs.json",
         ):
             service = BLEService()
@@ -46,9 +44,7 @@ def test_doser_storage_initialized_on_service_creation(mock_ble_service):
 
 def test_config_helpers_create_default():
     """Test creating default doser configuration."""
-    from aquarium_device_manager.config_helpers import (
-        create_default_doser_config,
-    )
+    from aquable.config_helpers import create_default_doser_config
 
     address = "11:22:33:44:55:66"
     device = create_default_doser_config(address, name="Test Doser")
@@ -72,7 +68,7 @@ def test_config_helpers_create_default():
 
 def test_config_helpers_update_schedule():
     """Test updating schedule in configuration."""
-    from aquarium_device_manager.config_helpers import (
+    from aquable.config_helpers import (
         create_default_doser_config,
         update_doser_schedule_config,
     )

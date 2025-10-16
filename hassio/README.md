@@ -1,4 +1,4 @@
-# Home Assistant Add-on: Aquarium Device Manager
+# Home Assistant Add-on: AquaBle
 
 Manage your Chihiros aquarium devices (dosers, lights) directly from Home Assistant via Bluetooth LE.
 
@@ -11,10 +11,10 @@ Manage your Chihiros aquarium devices (dosers, lights) directly from Home Assist
 
 1. **Add custom repository:**
    - Go to **Supervisor** → **Add-on Store** → **⋮** → **Repositories**
-   - Add: `https://github.com/caleb-venner/hassio-addons`
+   - Add: `https://github.com/caleb-venner/aquable-addons`
 
 2. **Install the add-on:**
-   - Find "Aquarium Device Manager" in the store
+   - Find "AquaBle" in the store
    - Click **Install**
 
 ### Method 3: Local Development
@@ -23,9 +23,9 @@ Manage your Chihiros aquarium devices (dosers, lights) directly from Home Assist
 ```bash
 # On your HA system
 cd /usr/share/hassio/addons/local/
-git clone https://github.com/caleb-venner/aquarium-device-manager.git
+git clone https://github.com/caleb-venner/aquable.git
 # Copy hassio/ contents to a new addon directory
-cp -r aquarium-device-manager/hassio/ aquarium-device-manager-addon/
+cp -r aquable/hassio/ aquable-addon/
 ```
 
 2. **Reload add-ons:**
@@ -64,7 +64,7 @@ service_port: 8000
 ## Usage
 
 1. **Start the add-on:**
-   - Go to **Supervisor** → **Aquarium Device Manager**
+   - Go to **Supervisor** → **AquaBle**
    - Click **Start**
 
 2. **Access web interface:**
@@ -133,9 +133,9 @@ Device configurations and status are automatically saved to the add-on's data di
 
 ## Support & Issues
 
-- **Documentation:** [Full project documentation](https://github.com/caleb-venner/aquarium-device-manager)
-- **Issues:** [GitHub Issues](https://github.com/caleb-venner/aquarium-device-manager/issues)
-- **Discussions:** [GitHub Discussions](https://github.com/caleb-venner/aquarium-device-manager/discussions)
+- **Documentation:** [Full project documentation](https://github.com/caleb-venner/aquable)
+- **Issues:** [GitHub Issues](https://github.com/caleb-venner/aquable/issues)
+- **Discussions:** [GitHub Discussions](https://github.com/caleb-venner/aquable/discussions)
 
 ## Legal Notice
 
