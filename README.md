@@ -1,5 +1,7 @@
 # AquaBle
 
+aquable: Pronounced "AK-wuh-bul" (/ˈækwə//bəl/)
+
 Current project state: in very active development, at a very early stage. Expect further functionality and refinement soon.
 
 Maintained by **Caleb Venner**. This project builds on the open-source work published as [Chihiros LED Control](https://github.com/TheMicDiet/chihiros-led-control) by Michael Dietrich. The original project is licensed under MIT; all redistributions of this codebase continue to honour that license and retain the upstream attribution.
