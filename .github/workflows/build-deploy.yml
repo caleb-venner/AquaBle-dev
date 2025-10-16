@@ -24,13 +24,13 @@ jobs:
         with:
           node-version: '18'
           cache: 'npm'
-          cache-dependency-path: frontend/package-lock.json
+          cache-dependency-path: package-lock.json
 
       - name: Install dependencies
-        run: cd frontend && npm ci
+        run: npm ci -w frontend
 
       - name: Build frontend
-        run: cd frontend && npm run build
+        run: npm run build
 
       - name: Upload frontend artifacts
         uses: actions/upload-artifact@v4
@@ -88,7 +88,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: docker/Dockerfile
+          file: Dockerfile
           platforms: ${{ matrix.platform }}
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
