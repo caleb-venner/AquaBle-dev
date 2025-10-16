@@ -19,14 +19,15 @@ Maintained by **Caleb Venner**. This project builds on the open-source work publ
 ## Supported Devices
 
 - Chihiros 4 Head Dosing Pump
-- Chihiros LED A2
 - Chihiros WRGB II
+- Chihiros WRGB II Pro
+- Chihiros LED A2
 - Chihiros Tiny Terrarium Egg
 - Chihiros C II (RGB, White)
 - Chihiros Universal WRGB
 - Chihiros Z Light TINY
-- Chihiros WRGB II Pro
-- other LED models might work as well but are not tested
+
+- other Doser and LED models might work as well but are not tested
 
 ## Future Deployment Options
 
