@@ -53,16 +53,18 @@ build: front-build
 	$(PY) -m build
 
 lint:
-	@if ! command -v pre-commit >/dev/null 2>&1; then \
-		echo "Installing pre-commit (missing dependency)"; \
-		$(PY) -m pip install pre-commit; \
+	@if ! command -v black >/dev/null 2>&1; then \
+		echo "Installing linting tools (black, flake8, isort, doc8)"; \
+		$(PY) -m pip install black flake8 isort doc8; \
 	fi
-	pre-commit run --all-files
+	@echo "Running code quality checks..."
+	black --check --diff src/ tests/ frontend/
+	isort --check-only --diff --profile black src/ tests/ frontend/
+	flake8 src/ tests/ frontend/
+	doc8 docs/ README.md
 
 precommit:
-	pip install pre-commit
-	pre-commit install
-	pre-commit run --all-files
+	@echo "Pre-commit hooks removed - use 'make lint' for code quality checks"
 
 # Tests
 

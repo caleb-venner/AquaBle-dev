@@ -1,0 +1,21 @@
+# Add-on build context - exclude unnecessary files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.git
+.gitignore
+tests/
+venv/
+.venv/
+.env
+node_modules/
+frontend/node_modules/
+frontend/.venv/
+*.log
+.DS_Store
+archive/
+# Keep only what's needed for the add-on
+!frontend/dist/
+!src/
