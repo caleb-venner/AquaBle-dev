@@ -1,0 +1,25 @@
+name: AquaBle
+version: "2.0.0"
+slug: aquable
+description: Control Chihiros aquarium lights and dosing pumps over Bluetooth Low Energy
+url: https://github.com/caleb-venner/aquable
+arch:
+  - amd64
+init: false
+ports:
+  8000/tcp: 8000
+ports_description:
+  8000/tcp: Web interface and REST API
+options:
+  auto_reconnect: true
+  auto_discover: true
+  status_wait_seconds: 1.5
+  timezone: "auto"
+schema:
+  auto_reconnect: bool
+  auto_discover: bool
+  status_wait_seconds: float(0.1,10.0)?
+  timezone: str?
+bluetooth: true
+hassio_api: true
+homeassistant_api: true

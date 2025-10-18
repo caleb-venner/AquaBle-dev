@@ -1,0 +1,31 @@
+#!/usr/bin/with-contenv bashio
+# filepath: aquable/rootfs/etc/services.d/aquable/run
+
+set -e
+
+bashio::log.info "Starting AquaBle service..."
+
+# Read configuration from add-on options
+export AQUA_BLE_AUTO_RECONNECT=$(bashio::config 'auto_reconnect')
+export AQUA_BLE_AUTO_DISCOVER=$(bashio::config 'auto_discover')
+export AQUA_BLE_STATUS_WAIT=$(bashio::config 'status_wait_seconds')
+
+# Handle timezone configuration
+TIMEZONE=$(bashio::config 'timezone')
+if [[ "${TIMEZONE}" == "auto" ]]; then
+    # Get Home Assistant timezone via API
+    TIMEZONE=$(bashio::api.supervisor GET /info | jq -r '.data.timezone // "UTC"')
+    bashio::log.info "Using Home Assistant timezone: ${TIMEZONE}"
+fi
+export TZ="${TIMEZONE}"
+
+# Set paths for add-on environment
+export AQUA_BLE_CONFIG_DIR=/data
+export AQUA_BLE_FRONTEND_DIST=/app/frontend/dist
+export PYTHONPATH=/app/src
+
+bashio::log.info "Configuration loaded - starting service on port 8000"
+
+# Start the service
+cd /app
+exec python3 -m aquable.service

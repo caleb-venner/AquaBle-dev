@@ -1,0 +1,5 @@
+build_from:
+  amd64: ghcr.io/home-assistant/amd64-base-python:3.13-alpine3.21
+
+args:
+  AQUA_BLE_VERSION: "2.0.0"
