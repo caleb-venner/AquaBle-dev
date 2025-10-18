@@ -12,8 +12,6 @@ jobs:
   build:
     runs-on: ubuntu-latest
     name: Build add-on
-    env:
-      COSIGN_VERSION: "v2.6.0"
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -29,22 +27,22 @@ jobs:
           mkdir -p aquable/frontend
           cp -r frontend/dist aquable/frontend/
 
+      - name: Get version from tag
+        id: version
+        run: |
+          if [[ $GITHUB_REF == refs/tags/v* ]]; then
+            echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+          else
+            echo "version=dev" >> $GITHUB_OUTPUT
+          fi
+
       - name: Login to GitHub Container Registry
+        if: github.event_name != 'pull_request'
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Determine version
-        id: version
-        run: |
-          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
-            VERSION="${{ github.ref_name }}"
-          else
-            VERSION="latest"
-          fi
-          echo "version=${VERSION}" >> $GITHUB_OUTPUT
 
       - name: Build add-on
         uses: home-assistant/builder@master
