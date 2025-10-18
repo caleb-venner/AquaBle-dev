@@ -1,0 +1,4 @@
+#!/usr/bin/with-contenv bashio
+# filepath: aquable/rootfs/etc/services.d/aquable/finish
+
+bashio::log.info "AquaBle service stopped"

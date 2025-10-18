@@ -1,8 +1,6 @@
 #!/usr/bin/with-contenv bashio
 # filepath: aquable/rootfs/etc/services.d/aquable/run
 
-set -e
-
 bashio::log.info "Starting AquaBle service..."
 
 # Read configuration from add-on options
@@ -26,6 +24,6 @@ export PYTHONPATH=/app/src
 
 bashio::log.info "Configuration loaded - starting service on port 8000"
 
-# Start the service
+# Start the service - using exec to replace the shell process
 cd /app
-exec python3 -m aquable.service
+exec python3 -m aquable.service 2>&1
