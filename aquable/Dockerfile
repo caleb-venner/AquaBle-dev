@@ -10,14 +10,14 @@ FROM ${BUILD_FROM}
 COPY frontend/dist /app/frontend/dist
 
 # Copy Python source code
-COPY src /app/src
-COPY pyproject.toml /app/
+COPY ../src /app/src
+COPY ../pyproject.toml /app/
 
 # Install Python dependencies
 RUN pip3 install --no-cache-dir -e .
 
 # Copy S6 service configuration
-COPY aquable/rootfs/ /
+COPY rootfs/ /
 
 # Set environment variables
 ENV PYTHONPATH=/app/src
