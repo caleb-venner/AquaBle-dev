@@ -359,13 +359,34 @@ class BLEService:
                     return current_device
                 # If we have a device of this kind but different address, keep it
                 # Only disconnect if we're replacing the same address
-            try:
-                device = await get_device_from_address(address)
-            except Exception as exc:
-                raise HTTPException(
-                    status_code=404,
-                    detail=self._format_message(expected_kind, "not_found"),
-                ) from exc
+            
+            # Retry logic: try up to 3 times with delays
+            # Device might not be advertising immediately after scan
+            device = None
+            max_retries = 3
+            
+            for attempt in range(max_retries):
+                try:
+                    device = await get_device_from_address(address)
+                    break
+                except Exception as exc:
+                    if attempt < max_retries - 1:
+                        # Wait before retrying (exponential backoff: 0.5s, 1s)
+                        wait_time = 0.5 * (2 ** attempt)
+                        logger.warning(
+                            f"Device {address} not found on attempt {attempt + 1}/{max_retries}, "
+                            f"retrying in {wait_time}s: {exc}"
+                        )
+                        await asyncio.sleep(wait_time)
+                    else:
+                        raise HTTPException(
+                            status_code=404,
+                            detail=self._format_message(expected_kind, "not_found"),
+                        ) from exc
+            
+            if device is None:  # Should not happen but safety check
+                raise HTTPException(status_code=500, detail="Device acquisition failed")
+            
             kind = self._get_device_kind(device)
             if kind is None:
                 raise HTTPException(status_code=400, detail="Unsupported device type")
@@ -383,6 +404,7 @@ class BLEService:
             # Update primary address for backward compatibility
             self._addresses[kind] = address
 
+            return device
             return device
 
     async def _refresh_device_status(
