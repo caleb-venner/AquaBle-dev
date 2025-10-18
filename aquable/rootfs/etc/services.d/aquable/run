@@ -23,7 +23,6 @@ export AQUA_BLE_FRONTEND_DIST=/app/frontend/dist
 export PYTHONPATH=/app/src
 
 # Configure Bleak/BlueZ
-export BLEAK_LOGGING=1
 export DBUS_SYSTEM_BUS_ADDRESS=unix:path=/run/dbus/system_bus_socket
 
 bashio::log.info "Configuration loaded - starting service on port 8000"
