@@ -3,6 +3,7 @@ version: "2.0.0"
 slug: aquable
 description: Control Chihiros aquarium lights and dosing pumps over Bluetooth Low Energy
 url: https://github.com/caleb-venner/aquable
+image: ghcr.io/caleb-venner/aquable
 arch:
   - amd64
 init: false
