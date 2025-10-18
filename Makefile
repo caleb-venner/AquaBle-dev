@@ -4,7 +4,7 @@
 AQUA_BLE_AUTO_DISCOVER ?= 0
 export AQUA_BLE_AUTO_DISCOVER
 
-.PHONY: help dev dev-front dev-back build front-build lint test precommit clean
+.PHONY: help dev dev-front dev-back build front-build lint test precommit clean local
 
 help:
 	@echo "make dev        # run frontend (vite) and backend (uvicorn)"
@@ -15,6 +15,7 @@ help:
 	@echo "make lint       # run pre-commit on all files"
 	@echo "make test       # run pytest"
 	@echo "make precommit  # install and run pre-commit hooks"
+	@echo "make local      # test HA add-on build locally"
 	@echo "make clean      # delete all saved device state and configs"
 	@echo "make clean-dev  # clean then start dev servers"
 
@@ -70,6 +71,11 @@ precommit:
 
 test:
 	pytest -q
+
+# Local add-on testing
+
+local:
+	@bash scripts/test_addon_local.sh
 
 # Cleanup
 
