@@ -6,6 +6,9 @@ ARG BUILD_FROM=ghcr.io/home-assistant/amd64-base-python:3.13-alpine3.21
 # Main add-on image
 FROM ${BUILD_FROM}
 
+# Set working directory
+WORKDIR /app
+
 # Copy pre-built frontend artifacts
 COPY frontend/dist /app/frontend/dist
 
