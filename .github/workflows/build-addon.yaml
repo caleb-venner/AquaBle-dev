@@ -49,6 +49,6 @@ jobs:
         with:
           args: |
             --target aquable \
-            --docker-hub ghcr.io/${{ github.repository_owner }} \
+            --docker-hub ghcr.io/${{ github.repository }} \
             --version ${{ steps.version.outputs.version }} \
             --amd64
