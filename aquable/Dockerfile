@@ -14,10 +14,10 @@ COPY frontend/dist /app/frontend/dist
 
 # Copy Python source code
 COPY src /app/src
-COPY pyproject.toml /app/
+# Copy pyproject.toml /app/
 
 # Install Python dependencies
-RUN pip3 install --no-cache-dir -e .
+RUN SETUPTOOLS_SCM_PRETEND_VERSION=2.0.0 pip3 install --no-cache-dir -e .
 
 # Copy S6 service configuration
 COPY rootfs/ /
