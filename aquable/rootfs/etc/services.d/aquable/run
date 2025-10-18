@@ -16,7 +16,6 @@ if [[ "${TIMEZONE}" == "auto" ]]; then
     bashio::log.info "Using Home Assistant timezone: ${TIMEZONE}"
 fi
 export TZ="${TIMEZONE}"
-export PYTHONTZPATH="${TIMEZONE}"
 
 # Set paths for add-on environment
 export AQUA_BLE_CONFIG_DIR=/data

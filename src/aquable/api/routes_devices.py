@@ -38,7 +38,19 @@ async def debug_live_status(request: Request) -> Dict[str, Any]:
 async def scan_devices(request: Request, timeout: float = 5.0) -> list[Dict[str, Any]]:
     """Scan for nearby supported devices."""
     service = request.app.state.service
-    return await service.scan_devices(timeout=timeout)
+    try:
+        return await service.scan_devices(timeout=timeout)
+    except FileNotFoundError as e:
+        raise HTTPException(
+            status_code=503,
+            detail="Bluetooth not available: D-Bus socket not found. "
+            "Ensure Bluetooth hardware and drivers are properly configured.",
+        ) from e
+    except PermissionError as e:
+        raise HTTPException(
+            status_code=403,
+            detail="Bluetooth permission denied. Check add-on permissions.",
+        ) from e
 
 
 @router.post("/devices/{address}/status")
