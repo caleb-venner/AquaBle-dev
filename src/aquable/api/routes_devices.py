@@ -64,21 +64,34 @@ async def refresh_status(request: Request, address: str) -> Dict[str, Any]:
 @router.post("/devices/{address}/connect")
 async def reconnect_device(request: Request, address: str) -> Dict[str, Any]:
     """(Re)connect to a device and return its current status."""
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    logger.info(f"Connect request for address: {address}")
     service = request.app.state.service
     cached = service.get_status_snapshot().get(address)
+    
     if cached:
+        logger.info(f"Found cached device for {address}, type: {cached.device_type}")
         status = await service.connect_device(address, cached.device_type)
         return cached_status_to_dict(service, status)
 
+    logger.info(f"No cached device for {address}, attempting discovery")
     try:
         device = await get_device_from_address(address)
+        logger.info(f"Discovered device at {address}")
     except Exception as exc:  # pragma: no cover - passthrough
+        logger.error(f"Failed to get device from address {address}: {exc}")
         raise HTTPException(status_code=404, detail="Device not found") from exc
 
     kind = getattr(device, "device_kind", None)
     if not kind:
+        logger.error(f"Device at {address} has no device_kind")
         raise HTTPException(status_code=400, detail="Unsupported device type")
+    
+    logger.info(f"Device kind: {kind}, connecting...")
     status = await service.connect_device(address, kind)
+    logger.info(f"Successfully connected to {address}")
     return cached_status_to_dict(service, status)
 
 
