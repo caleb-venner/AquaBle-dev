@@ -7,7 +7,7 @@ ARG BUILD_FROM=ghcr.io/home-assistant/amd64-base-python:3.13-alpine3.21
 FROM ${BUILD_FROM}
 
 # Copy pre-built frontend artifacts
-COPY aquable/frontend/dist /app/frontend/dist
+COPY frontend/dist /app/frontend/dist
 
 # Copy Python source code
 COPY src /app/src
