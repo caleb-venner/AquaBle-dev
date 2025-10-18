@@ -111,9 +111,7 @@ def atomic_update_doser_schedule(
         raise ConfigUpdateError(f"Failed to update doser schedule: {e}") from e
 
 
-def atomic_update_doser_device_props(
-    device: DoserDevice, name: str | None = None
-) -> DoserDevice:
+def atomic_update_doser_device_props(device: DoserDevice, name: str | None = None) -> DoserDevice:
     """Atomically update doser device properties.
 
     Args:
@@ -143,9 +141,7 @@ def atomic_update_doser_device_props(
         return updated_device
 
     except Exception as e:
-        raise ConfigUpdateError(
-            f"Failed to update doser device properties: {e}"
-        ) from e
+        raise ConfigUpdateError(f"Failed to update doser device properties: {e}") from e
 
 
 def atomic_update_device_metadata(
@@ -236,9 +232,7 @@ def atomic_create_new_revision(
         config.updatedAt = timestamp
         updated_device.updatedAt = timestamp
 
-        logger.info(
-            f"Atomically created revision {next_revision} for device {device.id}"
-        )
+        logger.info(f"Atomically created revision {next_revision} for device {device.id}")
 
         return updated_device
 

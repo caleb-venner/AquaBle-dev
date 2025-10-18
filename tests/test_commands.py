@@ -31,9 +31,7 @@ class TestCommandRecord:
 
     def test_create_record(self):
         """Test creating a command record."""
-        record = CommandRecord(
-            address="AA:BB:CC:DD:EE:FF", action="turn_on", args=None
-        )
+        record = CommandRecord(address="AA:BB:CC:DD:EE:FF", action="turn_on", args=None)
 
         assert record.address == "AA:BB:CC:DD:EE:FF"
         assert record.action == "turn_on"
@@ -102,9 +100,7 @@ class TestCommandRequest:
 
     def test_valid_brightness_request(self):
         """Test valid brightness command request."""
-        request = CommandRequest(
-            action="set_brightness", args={"brightness": 80, "color": 0}
-        )
+        request = CommandRequest(action="set_brightness", args={"brightness": 80, "color": 0})
         assert request.action == "set_brightness"
         assert request.args["brightness"] == 80
 
@@ -123,15 +119,11 @@ class TestCommandExecutor:
     def test_validate_brightness_args(self, command_executor):
         """Test brightness argument validation."""
         # Valid args
-        command_executor.validate_command_args(
-            "set_brightness", {"brightness": 50, "color": 0}
-        )
+        command_executor.validate_command_args("set_brightness", {"brightness": 50, "color": 0})
 
         # Invalid brightness
         with pytest.raises(CommandValidationError):
-            command_executor.validate_command_args(
-                "set_brightness", {"brightness": 150}
-            )
+            command_executor.validate_command_args("set_brightness", {"brightness": 150})
 
         # Missing args
         with pytest.raises(CommandValidationError):
@@ -145,9 +137,7 @@ class TestCommandExecutor:
 
         # Should fail with args
         with pytest.raises(CommandValidationError):
-            command_executor.validate_command_args(
-                "turn_on", {"invalid": "arg"}
-            )
+            command_executor.validate_command_args("turn_on", {"invalid": "arg"})
 
 
 class TestBLEServiceCommandPersistence:
@@ -182,9 +172,7 @@ class TestBLEServiceCommandPersistence:
     def test_update_existing_command(self):
         """Test updating an existing command by ID."""
         service = BLEService()
-        record = CommandRecord(
-            id="test-command-id", address="test_device", action="turn_on"
-        )
+        record = CommandRecord(id="test-command-id", address="test_device", action="turn_on")
 
         # Save initial
         service.save_command(record)

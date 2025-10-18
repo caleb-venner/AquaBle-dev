@@ -122,12 +122,7 @@ def parse_doser_payload(payload: bytes) -> DoserStatus:
             # within ±1 minute of the header timestamp, skip up to and
             # including that triplet so we don't accidentally parse the filler
             # as the first head block.
-            if (
-                len(body) >= 3
-                and weekday is not None
-                and hour is not None
-                and minute is not None
-            ):
+            if len(body) >= 3 and weekday is not None and hour is not None and minute is not None:
                 scan_limit = min(32, len(body) - 2)
                 adjusted_start = None
                 for off in range(0, scan_limit):

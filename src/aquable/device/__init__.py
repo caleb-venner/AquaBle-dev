@@ -36,9 +36,7 @@ def get_model_class_from_name(
     """Get device class name from device name."""
     model_class = CODE2MODEL.get(device_name[:-12])
     if model_class is None:
-        raise DeviceNotFoundError(
-            device_name, details={"reason": "Device model code not found"}
-        )
+        raise DeviceNotFoundError(device_name, details={"reason": "Device model code not found"})
     return model_class
 
 

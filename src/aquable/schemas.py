@@ -10,9 +10,7 @@ from pydantic import BaseModel, Field, field_validator
 from .commands import LightWeekday
 
 
-def _normalize_weekdays_generic(
-    value: Any, enum_cls, default_if_none: Any = None
-) -> Any:
+def _normalize_weekdays_generic(value: Any, enum_cls, default_if_none: Any = None) -> Any:
     """Normalize weekdays used by multiple request models.
 
     Accepts None, single enum, string/int, set/tuple, or list of items.
@@ -46,9 +44,7 @@ def _normalize_weekdays_generic(
                     continue
                 except Exception as exc:
                     raise ValueError(f"Invalid weekday value '{item}'") from exc
-            raise ValueError(
-                "Weekday entries must be strings, integers, or enum values"
-            )
+            raise ValueError("Weekday entries must be strings, integers, or enum values")
         return parsed
     raise ValueError("Weekdays must be provided as a sequence")
 
@@ -74,9 +70,7 @@ class LightAutoSettingRequest(BaseModel):
     def _normalize_weekdays(cls, value: Any) -> Any:
         # Reuse the same semantics as DoserScheduleRequest but with the
         # WeekdaySelect enum defined for lights.
-        return _normalize_weekdays_generic(
-            value, LightWeekday, [LightWeekday.everyday]
-        )
+        return _normalize_weekdays_generic(value, LightWeekday, [LightWeekday.everyday])
 
     @field_validator("brightness", mode="before")
     def _validate_brightness(cls, value: Any) -> Any:
@@ -87,15 +81,11 @@ class LightAutoSettingRequest(BaseModel):
             return value
         if isinstance(value, (list, tuple)):
             if len(value) != 3:
-                raise ValueError(
-                    "RGB brightness must be a sequence of three values"
-                )
+                raise ValueError("RGB brightness must be a sequence of three values")
             vals = []
             for v in value:
                 if not isinstance(v, int):
                     raise ValueError("RGB brightness values must be integers")
                 vals.append(v)
             return tuple(vals)
-        raise ValueError(
-            "brightness must be an integer or a three-element sequence"
-        )
+        raise ValueError("brightness must be an integer or a three-element sequence")

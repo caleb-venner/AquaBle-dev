@@ -26,9 +26,7 @@ from aquable.doser_storage import (
 def test_atomic_update_doser_schedule_success():
     """Test successful atomic schedule update."""
     # Create a default device
-    original_device = create_default_doser_config(
-        "AA:BB:CC:DD:EE:FF", "Test Device"
-    )
+    original_device = create_default_doser_config("AA:BB:CC:DD:EE:FF", "Test Device")
 
     # Small delay to ensure timestamp difference
     time.sleep(0.001)
@@ -46,9 +44,7 @@ def test_atomic_update_doser_schedule_success():
     # Verify original device is unchanged
     original_head = next(
         h
-        for h in original_device.get_active_configuration()
-        .latest_revision()
-        .heads
+        for h in original_device.get_active_configuration().latest_revision().heads
         if h.index == 1
     )
     assert original_head.schedule.dailyDoseMl == 10.0  # Default value
@@ -57,11 +53,7 @@ def test_atomic_update_doser_schedule_success():
 
     # Verify updated device has new values
     updated_head = next(
-        h
-        for h in updated_device.get_active_configuration()
-        .latest_revision()
-        .heads
-        if h.index == 1
+        h for h in updated_device.get_active_configuration().latest_revision().heads if h.index == 1
     )
     assert updated_head.schedule.dailyDoseMl == 25.0
     assert isinstance(updated_head.schedule, SingleSchedule)
@@ -73,17 +65,13 @@ def test_atomic_update_doser_schedule_success():
     # Verify timestamps were updated - just check that the head was actually updated
     # The timestamps might be the same due to fast execution,
     # but the core functionality works
-    assert (
-        updated_head.schedule.dailyDoseMl != original_head.schedule.dailyDoseMl
-    )
+    assert updated_head.schedule.dailyDoseMl != original_head.schedule.dailyDoseMl
     assert updated_head.schedule.startTime != original_head.schedule.startTime
 
 
 def test_atomic_update_doser_schedule_invalid_head():
     """Test atomic schedule update with invalid head index."""
-    original_device = create_default_doser_config(
-        "AA:BB:CC:DD:EE:FF", "Test Device"
-    )
+    original_device = create_default_doser_config("AA:BB:CC:DD:EE:FF", "Test Device")
 
     with pytest.raises(ConfigUpdateError, match="Head 99 not found"):
         atomic_update_doser_schedule(
@@ -97,9 +85,7 @@ def test_atomic_update_doser_schedule_invalid_head():
     # Verify original device is completely unchanged
     original_head = next(
         h
-        for h in original_device.get_active_configuration()
-        .latest_revision()
-        .heads
+        for h in original_device.get_active_configuration().latest_revision().heads
         if h.index == 1
     )
     assert original_head.schedule.dailyDoseMl == 10.0  # Default unchanged
@@ -135,12 +121,8 @@ def test_atomic_update_device_metadata():
 
 def test_atomic_create_new_revision():
     """Test atomic creation of new configuration revision."""
-    original_device = create_default_doser_config(
-        "AA:BB:CC:DD:EE:FF", "Test Device"
-    )
-    original_revision_count = len(
-        original_device.get_active_configuration().revisions
-    )
+    original_device = create_default_doser_config("AA:BB:CC:DD:EE:FF", "Test Device")
+    original_revision_count = len(original_device.get_active_configuration().revisions)
 
     # Small delay to ensure timestamp difference
     time.sleep(0.001)
@@ -152,14 +134,10 @@ def test_atomic_create_new_revision():
             index=i,  # type: ignore[arg-type]
             label=f"Head {i}",
             active=True,
-            schedule=SingleSchedule(
-                mode="single", dailyDoseMl=10.0 + i, startTime="09:00"
-            ),
+            schedule=SingleSchedule(mode="single", dailyDoseMl=10.0 + i, startTime="09:00"),
             recurrence=Recurrence(days=["monday", "wednesday", "friday"]),
             missedDoseCompensation=False,
-            calibration=Calibration(
-                mlPerSecond=0.1, lastCalibratedAt="2024-01-01T00:00:00Z"
-            ),
+            calibration=Calibration(mlPerSecond=0.1, lastCalibratedAt="2024-01-01T00:00:00Z"),
             stats=DoserHeadStats(dosesToday=0, mlDispensedToday=0.0),
         )
         new_heads.append(head)
@@ -173,10 +151,7 @@ def test_atomic_create_new_revision():
     )
 
     # Verify original device is unchanged
-    assert (
-        len(original_device.get_active_configuration().revisions)
-        == original_revision_count
-    )
+    assert len(original_device.get_active_configuration().revisions) == original_revision_count
 
     # Verify updated device has new revision
     updated_config = updated_device.get_active_configuration()
@@ -198,9 +173,7 @@ def test_atomic_create_new_revision():
 def test_atomic_operations_preserve_immutability():
     """Test that atomic operations don't have side effects on inputs."""
     # Create test data
-    original_device = create_default_doser_config(
-        "AA:BB:CC:DD:EE:FF", "Test Device"
-    )
+    original_device = create_default_doser_config("AA:BB:CC:DD:EE:FF", "Test Device")
     original_metadata = DeviceMetadata(id="test", name="Test")
 
     # Take deep copies for comparison
@@ -225,9 +198,7 @@ def test_atomic_operations_preserve_immutability():
 
 def test_atomic_update_supports_large_doses():
     """Test that atomic updates work with the new large dose support."""
-    original_device = create_default_doser_config(
-        "AA:BB:CC:DD:EE:FF", "Test Device"
-    )
+    original_device = create_default_doser_config("AA:BB:CC:DD:EE:FF", "Test Device")
 
     # Test with a large dose (>25.6mL)
     large_volume_tenths = 30000  # 3000.0 mL
@@ -242,11 +213,7 @@ def test_atomic_update_supports_large_doses():
 
     # Verify large dose was set correctly
     updated_head = next(
-        h
-        for h in updated_device.get_active_configuration()
-        .latest_revision()
-        .heads
-        if h.index == 1
+        h for h in updated_device.get_active_configuration().latest_revision().heads if h.index == 1
     )
     assert updated_head.schedule.dailyDoseMl == 3000.0
     assert isinstance(updated_head.schedule, SingleSchedule)

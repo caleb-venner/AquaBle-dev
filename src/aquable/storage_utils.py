@@ -58,6 +58,4 @@ def ensure_unique_values(values: Sequence[str], field_name: str) -> None:
             seen.add(value)
     if duplicates:
         plural = "s" if len(duplicates) > 1 else ""
-        raise ValueError(
-            f"Duplicate {field_name}{plural}: {sorted(duplicates)}"
-        )
+        raise ValueError(f"Duplicate {field_name}{plural}: {sorted(duplicates)}")

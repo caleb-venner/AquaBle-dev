@@ -95,25 +95,13 @@ def test_head_dose_command_volume_validation():
     import pytest
 
     # Negative volume should fail
-    with pytest.raises(
-        ValueError, match="volume_tenths_ml must fit in two bytes"
-    ):
-        encoder.create_head_dose_command(
-            msg_id, head_index, -1, weekday_mask=weekday_mask
-        )
+    with pytest.raises(ValueError, match="volume_tenths_ml must fit in two bytes"):
+        encoder.create_head_dose_command(msg_id, head_index, -1, weekday_mask=weekday_mask)
 
     # Volume too large should fail
-    with pytest.raises(
-        ValueError, match="volume_tenths_ml must fit in two bytes"
-    ):
-        encoder.create_head_dose_command(
-            msg_id, head_index, 65536, weekday_mask=weekday_mask
-        )
+    with pytest.raises(ValueError, match="volume_tenths_ml must fit in two bytes"):
+        encoder.create_head_dose_command(msg_id, head_index, 65536, weekday_mask=weekday_mask)
 
     # Valid boundary values should work
-    encoder.create_head_dose_command(
-        msg_id, head_index, 0, weekday_mask=weekday_mask
-    )
-    encoder.create_head_dose_command(
-        msg_id, head_index, 65535, weekday_mask=weekday_mask
-    )
+    encoder.create_head_dose_command(msg_id, head_index, 0, weekday_mask=weekday_mask)
+    encoder.create_head_dose_command(msg_id, head_index, 65535, weekday_mask=weekday_mask)

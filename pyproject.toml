@@ -47,14 +47,14 @@ where = [
 aquable-service = "aquable.service:main"
 
 [tool.black]
-line-length = 80
+line-length = 100
 
 [tool.isort]
 profile = "black"
-line_length = 80
+line_length = 100
 
 [flake8]
-max-line-length = 80
+max-line-length = 100
 extend-ignore = [
     "E203",
 ]
@@ -63,4 +63,4 @@ extend-exclude = [
 ]
 
 [tool.doc8]
-max-line-length = 80
+max-line-length = 100

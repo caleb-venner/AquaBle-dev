@@ -11,10 +11,7 @@ from aquable.ble_service import BLEService, CachedStatus
 from aquable.command_executor import CommandExecutor
 from aquable.commands.encoder import LightWeekday, PumpWeekday
 from aquable.commands_model import CommandRequest
-from aquable.config_helpers import (
-    create_default_doser_config,
-    create_default_light_profile,
-)
+from aquable.config_helpers import create_default_doser_config, create_default_light_profile
 
 # All test coroutines will be treated as marked.
 pytestmark = pytest.mark.asyncio
@@ -104,9 +101,7 @@ async def test_execute_set_doser_schedule_success(
     saved_config = ble_service._doser_storage.get_device(address)
     assert saved_config is not None
     active_config = saved_config.get_active_configuration()
-    head_config = active_config.latest_revision().heads[
-        0
-    ]  # First head in list (index=1)
+    head_config = active_config.latest_revision().heads[0]  # First head in list (index=1)
     assert head_config is not None
     assert head_config.schedule.dailyDoseMl == 5.5
     assert head_config.schedule.startTime == "10:30"

@@ -73,7 +73,4 @@ def test_auto_discover_allows_auto_reconnect_when_none_found(monkeypatch):
     # scheduled asynchronously by the auto-discover worker. Accept either
     # that the reconnect ran synchronously or that a reconnect task was
     # scheduled.
-    assert (
-        reconnect_called is True
-        or getattr(svc, "_reconnect_task", None) is not None
-    )
+    assert reconnect_called is True or getattr(svc, "_reconnect_task", None) is not None

@@ -12,10 +12,7 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from aquable.config_helpers import (
-    create_default_doser_config,
-    create_default_light_profile,
-)
+from aquable.config_helpers import create_default_doser_config, create_default_light_profile
 from aquable.service import app
 
 
@@ -37,12 +34,8 @@ def temp_config_dir(monkeypatch):
     from aquable.light_storage import LightStorage
     from aquable.service import service
 
-    monkeypatch.setattr(
-        service, "_doser_storage", DoserStorage(temp_dir / "devices", {})
-    )
-    monkeypatch.setattr(
-        service, "_light_storage", LightStorage(temp_dir / "devices", {})
-    )
+    monkeypatch.setattr(service, "_doser_storage", DoserStorage(temp_dir / "devices", {}))
+    monkeypatch.setattr(service, "_light_storage", LightStorage(temp_dir / "devices", {}))
     monkeypatch.setattr(service, "_device_metadata", {})
 
     # Also patch the paths in the API routes module
@@ -95,9 +88,7 @@ def test_list_doser_configurations_empty(client, temp_config_dir):
     assert response.json() == []
 
 
-def test_create_and_get_doser_configuration(
-    client, temp_config_dir, sample_doser
-):
+def test_create_and_get_doser_configuration(client, temp_config_dir, sample_doser):
     """Test creating and retrieving a doser configuration."""
     # Create configuration
     response = client.put(
@@ -117,9 +108,7 @@ def test_create_and_get_doser_configuration(
     assert len(retrieved["configurations"]) >= 1
     # Check that the configuration has heads
     active_config = next(
-        c
-        for c in retrieved["configurations"]
-        if c["id"] == retrieved["activeConfigurationId"]
+        c for c in retrieved["configurations"] if c["id"] == retrieved["activeConfigurationId"]
     )
     latest_revision = active_config["revisions"][-1]
     assert len(latest_revision["heads"]) == 4
@@ -167,9 +156,7 @@ def test_update_doser_configuration(client, temp_config_dir, sample_doser):
     assert updated["name"] == "Updated Doser"
     # Check the updated dose in the configuration structure
     active_config = next(
-        c
-        for c in updated["configurations"]
-        if c["id"] == updated["activeConfigurationId"]
+        c for c in updated["configurations"] if c["id"] == updated["activeConfigurationId"]
     )
     latest_revision = active_config["revisions"][-1]
     assert latest_revision["heads"][0]["schedule"]["dailyDoseMl"] == 20.0
@@ -225,9 +212,7 @@ def test_list_light_configurations_empty(client, temp_config_dir):
     assert response.json() == []
 
 
-def test_create_and_get_light_configuration(
-    client, temp_config_dir, sample_light
-):
+def test_create_and_get_light_configuration(client, temp_config_dir, sample_light):
     """Test creating and retrieving a light configuration."""
     # Create configuration
     response = client.put(
@@ -303,9 +288,7 @@ def test_configuration_summary_empty(client, temp_config_dir):
     assert summary["lights"]["count"] == 0
 
 
-def test_configuration_summary_with_data(
-    client, temp_config_dir, sample_doser, sample_light
-):
+def test_configuration_summary_with_data(client, temp_config_dir, sample_doser, sample_light):
     """Test configuration summary with both doser and light configurations."""
     # Create configurations
     client.put(

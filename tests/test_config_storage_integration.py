@@ -68,10 +68,7 @@ def test_config_helpers_create_default():
 
 def test_config_helpers_update_schedule():
     """Test updating schedule in configuration."""
-    from aquable.config_helpers import (
-        create_default_doser_config,
-        update_doser_schedule_config,
-    )
+    from aquable.config_helpers import create_default_doser_config, update_doser_schedule_config
 
     device = create_default_doser_config("AA:BB:CC:DD:EE:FF")
 

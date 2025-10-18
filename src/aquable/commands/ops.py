@@ -48,9 +48,7 @@ async def set_doser_schedule(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except (BleakNotFoundError, BleakConnectionError) as exc:
-        raise HTTPException(
-            status_code=404, detail="Dosing pump not reachable"
-        ) from exc
+        raise HTTPException(status_code=404, detail="Dosing pump not reachable") from exc
     return await service._refresh_device_status("doser", persist=True)
 
 
@@ -71,9 +69,7 @@ async def set_light_brightness(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except (BleakNotFoundError, BleakConnectionError) as exc:
-        raise HTTPException(
-            status_code=404, detail="Light not reachable"
-        ) from exc
+        raise HTTPException(status_code=404, detail="Light not reachable") from exc
     return await service._refresh_device_status("light", persist=True)
 
 
@@ -83,9 +79,7 @@ async def turn_light_on(service: Any, address: str) -> "CachedStatus":
     try:
         await device.turn_on()
     except (BleakNotFoundError, BleakConnectionError) as exc:
-        raise HTTPException(
-            status_code=404, detail="Light not reachable"
-        ) from exc
+        raise HTTPException(status_code=404, detail="Light not reachable") from exc
     return await service._refresh_device_status("light", persist=True)
 
 
@@ -95,9 +89,7 @@ async def turn_light_off(service: Any, address: str) -> "CachedStatus":
     try:
         await device.turn_off()
     except (BleakNotFoundError, BleakConnectionError) as exc:
-        raise HTTPException(
-            status_code=404, detail="Light not reachable"
-        ) from exc
+        raise HTTPException(status_code=404, detail="Light not reachable") from exc
     return await service._refresh_device_status("light", persist=True)
 
 
@@ -107,9 +99,7 @@ async def enable_auto_mode(service: Any, address: str) -> "CachedStatus":
     try:
         await device.enable_auto_mode()
     except (BleakNotFoundError, BleakConnectionError) as exc:
-        raise HTTPException(
-            status_code=404, detail="Light not reachable"
-        ) from exc
+        raise HTTPException(status_code=404, detail="Light not reachable") from exc
     return await service._refresh_device_status("light", persist=True)
 
 
@@ -119,9 +109,7 @@ async def set_manual_mode(service: Any, address: str) -> "CachedStatus":
     try:
         await device.set_manual_mode()
     except (BleakNotFoundError, BleakConnectionError) as exc:
-        raise HTTPException(
-            status_code=404, detail="Light not reachable"
-        ) from exc
+        raise HTTPException(status_code=404, detail="Light not reachable") from exc
     return await service._refresh_device_status("light", persist=True)
 
 
@@ -133,9 +121,7 @@ async def reset_auto_settings(service: Any, address: str) -> "CachedStatus":
         # Clear stored configurations from device file
         service._unified_storage.clear_device_configurations(address)
     except (BleakNotFoundError, BleakConnectionError) as exc:
-        raise HTTPException(
-            status_code=404, detail="Light not reachable"
-        ) from exc
+        raise HTTPException(status_code=404, detail="Light not reachable") from exc
     return await service._refresh_device_status("light", persist=True)
 
 
@@ -181,14 +167,10 @@ async def add_light_auto_setting(
                 weekdays=weekdays or [LightWeekday.everyday],
             )
         else:
-            raise ValueError(
-                "brightness must be an int, three-element sequence, or dict"
-            )
+            raise ValueError("brightness must be an int, three-element sequence, or dict")
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except (BleakNotFoundError, BleakConnectionError) as exc:
-        raise HTTPException(
-            status_code=404, detail="Light not reachable"
-        ) from exc
+        raise HTTPException(status_code=404, detail="Light not reachable") from exc
 
     return await service._refresh_device_status("light", persist=True)

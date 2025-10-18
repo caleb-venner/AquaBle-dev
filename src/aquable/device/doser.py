@@ -28,9 +28,7 @@ class Doser(BaseDevice):
         cmd = doser_commands.create_handshake_command(self.get_next_msg_id())
         await self._send_command(cmd, 3)
 
-    def _notification_handler(
-        self, _sender: BleakGATTCharacteristic, data: bytearray
-    ) -> None:
+    def _notification_handler(self, _sender: BleakGATTCharacteristic, data: bytearray) -> None:
         """Capture raw notification bytes from the pump."""
         self.handle_notification(bytes(data))
 
@@ -61,11 +59,7 @@ class Doser(BaseDevice):
         hour: int,
         minute: int,
         *,
-        weekdays: (
-            doser_commands.PumpWeekday
-            | Sequence[doser_commands.PumpWeekday]
-            | None
-        ) = None,
+        weekdays: doser_commands.PumpWeekday | Sequence[doser_commands.PumpWeekday] | None = None,
         confirm: bool = False,
         wait_seconds: float = 1.5,
     ) -> DoserStatus | None:
@@ -102,9 +96,7 @@ class Doser(BaseDevice):
             # 5. Prepare stage 0x05 - confirm device is ready
             doser_commands.create_prepare_command(self.get_next_msg_id(), 0x05),
             # 6. Head select - choose which dosing head to configure
-            doser_commands.create_head_select_command(
-                self.get_next_msg_id(), head_index
-            ),
+            doser_commands.create_head_select_command(self.get_next_msg_id(), head_index),
         ]
 
         # Send prelude commands sequentially

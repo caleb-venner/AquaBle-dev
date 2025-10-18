@@ -34,9 +34,7 @@ NEW_CONFIG_DIR = Path.home() / ".aqua-ble"
 _migration_logged = False
 
 
-def get_env_with_fallback(
-    new_name: str, default: str | None = None
-) -> str | None:
+def get_env_with_fallback(new_name: str, default: str | None = None) -> str | None:
     """Get environment variable with fallback to old naming.
 
     Args:
@@ -93,9 +91,7 @@ def get_config_dir() -> Path:
 
     # If old directory exists, migrate it
     if OLD_CONFIG_DIR.exists():
-        logger.info(
-            f"Migrating configuration directory: {OLD_CONFIG_DIR} → {NEW_CONFIG_DIR}"
-        )
+        logger.info(f"Migrating configuration directory: {OLD_CONFIG_DIR} → {NEW_CONFIG_DIR}")
         try:
             # Copy entire directory tree
             shutil.copytree(OLD_CONFIG_DIR, NEW_CONFIG_DIR)
@@ -106,8 +102,7 @@ def get_config_dir() -> Path:
             return NEW_CONFIG_DIR
         except Exception as e:
             logger.error(
-                f"Failed to migrate configuration directory: {e}. "
-                f"Falling back to old location."
+                f"Failed to migrate configuration directory: {e}. " f"Falling back to old location."
             )
             return OLD_CONFIG_DIR
 
@@ -164,9 +159,7 @@ def get_env_float(name: str, default: float) -> float:
     try:
         return float(raw)
     except ValueError:
-        logger.warning(
-            f"Invalid float value for {name}: '{raw}'. Using default: {default}"
-        )
+        logger.warning(f"Invalid float value for {name}: '{raw}'. Using default: {default}")
         return default
 
 
@@ -187,7 +180,5 @@ def get_env_int(name: str, default: int) -> int:
     try:
         return int(raw)
     except ValueError:
-        logger.warning(
-            f"Invalid integer value for {name}: '{raw}'. Using default: {default}"
-        )
+        logger.warning(f"Invalid integer value for {name}: '{raw}'. Using default: {default}")
         return default

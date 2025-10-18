@@ -4,11 +4,7 @@ import pytest
 from pydantic import ValidationError
 
 from aquable.commands.encoder import LightWeekday, PumpWeekday
-from aquable.commands_model import (
-    DoserScheduleArgs,
-    LightAutoSettingArgs,
-    LightBrightnessArgs,
-)
+from aquable.commands_model import DoserScheduleArgs, LightAutoSettingArgs, LightBrightnessArgs
 
 
 class TestDoserScheduleArgsValidation:
@@ -93,9 +89,7 @@ class TestDoserScheduleArgsValidation:
         assert args.weekdays == [PumpWeekday.everyday]
 
         # Empty weekdays should fail
-        with pytest.raises(
-            ValidationError, match="Weekdays list cannot be empty"
-        ):
+        with pytest.raises(ValidationError, match="Weekdays list cannot be empty"):
             DoserScheduleArgs(
                 head_index=0,
                 volume_tenths_ml=100,
@@ -122,9 +116,7 @@ class TestDoserScheduleArgsValidation:
             )
 
         # Duplicates should fail
-        with pytest.raises(
-            ValidationError, match="Duplicate weekdays not allowed"
-        ):
+        with pytest.raises(ValidationError, match="Duplicate weekdays not allowed"):
             DoserScheduleArgs(
                 head_index=0,
                 volume_tenths_ml=100,
@@ -153,14 +145,10 @@ class TestLightBrightnessArgsValidation:
             assert args.color == i
 
         # Invalid indices (negative values)
-        with pytest.raises(
-            ValidationError, match="Color index must be non-negative"
-        ):
+        with pytest.raises(ValidationError, match="Color index must be non-negative"):
             LightBrightnessArgs(brightness=50, color=-1)
 
-        with pytest.raises(
-            ValidationError, match="Color index must be non-negative"
-        ):
+        with pytest.raises(ValidationError, match="Color index must be non-negative"):
             LightBrightnessArgs(brightness=50, color=-5)
 
 
@@ -253,9 +241,7 @@ class TestLightAutoSettingArgsValidation:
         assert args.sunset == "12:30"
 
         # Invalid: sunset before sunrise
-        with pytest.raises(
-            ValidationError, match="Sunset .* must be after sunrise"
-        ):
+        with pytest.raises(ValidationError, match="Sunset .* must be after sunrise"):
             LightAutoSettingArgs(
                 sunrise="18:45",
                 sunset="06:30",
@@ -277,9 +263,7 @@ class TestLightAutoSettingArgsValidation:
         assert args.ramp_up_minutes == 60
 
         # Negative ramp time
-        with pytest.raises(
-            ValidationError, match="Ramp up minutes cannot be negative"
-        ):
+        with pytest.raises(ValidationError, match="Ramp up minutes cannot be negative"):
             LightAutoSettingArgs(
                 sunrise="06:30",
                 sunset="18:45",
@@ -325,9 +309,7 @@ class TestLightAutoSettingArgsValidation:
         assert args.weekdays == [LightWeekday.everyday]
 
         # Empty weekdays should fail
-        with pytest.raises(
-            ValidationError, match="Weekdays list cannot be empty"
-        ):
+        with pytest.raises(ValidationError, match="Weekdays list cannot be empty"):
             LightAutoSettingArgs(
                 sunrise="06:30",
                 sunset="18:00",
@@ -350,9 +332,7 @@ class TestLightAutoSettingArgsValidation:
             )
 
         # Duplicates should fail
-        with pytest.raises(
-            ValidationError, match="Duplicate weekdays not allowed"
-        ):
+        with pytest.raises(ValidationError, match="Duplicate weekdays not allowed"):
             LightAutoSettingArgs(
                 sunrise="06:30",
                 sunset="18:00",

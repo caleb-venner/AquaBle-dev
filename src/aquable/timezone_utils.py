@@ -150,9 +150,7 @@ def convert_time_to_display_timezone(
 
     # Use today's date as reference
     today = datetime.date.today()
-    source_time = datetime.datetime.combine(
-        today, datetime.time(hour, minute), tzinfo=source_tz
-    )
+    source_time = datetime.datetime.combine(today, datetime.time(hour, minute), tzinfo=source_tz)
 
     # Convert to target timezone
     target_time = source_time.astimezone(target_tz)

@@ -23,9 +23,7 @@ def patched_wait_env(monkeypatch: pytest.MonkeyPatch):
     return service_mod
 
 
-def test_capture_wait_uses_env_override(
-    monkeypatch: pytest.MonkeyPatch, patched_wait_env
-):
+def test_capture_wait_uses_env_override(monkeypatch: pytest.MonkeyPatch, patched_wait_env):
     """Verify the capture wait uses the env override instead of default.
 
     The test captures the value passed to asyncio.sleep during the
@@ -85,9 +83,7 @@ def test_capture_wait_uses_env_override(
     # type: ignore[attr-defined]
     target = "doser"
     persist_arg = False
-    result = _asyncio.run(
-        service._refresh_device_status(target, persist=persist_arg)
-    )
+    result = _asyncio.run(service._refresh_device_status(target, persist=persist_arg))
     assert result is not None
     # Confirm we used the env override value, not the default 1.5
     delay_val = recorded.get("delay", 0)

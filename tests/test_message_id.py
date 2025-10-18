@@ -55,24 +55,16 @@ def test_next_message_id_validation():
     encoder.next_message_id((255, 255))
 
     # Invalid inputs
-    with pytest.raises(
-        ValueError, match="Message ID bytes must be in range 0-255"
-    ):
+    with pytest.raises(ValueError, match="Message ID bytes must be in range 0-255"):
         encoder.next_message_id((-1, 0))
 
-    with pytest.raises(
-        ValueError, match="Message ID bytes must be in range 0-255"
-    ):
+    with pytest.raises(ValueError, match="Message ID bytes must be in range 0-255"):
         encoder.next_message_id((0, 256))
 
-    with pytest.raises(
-        ValueError, match="Message ID cannot contain reserved value 90"
-    ):
+    with pytest.raises(ValueError, match="Message ID cannot contain reserved value 90"):
         encoder.next_message_id((90, 0))
 
-    with pytest.raises(
-        ValueError, match="Message ID cannot contain reserved value 90"
-    ):
+    with pytest.raises(ValueError, match="Message ID cannot contain reserved value 90"):
         encoder.next_message_id((0, 90))
 
 

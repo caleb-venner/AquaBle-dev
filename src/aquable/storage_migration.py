@@ -50,9 +50,7 @@ def migrate_storage(config_dir: Path) -> None:
     if state_file.exists():
         try:
             state_data = json.loads(state_file.read_text())
-            logger.info(
-                f"Loaded state.json with {len(state_data.get('devices', {}))} devices"
-            )
+            logger.info(f"Loaded state.json with {len(state_data.get('devices', {}))} devices")
         except json.JSONDecodeError as exc:
             logger.error(f"Failed to parse state.json: {exc}")
             return
@@ -85,9 +83,7 @@ def migrate_storage(config_dir: Path) -> None:
                     existing_config = existing_data
                 logger.info(f"  Found existing configuration for {address}")
             except json.JSONDecodeError:
-                logger.warning(
-                    f"  Could not parse existing config for {address}"
-                )
+                logger.warning(f"  Could not parse existing config for {address}")
 
         # Build unified device file
         unified_device = {
@@ -174,12 +170,8 @@ def migrate_storage(config_dir: Path) -> None:
     if display_timezone:
         settings_file = config_dir / "global_settings.json"
         settings = {"display_timezone": display_timezone}
-        settings_file.write_text(
-            json.dumps(settings, indent=2, sort_keys=True), encoding="utf-8"
-        )
-        logger.info(
-            f"Created global_settings.json with timezone: {display_timezone}"
-        )
+        settings_file.write_text(json.dumps(settings, indent=2, sort_keys=True), encoding="utf-8")
+        logger.info(f"Created global_settings.json with timezone: {display_timezone}")
 
     # Archive state.json (don't delete, keep as reference)
     if state_file.exists():
@@ -188,8 +180,7 @@ def migrate_storage(config_dir: Path) -> None:
         logger.info(f"Archived state.json to {archive_file}")
 
     logger.info(
-        f"Migration complete! Migrated {migrated_count} devices. "
-        f"Backups saved to {backup_dir}"
+        f"Migration complete! Migrated {migrated_count} devices. " f"Backups saved to {backup_dir}"
     )
 
 
@@ -201,9 +192,7 @@ def main():
     config_dir = Path(config_dir_str).expanduser()
 
     if not config_dir.exists():
-        logger.info(
-            f"No config directory found at {config_dir}, nothing to migrate"
-        )
+        logger.info(f"No config directory found at {config_dir}, nothing to migrate")
         return
 
     state_file = config_dir / "state.json"

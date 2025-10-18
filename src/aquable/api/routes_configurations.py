@@ -56,9 +56,7 @@ async def list_doser_configurations(
         return devices
     except Exception as e:
         logger.error(f"Error listing doser configurations: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=500, detail=f"Failed to list configurations: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to list configurations: {str(e)}")
 
 
 @router.get("/dosers/metadata", response_model=List[DeviceMetadata])
@@ -78,15 +76,11 @@ async def list_doser_metadata(
         return metadata_list
     except Exception as e:
         logger.error(f"Error listing doser metadata: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=500, detail=f"Failed to list metadata: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to list metadata: {str(e)}")
 
 
 @router.get("/dosers/{address}", response_model=DoserDevice)
-async def get_doser_configuration(
-    address: str, storage: DoserStorage = Depends(get_doser_storage)
-):
+async def get_doser_configuration(address: str, storage: DoserStorage = Depends(get_doser_storage)):
     """
     Get a specific doser configuration by device address.
 
@@ -140,9 +134,7 @@ async def update_doser_configuration(
         return device
     except Exception as e:
         logger.error(f"Error updating doser configuration: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=500, detail=f"Failed to update configuration: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to update configuration: {str(e)}")
 
 
 @router.delete("/dosers/{address}", status_code=204)
@@ -173,9 +165,7 @@ async def delete_doser_configuration(
         return None
     except Exception as e:
         logger.error(f"Error deleting doser configuration: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=500, detail=f"Failed to delete configuration: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to delete configuration: {str(e)}")
 
 
 # ============================================================================
@@ -197,15 +187,11 @@ async def get_doser_metadata(
     try:
         metadata = storage.get_device_metadata(address)
         if metadata is None:
-            raise HTTPException(
-                status_code=404, detail=f"No metadata found for doser {address}"
-            )
+            raise HTTPException(status_code=404, detail=f"No metadata found for doser {address}")
         return metadata
     except Exception as e:
         logger.error(f"Error retrieving doser metadata: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=500, detail=f"Failed to retrieve metadata: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve metadata: {str(e)}")
 
 
 @router.put("/dosers/{address}/metadata", response_model=DeviceMetadata)
@@ -233,9 +219,7 @@ async def update_doser_metadata(
         return updated_metadata
     except Exception as e:
         logger.error(f"Error updating doser metadata: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=500, detail=f"Failed to update metadata: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to update metadata: {str(e)}")
 
 
 # ============================================================================
@@ -260,9 +244,7 @@ async def list_light_configurations(
         return devices
     except Exception as e:
         logger.error(f"Error listing light profiles: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=500, detail=f"Failed to list profiles: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to list profiles: {str(e)}")
 
 
 @router.get("/lights/metadata", response_model=List[LightMetadata])
@@ -284,15 +266,11 @@ async def list_light_metadata(
         return metadata_list
     except Exception as e:
         logger.error(f"Error listing light metadata: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=500, detail=f"Failed to list metadata: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to list metadata: {str(e)}")
 
 
 @router.get("/lights/{address}", response_model=LightDevice)
-async def get_light_configuration(
-    address: str, storage: LightStorage = Depends(get_light_storage)
-):
+async def get_light_configuration(address: str, storage: LightStorage = Depends(get_light_storage)):
     """
     Get a specific light profile by device address.
 
@@ -307,9 +285,7 @@ async def get_light_configuration(
     """
     device = storage.get_device(address)
     if not device:
-        raise HTTPException(
-            status_code=404, detail=f"No profile found for light {address}"
-        )
+        raise HTTPException(status_code=404, detail=f"No profile found for light {address}")
     logger.info(f"Retrieved profile for light {address}")
     return device
 
@@ -334,12 +310,8 @@ async def get_light_metadata(
             logger.info(f"Retrieved metadata for light {address}")
         return metadata
     except Exception as e:
-        logger.error(
-            f"Error getting light metadata for {address}: {e}", exc_info=True
-        )
-        raise HTTPException(
-            status_code=500, detail=f"Failed to get metadata: {str(e)}"
-        )
+        logger.error(f"Error getting light metadata for {address}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to get metadata: {str(e)}")
 
 
 @router.put("/lights/{address}", response_model=LightDevice)
@@ -373,9 +345,7 @@ async def update_light_configuration(
         return device
     except Exception as e:
         logger.error(f"Error updating light profile: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=500, detail=f"Failed to update profile: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to update profile: {str(e)}")
 
 
 @router.delete("/lights/{address}", status_code=204)
@@ -395,9 +365,7 @@ async def delete_light_configuration(
         404: If no profile exists for this address
     """
     if not storage.get_device(address):
-        raise HTTPException(
-            status_code=404, detail=f"No profile found for light {address}"
-        )
+        raise HTTPException(status_code=404, detail=f"No profile found for light {address}")
 
     try:
         storage.delete_device(address)
@@ -405,9 +373,7 @@ async def delete_light_configuration(
         return None
     except Exception as e:
         logger.error(f"Error deleting light profile: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=500, detail=f"Failed to delete profile: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to delete profile: {str(e)}")
 
 
 # ============================================================================
@@ -447,9 +413,7 @@ async def get_configuration_summary(
         }
     except Exception as e:
         logger.error(f"Error getting configuration summary: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=500, detail=f"Failed to get summary: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to get summary: {str(e)}")
 
 
 @router.get("/system/timezone")
@@ -463,10 +427,7 @@ async def get_system_timezone() -> dict:
         dict: Contains system timezone information
     """
     try:
-        from ..timezone_utils import (
-            get_system_timezone,
-            get_timezone_for_new_device,
-        )
+        from ..timezone_utils import get_system_timezone, get_timezone_for_new_device
 
         system_tz = get_system_timezone()
         default_tz = get_timezone_for_new_device()
@@ -474,14 +435,11 @@ async def get_system_timezone() -> dict:
         return {
             "system_timezone": system_tz,
             "default_for_new_devices": default_tz,
-            "note": "This timezone will be used as the default for "
-            "new device configurations",
+            "note": "This timezone will be used as the default for " "new device configurations",
         }
     except Exception as e:
         logger.error(f"Error getting system timezone: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=500, detail=f"Failed to get timezone: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to get timezone: {str(e)}")
 
 
 @router.get("/display/timezone")
@@ -504,9 +462,7 @@ async def get_display_timezone(request) -> dict:
         }
     except Exception as e:
         logger.error(f"Error getting display timezone: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=500, detail=f"Failed to get display timezone: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to get display timezone: {str(e)}")
 
 
 @router.put("/display/timezone")
@@ -523,9 +479,7 @@ async def set_display_timezone(timezone_data: dict, request) -> dict:
     try:
         timezone = timezone_data.get("timezone")
         if not timezone:
-            raise HTTPException(
-                status_code=400, detail="Missing required 'timezone' field"
-            )
+            raise HTTPException(status_code=400, detail="Missing required 'timezone' field")
 
         service = request.app.state.service
         service.set_display_timezone(timezone)
@@ -542,9 +496,7 @@ async def set_display_timezone(timezone_data: dict, request) -> dict:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.error(f"Error setting display timezone: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=500, detail=f"Failed to set display timezone: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to set display timezone: {str(e)}")
 
 
 @router.put("/lights/{address}/metadata", response_model=LightMetadata)
@@ -571,14 +523,8 @@ async def update_light_metadata(
         metadata.id = address
 
         updated_metadata = storage.upsert_light_metadata(metadata)
-        logger.info(
-            f"Updated metadata for light {address}: {updated_metadata.name}"
-        )
+        logger.info(f"Updated metadata for light {address}: {updated_metadata.name}")
         return updated_metadata
     except Exception as e:
-        logger.error(
-            f"Error updating light metadata for {address}: {e}", exc_info=True
-        )
-        raise HTTPException(
-            status_code=500, detail=f"Failed to update metadata: {str(e)}"
-        )
+        logger.error(f"Error updating light metadata for {address}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to update metadata: {str(e)}")

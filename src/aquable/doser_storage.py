@@ -19,9 +19,7 @@ from .time_utils import now_iso as _now_iso
 
 logger = logging.getLogger(__name__)
 
-Weekday = Literal[
-    "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"
-]
+Weekday = Literal["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
 ModeKind = Literal["single", "every_hour", "custom_periods", "timer"]
 TimeString = Field(pattern=r"^\d{2}:\d{2}$")
 
@@ -146,15 +144,11 @@ class CustomPeriodsSchedule(BaseModel):
     def validate_periods(self) -> "CustomPeriodsSchedule":
         """Validate that custom periods are present and sane."""
         if not self.periods:
-            raise ValueError(
-                "Custom periods schedule requires at least one period"
-            )
+            raise ValueError("Custom periods schedule requires at least one period")
 
         total_doses = sum(period.doses for period in self.periods)
         if total_doses > 24:
-            raise ValueError(
-                "Custom periods schedule cannot exceed 24 doses in total"
-            )
+            raise ValueError("Custom periods schedule cannot exceed 24 doses in total")
         return self
 
 
@@ -198,12 +192,7 @@ class DoserHead(BaseModel):
     index: Literal[1, 2, 3, 4]
     label: str | None = None
     active: bool
-    schedule: (
-        SingleSchedule
-        | EveryHourSchedule
-        | CustomPeriodsSchedule
-        | TimerSchedule
-    ) = Schedule
+    schedule: SingleSchedule | EveryHourSchedule | CustomPeriodsSchedule | TimerSchedule = Schedule
     recurrence: Recurrence
     missedDoseCompensation: bool
     volumeTracking: VolumeTracking | None = None
@@ -232,16 +221,10 @@ class ConfigurationRevision(BaseModel):
     def validate_heads(self) -> "ConfigurationRevision":
         """Ensure a configuration revision contains valid head entries."""
         if not self.heads:
-            raise ValueError(
-                "Configuration revision must include at least one head"
-            )
+            raise ValueError("Configuration revision must include at least one head")
         if len(self.heads) > 4:
-            raise ValueError(
-                "Configuration revision cannot have more than four heads"
-            )
-        ensure_unique_values(
-            [str(head.index) for head in self.heads], "head index"
-        )
+            raise ValueError("Configuration revision cannot have more than four heads")
+        ensure_unique_values([str(head.index) for head in self.heads], "head index")
         return self
 
 
@@ -263,9 +246,7 @@ class DeviceConfiguration(BaseModel):
     def validate_revisions(self) -> "DeviceConfiguration":
         """Validate the ordering and uniqueness of configuration revisions."""
         if not self.revisions:
-            raise ValueError(
-                "Device configuration must include at least one revision"
-            )
+            raise ValueError("Device configuration must include at least one revision")
 
         self.revisions.sort(key=lambda revision: revision.revision)
         revision_numbers = [revision.revision for revision in self.revisions]
@@ -275,9 +256,7 @@ class DeviceConfiguration(BaseModel):
             raise ValueError("Configuration revisions must start at 1")
         for previous, current in zip(revision_numbers, revision_numbers[1:]):
             if current != previous + 1:
-                raise ValueError(
-                    "Configuration revision numbers must increase sequentially"
-                )
+                raise ValueError("Configuration revision numbers must increase sequentially")
         return self
 
     def latest_revision(self) -> ConfigurationRevision:
@@ -303,9 +282,7 @@ class DoserDevice(BaseModel):
     def validate_configurations(self) -> "DoserDevice":
         """Validate the device has configurations and an active selection."""
         if not self.configurations:
-            raise ValueError(
-                "A doser device must have at least one configuration"
-            )
+            raise ValueError("A doser device must have at least one configuration")
 
         ids = [config.id for config in self.configurations]
         ensure_unique_values(ids, "configuration id")
@@ -314,9 +291,7 @@ class DoserDevice(BaseModel):
             self.activeConfigurationId = self.configurations[0].id
         else:
             if self.activeConfigurationId not in ids:
-                raise ValueError(
-                    "Active configuration id does not match any configuration"
-                )
+                raise ValueError("Active configuration id does not match any configuration")
         return self
 
     def get_configuration(self, configuration_id: str) -> DeviceConfiguration:
@@ -343,9 +318,7 @@ class DoserDeviceCollection(BaseModel):
     @model_validator(mode="after")
     def validate_unique_ids(self) -> "DoserDeviceCollection":
         """Ensure device ids are unique within the collection."""
-        ensure_unique_values(
-            [device.id for device in self.devices], "device id"
-        )
+        ensure_unique_values([device.id for device in self.devices], "device id")
         return self
 
 
@@ -404,13 +377,9 @@ class DoserStorage:
 
             return DoserDevice.model_validate(device_data)
         except (json.JSONDecodeError, ValueError) as exc:
-            raise ValueError(
-                f"Could not parse device file {device_file}: {exc}"
-            ) from exc
+            raise ValueError(f"Could not parse device file {device_file}: {exc}") from exc
 
-    def _write_device_file(
-        self, device_file: Path, device: DoserDevice
-    ) -> None:
+    def _write_device_file(self, device_file: Path, device: DoserDevice) -> None:
         """Write a single device to its JSON file atomically (unified format).
 
         Preserves existing last_status if present in the file.
@@ -421,9 +390,7 @@ class DoserStorage:
         existing_last_status = None
         if device_file.exists():
             try:
-                existing_data = json.loads(
-                    device_file.read_text(encoding="utf-8")
-                )
+                existing_data = json.loads(device_file.read_text(encoding="utf-8"))
                 existing_last_status = existing_data.get("last_status")
             except (json.JSONDecodeError, OSError):
                 # If we can't read the file, just proceed without last_status
@@ -446,9 +413,7 @@ class DoserStorage:
             data["last_status"] = existing_last_status
 
         tmp_file = device_file.with_suffix(".tmp")
-        tmp_file.write_text(
-            json.dumps(data, indent=2, sort_keys=True), encoding="utf-8"
-        )
+        tmp_file.write_text(json.dumps(data, indent=2, sort_keys=True), encoding="utf-8")
         tmp_file.replace(device_file)
 
     def _list_device_files(self) -> list[Path]:
@@ -469,9 +434,7 @@ class DoserStorage:
                     devices.append(device)
             except ValueError as exc:
                 # Log error but continue with other devices
-                logger.warning(
-                    f"Could not load device from {device_file}: {exc}"
-                )
+                logger.warning(f"Could not load device from {device_file}: {exc}")
         return devices
 
     def get_device(self, device_id: str) -> DoserDevice | None:
@@ -485,9 +448,7 @@ class DoserStorage:
         self._write_device_file(device_file, model)
         return model
 
-    def upsert_many(
-        self, devices: Iterable[DoserDevice | dict]
-    ) -> list[DoserDevice]:
+    def upsert_many(self, devices: Iterable[DoserDevice | dict]) -> list[DoserDevice]:
         """Replace all devices with the provided devices."""
         models = [self._validate_device(device) for device in devices]
 
@@ -515,9 +476,7 @@ class DoserStorage:
         device = self._require_device(device_id)
         return list(device.configurations)
 
-    def get_configuration(
-        self, device_id: str, configuration_id: str
-    ) -> DeviceConfiguration:
+    def get_configuration(self, device_id: str, configuration_id: str) -> DeviceConfiguration:
         """Retrieve a specific configuration for a device."""
         device = self._require_device(device_id)
         return device.get_configuration(configuration_id)
@@ -539,22 +498,13 @@ class DoserStorage:
         device = self._require_device(device_id)
 
         new_id = configuration_id or str(uuid4())
-        if any(
-            configuration.id == new_id
-            for configuration in device.configurations
-        ):
-            raise ValueError(
-                f"Configuration '{new_id}' already exists for device '{device_id}'"
-            )
+        if any(configuration.id == new_id for configuration in device.configurations):
+            raise ValueError(f"Configuration '{new_id}' already exists for device '{device_id}'")
 
         timestamp = saved_at or _now_iso()
         # Convert heads to proper DoserHead objects
         validated_heads = [
-            (
-                head
-                if isinstance(head, DoserHead)
-                else DoserHead.model_validate(head)
-            )
+            (head if isinstance(head, DoserHead) else DoserHead.model_validate(head))
             for head in heads
         ]
         revision = ConfigurationRevision(
@@ -603,11 +553,7 @@ class DoserStorage:
         timestamp = saved_at or _now_iso()
         # Convert heads to proper DoserHead objects
         validated_heads = [
-            (
-                head
-                if isinstance(head, DoserHead)
-                else DoserHead.model_validate(head)
-            )
+            (head if isinstance(head, DoserHead) else DoserHead.model_validate(head))
             for head in heads
         ]
         revision = ConfigurationRevision(
@@ -672,17 +618,13 @@ class DoserStorage:
         return DeviceMetadata(
             id=metadata_raw.get("id", device_id),
             name=metadata_raw.get("name"),
-            headNames=(
-                head_names if head_names else metadata_raw.get("headNames")
-            ),
+            headNames=(head_names if head_names else metadata_raw.get("headNames")),
             autoReconnect=metadata_raw.get("autoReconnect", False),
             createdAt=metadata_raw.get("createdAt"),
             updatedAt=metadata_raw.get("updatedAt"),
         )
 
-    def upsert_device_metadata(
-        self, metadata: DeviceMetadata
-    ) -> DeviceMetadata:
+    def upsert_device_metadata(self, metadata: DeviceMetadata) -> DeviceMetadata:
         """Create or update device metadata (names only)."""
         current_time = _now_iso()
         metadata.updatedAt = current_time
@@ -730,9 +672,7 @@ class DoserStorage:
             metadata = DeviceMetadata(
                 id=metadata_raw.get("id", device_id),
                 name=metadata_raw.get("name"),
-                headNames=(
-                    head_names if head_names else metadata_raw.get("headNames")
-                ),
+                headNames=(head_names if head_names else metadata_raw.get("headNames")),
                 autoReconnect=metadata_raw.get("autoReconnect", False),
                 createdAt=metadata_raw.get("createdAt"),
                 updatedAt=metadata_raw.get("updatedAt"),

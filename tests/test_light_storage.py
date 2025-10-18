@@ -76,9 +76,7 @@ def test_storage_roundtrip(storage_path: Path) -> None:
     assert active.latest_revision().profile.levels == _manual_levels()
     assert reloaded.model_dump(mode="json") == stored.model_dump(mode="json")
 
-    raw = json.loads(
-        (storage_path / "light-1.json").read_text(encoding="utf-8")
-    )
+    raw = json.loads((storage_path / "light-1.json").read_text(encoding="utf-8"))
     assert raw["device_type"] == "light"
     assert raw["device_id"] == "light-1"
     device_data = raw["device_data"]
@@ -217,9 +215,7 @@ def test_set_active_configuration_switches(storage_path: Path) -> None:
         ],
     }
 
-    auto_config = storage.create_configuration(
-        "light-1", name="Weekday Auto", profile=auto_profile
-    )
+    auto_config = storage.create_configuration("light-1", name="Weekday Auto", profile=auto_profile)
     storage.set_active_configuration("light-1", auto_config.id)
 
     device = storage.get_device("light-1")

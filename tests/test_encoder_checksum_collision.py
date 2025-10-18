@@ -40,15 +40,11 @@ def test_checksum_collision_bumps_message_id():
         checksum = encoder._calculate_checksum(frame)
         if checksum == 0x5A:
             # we found a collision case; now use the public encoder to build
-            out = encoder._encode_uart_command(
-                cmd_id, mode, initial_msg_id, params
-            )
+            out = encoder._encode_uart_command(cmd_id, mode, initial_msg_id, params)
             # final byte is the checksum
             assert out[-1] != 0x5A
             # ensure the message id used is the next_message_id(initial_msg_id)
             assert (out[3], out[4]) == encoder.next_message_id(initial_msg_id)
             return
 
-    pytest.skip(
-        "Could not find a synthetic checksum collision for a 1-byte param"
-    )
+    pytest.skip("Could not find a synthetic checksum collision for a 1-byte param")

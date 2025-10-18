@@ -29,17 +29,13 @@ async def debug_live_status(request: Request) -> Dict[str, Any]:
     service = request.app.state.service
     statuses, errors = await service.get_live_statuses()
     return {
-        "statuses": [
-            cached_status_to_dict(service, status) for status in statuses
-        ],
+        "statuses": [cached_status_to_dict(service, status) for status in statuses],
         "errors": errors,
     }
 
 
 @router.get("/scan")
-async def scan_devices(
-    request: Request, timeout: float = 5.0
-) -> list[Dict[str, Any]]:
+async def scan_devices(request: Request, timeout: float = 5.0) -> list[Dict[str, Any]]:
     """Scan for nearby supported devices."""
     service = request.app.state.service
     return await service.scan_devices(timeout=timeout)

@@ -32,9 +32,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-def create_default_doser_config(
-    address: str, name: str | None = None
-) -> DoserDevice:
+def create_default_doser_config(address: str, name: str | None = None) -> DoserDevice:
     """Create a default configuration for a new doser device.
 
     Args:
@@ -54,9 +52,7 @@ def create_default_doser_config(
             index=idx,  # type: ignore[arg-type]
             label=f"Head {idx}",
             active=False,
-            schedule=SingleSchedule(
-                mode="single", dailyDoseMl=10.0, startTime="09:00"
-            ),
+            schedule=SingleSchedule(mode="single", dailyDoseMl=10.0, startTime="09:00"),
             recurrence=Recurrence(
                 days=[
                     "monday",
@@ -69,9 +65,7 @@ def create_default_doser_config(
                 ]
             ),
             missedDoseCompensation=False,
-            calibration=Calibration(
-                mlPerSecond=0.1, lastCalibratedAt=timestamp
-            ),
+            calibration=Calibration(mlPerSecond=0.1, lastCalibratedAt=timestamp),
             stats=DoserHeadStats(dosesToday=0, mlDispensedToday=0.0),
         )
         default_heads.append(head)
@@ -164,9 +158,7 @@ def create_doser_config_from_status(
                 pass
 
         head = DoserHead(
-            index=(
-                head_snap.mode + 1 if head_snap.mode < 4 else 1
-            ),  # type: ignore[arg-type]
+            index=(head_snap.mode + 1 if head_snap.mode < 4 else 1),  # type: ignore[arg-type]
             active=is_active,
             schedule=SingleSchedule(
                 mode="single",
@@ -175,12 +167,8 @@ def create_doser_config_from_status(
             ),
             recurrence=Recurrence(days=cast(list[Weekday], recurrence_days)),
             missedDoseCompensation=False,
-            calibration=Calibration(
-                mlPerSecond=0.1, lastCalibratedAt=timestamp
-            ),
-            stats=DoserHeadStats(
-                dosesToday=0, mlDispensedToday=head_snap.dosed_ml()
-            ),
+            calibration=Calibration(mlPerSecond=0.1, lastCalibratedAt=timestamp),
+            stats=DoserHeadStats(dosesToday=0, mlDispensedToday=head_snap.dosed_ml()),
         )
         heads.append(head)
 
@@ -236,9 +224,7 @@ def create_doser_config_from_status(
     return device
 
 
-def update_doser_schedule_config(
-    device: DoserDevice, args: Dict[str, Any]
-) -> DoserDevice:
+def update_doser_schedule_config(device: DoserDevice, args: Dict[str, Any]) -> DoserDevice:
     """Update a doser device configuration based on set_schedule command args.
 
     This function now uses atomic updates to ensure configuration consistency.
@@ -290,9 +276,7 @@ def update_doser_head_stats(
             if head.stats is None:
                 head.stats = DoserHeadStats(dosesToday=0, mlDispensedToday=0.0)
             head.stats.mlDispensedToday = status.dosed_ml()
-            logger.debug(
-                f"Updated head {head_index} stats: {status.dosed_ml()}ml dispensed"
-            )
+            logger.debug(f"Updated head {head_index} stats: {status.dosed_ml()}ml dispensed")
             break
 
     device.updatedAt = _now_iso()
@@ -383,9 +367,7 @@ def create_default_light_profile(
     return device
 
 
-def update_light_manual_profile(
-    device: LightDevice, levels: Dict[str, int]
-) -> LightDevice:
+def update_light_manual_profile(device: LightDevice, levels: Dict[str, int]) -> LightDevice:
     """Update light device's active manual profile with new levels.
 
     Args:
@@ -418,9 +400,7 @@ def update_light_manual_profile(
     return device
 
 
-def update_light_brightness(
-    device: LightDevice, brightness: int, color: int = 0
-) -> LightDevice:
+def update_light_brightness(device: LightDevice, brightness: int, color: int = 0) -> LightDevice:
     """Update light brightness for a specific color channel.
 
     Args:
@@ -458,9 +438,7 @@ def update_light_brightness(
     active_config.updatedAt = timestamp
     device.updatedAt = timestamp
 
-    logger.info(
-        f"Updated light {device.id} brightness: {channel_key}={brightness}"
-    )
+    logger.info(f"Updated light {device.id} brightness: {channel_key}={brightness}")
 
     return device
 
@@ -596,9 +574,7 @@ def add_light_auto_program(
     return device
 
 
-def create_doser_config_from_command(
-    address: str, command_args: Dict[str, Any]
-) -> DoserDevice:
+def create_doser_config_from_command(address: str, command_args: Dict[str, Any]) -> DoserDevice:
     """Create a doser configuration from the actual command being sent.
 
     Args:
@@ -620,8 +596,7 @@ def create_doser_config_from_command(
             if weekdays:
                 # Convert weekday names to full lowercase format
                 weekday_strings = [
-                    day.value if hasattr(day, "value") else str(day).lower()
-                    for day in weekdays
+                    day.value if hasattr(day, "value") else str(day).lower() for day in weekdays
                 ]
             else:
                 weekday_strings = [
@@ -636,17 +611,14 @@ def create_doser_config_from_command(
 
             # Convert volume from tenths to ml
             volume_ml = command_args["volume_tenths_ml"] / 10.0
-            start_time = (
-                f"{command_args['hour']:02d}:{command_args['minute']:02d}"
-            )
+            start_time = f"{command_args['hour']:02d}:{command_args['minute']:02d}"
 
             # Convert PumpWeekday enums to strings for Recurrence
             weekdays = command_args.get("weekdays")
             if weekdays:
                 # weekdays is List[PumpWeekday] - convert to full lowercase format
                 weekday_strings = [
-                    day.value if hasattr(day, "value") else str(day).lower()
-                    for day in weekdays
+                    day.value if hasattr(day, "value") else str(day).lower() for day in weekdays
                 ]
             else:
                 weekday_strings = [
@@ -663,14 +635,10 @@ def create_doser_config_from_command(
                 index=idx,  # type: ignore[arg-type]
                 label=f"Head {idx}",
                 active=True,
-                schedule=SingleSchedule(
-                    mode="single", dailyDoseMl=volume_ml, startTime=start_time
-                ),
+                schedule=SingleSchedule(mode="single", dailyDoseMl=volume_ml, startTime=start_time),
                 recurrence=Recurrence(days=weekday_strings),  # type: ignore[arg-type]
                 missedDoseCompensation=False,
-                calibration=Calibration(
-                    mlPerSecond=0.1, lastCalibratedAt=timestamp
-                ),
+                calibration=Calibration(mlPerSecond=0.1, lastCalibratedAt=timestamp),
                 stats=DoserHeadStats(dosesToday=0, mlDispensedToday=0.0),
             )
         else:
@@ -679,9 +647,7 @@ def create_doser_config_from_command(
                 index=idx,  # type: ignore[arg-type]
                 label=f"Head {idx}",
                 active=False,
-                schedule=SingleSchedule(
-                    mode="single", dailyDoseMl=10.0, startTime="09:00"
-                ),
+                schedule=SingleSchedule(mode="single", dailyDoseMl=10.0, startTime="09:00"),
                 recurrence=Recurrence(
                     days=[
                         "monday",
@@ -694,9 +660,7 @@ def create_doser_config_from_command(
                     ]
                 ),
                 missedDoseCompensation=False,
-                calibration=Calibration(
-                    mlPerSecond=0.1, lastCalibratedAt=timestamp
-                ),
+                calibration=Calibration(mlPerSecond=0.1, lastCalibratedAt=timestamp),
                 stats=DoserHeadStats(dosesToday=0, mlDispensedToday=0.0),
             )
         heads.append(head)
@@ -789,11 +753,7 @@ def create_light_config_from_command(
             # Assume order is [red, green, blue, white]
             channel_names = ["red", "green", "blue", "white"]
             levels = {
-                name: (
-                    brightness_channels[i]
-                    if i < len(brightness_channels)
-                    else 50
-                )
+                name: (brightness_channels[i] if i < len(brightness_channels) else 50)
                 for i, name in enumerate(channel_names)
             }
         else:
@@ -818,8 +778,7 @@ def create_light_config_from_command(
             # Handle both LightWeekday enum instances and plain strings
             # Convert to full lowercase format
             weekday_strings = [
-                day.value if hasattr(day, "value") else str(day).lower()
-                for day in weekdays
+                day.value if hasattr(day, "value") else str(day).lower() for day in weekdays
             ]
         else:
             weekday_strings = [
@@ -833,9 +792,7 @@ def create_light_config_from_command(
             ]
 
         # Handle brightness - could be single value or per-channel dict
-        brightness_data = command_args.get("brightness") or command_args.get(
-            "channels"
-        )
+        brightness_data = command_args.get("brightness") or command_args.get("channels")
         if isinstance(brightness_data, dict):
             # Per-channel brightness from frontend
             levels = {
@@ -846,9 +803,7 @@ def create_light_config_from_command(
             }
         else:
             # Legacy single brightness value
-            brightness_value = (
-                brightness_data if brightness_data is not None else 100
-            )
+            brightness_value = brightness_data if brightness_data is not None else 100
             levels = {
                 "red": brightness_value,
                 "green": brightness_value,
@@ -869,9 +824,7 @@ def create_light_config_from_command(
 
         profile = AutoProfile(mode="auto", programs=[auto_program])
         config_name = "Auto Program"
-        description = (
-            f"Auto program {command_args['sunrise']}-{command_args['sunset']}"
-        )
+        description = f"Auto program {command_args['sunrise']}-{command_args['sunset']}"
         note = (
             f"Created from auto program command: "
             f"{command_args['sunrise']}-{command_args['sunset']}"

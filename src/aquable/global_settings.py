@@ -34,9 +34,7 @@ class GlobalSettings:
             return
 
         try:
-            self._settings = json.loads(
-                self._settings_file.read_text(encoding="utf-8")
-            )
+            self._settings = json.loads(self._settings_file.read_text(encoding="utf-8"))
             logger.info(f"Loaded global settings from {self._settings_file}")
         except (json.JSONDecodeError, OSError) as exc:
             logger.error(f"Failed to load global settings: {exc}")

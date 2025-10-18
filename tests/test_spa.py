@@ -28,9 +28,7 @@ def test_root_reports_missing_spa(
     assert SPA_UNAVAILABLE_MESSAGE in response.body.decode()
 
 
-def test_root_serves_spa_when_dist_present(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_root_serves_spa_when_dist_present(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """Return the compiled SPA index when the build directory exists."""
     index_file = tmp_path / "index.html"
     index_file.write_text("<html><body>spa</body></html>", encoding="utf-8")

@@ -126,10 +126,7 @@ def test_storage_roundtrip(storage_path: Path) -> None:
     assert file_payload["device_id"] == "device-1"
     device_data = file_payload["device_data"]
     assert device_data["id"] == "device-1"
-    assert (
-        device_data["configurations"][0]["revisions"][0]["heads"][0]["index"]
-        == 1
-    )
+    assert device_data["configurations"][0]["revisions"][0]["heads"][0]["index"] == 1
 
 
 def test_head_limit_enforced(storage_path: Path) -> None:

@@ -5,9 +5,7 @@ from enum import Enum, IntFlag
 from typing import Iterable, List, Sequence
 
 
-def next_message_id(
-    current_msg_id: tuple[int, int] = (0, 0)
-) -> tuple[int, int]:
+def next_message_id(current_msg_id: tuple[int, int] = (0, 0)) -> tuple[int, int]:
     """Return the next message id pair, avoiding reserved values.
 
     The encoder uses two-byte message ids that skip 0x5A/90 in both
@@ -26,12 +24,8 @@ def next_message_id(
     msg_id_higher_byte, msg_id_lower_byte = current_msg_id
 
     # Validate input
-    if not (0 <= msg_id_higher_byte <= 255) or not (
-        0 <= msg_id_lower_byte <= 255
-    ):
-        raise ValueError(
-            f"Message ID bytes must be in range 0-255, got {current_msg_id}"
-        )
+    if not (0 <= msg_id_higher_byte <= 255) or not (0 <= msg_id_lower_byte <= 255):
+        raise ValueError(f"Message ID bytes must be in range 0-255, got {current_msg_id}")
 
     if msg_id_higher_byte == 90 or msg_id_lower_byte == 90:
         raise ValueError(
@@ -115,9 +109,7 @@ def _encode_timestamp(ts: datetime.datetime) -> list[int]:
 
 def create_set_time_command(msg_id: tuple[int, int]) -> bytearray:
     """Build a set-time UART command for the device."""
-    return _encode_uart_command(
-        90, 9, msg_id, _encode_timestamp(datetime.datetime.now())
-    )
+    return _encode_uart_command(90, 9, msg_id, _encode_timestamp(datetime.datetime.now()))
 
 
 def create_manual_setting_command(
@@ -142,9 +134,7 @@ def create_add_auto_setting_command(
     """
     # Validate brightness values
     if not brightness or len(brightness) > 4:
-        raise ValueError(
-            f"Brightness must contain 1-4 values, got {len(brightness)}"
-        )
+        raise ValueError(f"Brightness must contain 1-4 values, got {len(brightness)}")
 
     for i, val in enumerate(brightness):
         if not (0 <= val <= 100):
@@ -252,14 +242,10 @@ def encode_weekdays(
         return int(weekdays)
 
     # Handle sequence of PumpWeekday (but not string or LightWeekday)
-    if hasattr(weekdays, "__iter__") and not isinstance(
-        weekdays, (str, LightWeekday)
-    ):
+    if hasattr(weekdays, "__iter__") and not isinstance(weekdays, (str, LightWeekday)):
         # Check if all items are PumpWeekday
         weekday_list = list(weekdays)
-        if weekday_list and all(
-            isinstance(day, PumpWeekday) for day in weekday_list
-        ):
+        if weekday_list and all(isinstance(day, PumpWeekday) for day in weekday_list):
             mask = PumpWeekday(0)
             for day in weekday_list:
                 if isinstance(day, PumpWeekday):  # Extra check for type safety
@@ -321,9 +307,7 @@ def _encode_uart_command(
     payload = list(params)
     sanitized = [(value if value != 0x5A else 0x59) for value in payload]
 
-    command = bytearray(
-        [cmd_id, 0x01, len(sanitized) + 5, msg_hi, msg_lo, mode]
-    )
+    command = bytearray([cmd_id, 0x01, len(sanitized) + 5, msg_hi, msg_lo, mode])
     command.extend(sanitized)
 
     verification_byte = _calculate_checksum(command)

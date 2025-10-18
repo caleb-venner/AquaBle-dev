@@ -31,9 +31,7 @@ def serialize_doser_status(status: DoserStatus) -> Dict[str, Any]:
         # Include a friendly mode label alongside the numeric mode
         try:
             head_dict["mode_label"] = head_obj.mode_label()
-        except (
-            Exception
-        ):  # pragma: no cover - defensive; mode_label should exist
+        except Exception:  # pragma: no cover - defensive; mode_label should exist
             head_dict["mode_label"] = f"0x{head_dict.get('mode', 0):02X}"
     return data
 
@@ -73,9 +71,7 @@ def serialize_light_status(status: ParsedLightStatus) -> Dict[str, Any]:
 
 def cached_status_to_dict(service, status) -> Dict[str, Any]:
     """Transform a cached status into the API response structure."""
-    connected = (
-        service.current_device_address(status.device_type) == status.address
-    )
+    connected = service.current_device_address(status.device_type) == status.address
 
     return {
         "address": status.address,

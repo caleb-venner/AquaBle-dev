@@ -14,9 +14,7 @@ def test_real_world_metadata_scenario():
         storage_dir = Path(temp_dir)
 
         # Create a real metadata file like the one causing issues
-        metadata_file = (
-            storage_dir / "58159AE1-5E0A-7915-3207-7868CBF2C600.metadata.json"
-        )
+        metadata_file = storage_dir / "58159AE1-5E0A-7915-3207-7868CBF2C600.metadata.json"
         metadata_content = {
             "id": "58159AE1-5E0A-7915-3207-7868CBF2C600",
             "name": "Test Doser",
@@ -28,24 +26,18 @@ def test_real_world_metadata_scenario():
         # Test that storage systems don't try to load the metadata file as a device
         doser_storage = DoserStorage(storage_dir, {})
         doser_devices = doser_storage.list_devices()
-        assert (
-            len(doser_devices) == 0
-        )  # No devices since metadata files are excluded
+        assert len(doser_devices) == 0  # No devices since metadata files are excluded
 
         light_storage = LightStorage(storage_dir, {})
         light_devices = light_storage.list_devices()
-        assert (
-            len(light_devices) == 0
-        )  # No devices since metadata files are excluded
+        assert len(light_devices) == 0  # No devices since metadata files are excluded
 
         # Verify files exist as expected
         assert metadata_file.exists()
 
         # Verify that the files being considered for loading don't include metadata
         device_files_doser = [
-            f
-            for f in storage_dir.glob("*.json")
-            if not f.name.endswith(".metadata.json")
+            f for f in storage_dir.glob("*.json") if not f.name.endswith(".metadata.json")
         ]
         assert len(device_files_doser) == 0  # Only metadata file exists
 

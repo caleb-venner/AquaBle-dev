@@ -17,9 +17,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from .storage_utils import ensure_unique_values, filter_device_json_files
 from .time_utils import now_iso as _now_iso
 
-Weekday = Literal[
-    "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"
-]
+Weekday = Literal["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
 InterpolationKind = Literal["step", "linear"]
 TimeString = Field(pattern=r"^\d{2}:\d{2}$")
 
@@ -110,15 +108,11 @@ class CustomProfile(BaseModel):
         if not self.points:
             raise ValueError("Custom profile requires at least one point")
         if len(self.points) > 24:
-            raise ValueError(
-                "Custom profile cannot contain more than 24 points"
-            )
+            raise ValueError("Custom profile cannot contain more than 24 points")
 
         times = [_time_to_minutes(point.time) for point in self.points]
         if times != sorted(times):
-            raise ValueError(
-                "Custom profile point times must be strictly increasing"
-            )
+            raise ValueError("Custom profile point times must be strictly increasing")
         if len(set(times)) != len(times):
             raise ValueError("Custom profile point times must be unique")
         return self
@@ -226,9 +220,7 @@ class LightConfiguration(BaseModel):
             raise ValueError("Configuration revisions must start at 1")
         for previous, current in zip(numbers, numbers[1:]):
             if current != previous + 1:
-                raise ValueError(
-                    "Configuration revisions must increase sequentially"
-                )
+                raise ValueError("Configuration revisions must increase sequentially")
         return self
 
     def latest_revision(self) -> LightProfileRevision:
@@ -260,13 +252,9 @@ class LightDevice(BaseModel):
         channel_map = {channel.key: channel for channel in self.channels}
 
         if not self.configurations:
-            raise ValueError(
-                "Light device must have at least one configuration"
-            )
+            raise ValueError("Light device must have at least one configuration")
 
-        configuration_ids = [
-            configuration.id for configuration in self.configurations
-        ]
+        configuration_ids = [configuration.id for configuration in self.configurations]
         ensure_unique_values(configuration_ids, "configuration id")
 
         for configuration in self.configurations:
@@ -277,9 +265,7 @@ class LightDevice(BaseModel):
             self.activeConfigurationId = self.configurations[0].id
         else:
             if self.activeConfigurationId not in configuration_ids:
-                raise ValueError(
-                    "Active configuration id does not match any configuration"
-                )
+                raise ValueError("Active configuration id does not match any configuration")
         return self
 
     def get_configuration(self, configuration_id: str) -> LightConfiguration:
@@ -306,9 +292,7 @@ class LightDeviceCollection(BaseModel):
     @model_validator(mode="after")
     def validate_unique_ids(self) -> "LightDeviceCollection":
         """Ensure all devices within a collection have unique ids."""
-        ensure_unique_values(
-            [device.id for device in self.devices], "device id"
-        )
+        ensure_unique_values([device.id for device in self.devices], "device id")
         return self
 
 
@@ -420,9 +404,7 @@ class LightStorage:
             # Log error but don't crash
             import logging
 
-            logging.getLogger(__name__).error(
-                f"Could not parse light device {device_id}: {exc}"
-            )
+            logging.getLogger(__name__).error(f"Could not parse light device {device_id}: {exc}")
             return None
 
     def _write_device(self, device: LightDevice) -> None:
@@ -436,9 +418,7 @@ class LightStorage:
         existing_last_status = None
         if device_file.exists():
             try:
-                existing_data = json.loads(
-                    device_file.read_text(encoding="utf-8")
-                )
+                existing_data = json.loads(device_file.read_text(encoding="utf-8"))
                 existing_last_status = existing_data.get("last_status")
             except (json.JSONDecodeError, OSError):
                 # If we can't read the file, just proceed without last_status
@@ -461,9 +441,7 @@ class LightStorage:
             data["last_status"] = existing_last_status
 
         tmp_path = device_file.with_suffix(".tmp")
-        tmp_path.write_text(
-            json.dumps(data, indent=2, sort_keys=True), encoding="utf-8"
-        )
+        tmp_path.write_text(json.dumps(data, indent=2, sort_keys=True), encoding="utf-8")
         tmp_path.replace(device_file)
 
     def list_devices(self) -> list[LightDevice]:
@@ -487,9 +465,7 @@ class LightStorage:
         self._write_device(model)
         return model
 
-    def upsert_many(
-        self, devices: Iterable[LightDevice | dict]
-    ) -> list[LightDevice]:
+    def upsert_many(self, devices: Iterable[LightDevice | dict]) -> list[LightDevice]:
         """Insert or update multiple devices."""
         models = []
         for device in devices:
@@ -514,9 +490,7 @@ class LightStorage:
         device = self._require_device(device_id)
         return list(device.configurations)
 
-    def get_configuration(
-        self, device_id: str, configuration_id: str
-    ) -> LightConfiguration:
+    def get_configuration(self, device_id: str, configuration_id: str) -> LightConfiguration:
         """Return the configuration for a device by configuration id."""
         device = self._require_device(device_id)
         return device.get_configuration(configuration_id)
@@ -539,13 +513,8 @@ class LightStorage:
         channel_map = {channel.key: channel for channel in device.channels}
 
         new_id = configuration_id or str(uuid4())
-        if any(
-            configuration.id == new_id
-            for configuration in device.configurations
-        ):
-            raise ValueError(
-                f"Configuration '{new_id}' already exists for device '{device_id}'"
-            )
+        if any(configuration.id == new_id for configuration in device.configurations):
+            raise ValueError(f"Configuration '{new_id}' already exists for device '{device_id}'")
 
         timestamp = saved_at or _now_iso()
         profile_model = self._validate_profile(profile)
@@ -610,9 +579,7 @@ class LightStorage:
         self._write_device(device)
         return revision
 
-    def set_active_configuration(
-        self, device_id: str, configuration_id: str
-    ) -> LightConfiguration:
+    def set_active_configuration(self, device_id: str, configuration_id: str) -> LightConfiguration:
         """Mark a configuration as active for the given device and persist."""
         device = self._require_device(device_id)
         configuration = device.get_configuration(configuration_id)
@@ -651,9 +618,7 @@ class LightStorage:
         safe_id = device_id.replace(":", "_")
         return self._storage_dir / f"{safe_id}.metadata.json"
 
-    def upsert_light_metadata(
-        self, metadata: LightMetadata | dict
-    ) -> LightMetadata:
+    def upsert_light_metadata(self, metadata: LightMetadata | dict) -> LightMetadata:
         """Insert or update light metadata."""
         if isinstance(metadata, dict):
             model = LightMetadata.model_validate(metadata)
@@ -680,9 +645,7 @@ class LightStorage:
             # Log error but don't crash
             import logging
 
-            logging.getLogger(__name__).error(
-                f"Could not parse light metadata {device_id}: {exc}"
-            )
+            logging.getLogger(__name__).error(f"Could not parse light metadata {device_id}: {exc}")
             return None
 
     def list_light_metadata(self) -> list[LightMetadata]:

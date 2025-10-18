@@ -71,9 +71,7 @@ def test_service_get_live_statuses_avoids_persistence(
         service,
         "_refresh_device_status",
         lambda kind, persist=False: (
-            doser_mock(persist=persist)
-            if kind == "doser"
-            else light_mock(persist=persist)
+            doser_mock(persist=persist) if kind == "doser" else light_mock(persist=persist)
         ),
     )
 

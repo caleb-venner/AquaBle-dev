@@ -108,9 +108,7 @@ class BaseDevice(ABC):
         """Get next message id with session management."""
         # Check if we should reset message ID based on session duration or command count
         current_time = time.time()
-        session_duration_hours = (
-            current_time - self._session_start_time
-        ) / 3600
+        session_duration_hours = (current_time - self._session_start_time) / 3600
 
         if (
             session_duration_hours >= MESSAGE_ID_RESET_INTERVAL_HOURS
@@ -160,8 +158,7 @@ class BaseDevice(ABC):
         current_time = time.time()
         return {
             "session_start_time": self._session_start_time,
-            "session_duration_hours": (current_time - self._session_start_time)
-            / 3600,
+            "session_duration_hours": (current_time - self._session_start_time) / 3600,
             "session_command_count": self._session_command_count,
             "message_id": self._msg_id,
             "message_id_exhausted": self.is_msg_id_exhausted(),
@@ -261,9 +258,7 @@ class BaseDevice(ABC):
                 )
                 raise
             except BLEAK_EXCEPTIONS:
-                self._logger.debug(
-                    "%s: communication failed", self.name, exc_info=True
-                )
+                self._logger.debug("%s: communication failed", self.name, exc_info=True)
                 raise
 
         raise RuntimeError("Unreachable")
@@ -310,18 +305,14 @@ class BaseDevice(ABC):
                 False,
             )
 
-    def _notification_handler(
-        self, _sender: BleakGATTCharacteristic, data: bytearray
-    ) -> None:
+    def _notification_handler(self, _sender: BleakGATTCharacteristic, data: bytearray) -> None:
         """Handle notification responses."""
         self._logger.warning("%s: Notification received: %s", self.name, data)
 
     def _disconnected(self, client: BleakClientWithServiceCache) -> None:
         """Disconnected callback."""
         if self._expected_disconnect:
-            self._logger.debug(
-                "%s: Disconnected from device; RSSI: %s", self.name, self.rssi
-            )
+            self._logger.debug("%s: Disconnected from device; RSSI: %s", self.name, self.rssi)
             return
         self._logger.warning(
             "%s: Device unexpectedly disconnected; RSSI: %s",
@@ -329,9 +320,7 @@ class BaseDevice(ABC):
             self.rssi,
         )
 
-    def _resolve_characteristics(
-        self, services: BleakGATTServiceCollection
-    ) -> bool:
+    def _resolve_characteristics(self, services: BleakGATTServiceCollection) -> bool:
         """Resolve characteristics."""
         for characteristic in [UART_TX_CHAR_UUID]:
             if char := services.get_characteristic(characteristic):
@@ -380,9 +369,7 @@ class BaseDevice(ABC):
             resolved = self._resolve_characteristics(client.services)
             if not resolved:
                 # Try to handle services failing to load
-                resolved = self._resolve_characteristics(
-                    await client.get_services()
-                )
+                resolved = self._resolve_characteristics(await client.get_services())
 
             self._client = client
             self._reset_disconnect_timer()
@@ -398,18 +385,14 @@ class BaseDevice(ABC):
                     self._notification_handler,  # type: ignore[arg-type]
                 )
             else:
-                raise CharacteristicMissingError(
-                    "Read characteristic not resolved"
-                )
+                raise CharacteristicMissingError("Read characteristic not resolved")
 
     def _reset_disconnect_timer(self) -> None:
         """Reset disconnect timer."""
         if self._disconnect_timer:
             self._disconnect_timer.cancel()
         self._expected_disconnect = False
-        self._disconnect_timer = self.loop.call_later(
-            DISCONNECT_DELAY, self._disconnect
-        )
+        self._disconnect_timer = self.loop.call_later(DISCONNECT_DELAY, self._disconnect)
 
     async def disconnect(self) -> None:
         """Disconnect."""

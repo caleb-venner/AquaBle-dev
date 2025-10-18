@@ -53,7 +53,7 @@ build: front-build
 	$(PY) -m build
 
 lint:
-	@if ! command -v black >/dev/null 2>&1; then \
+	@if ! command -v doc8 >/dev/null 2>&1; then \
 		echo "Installing linting tools (black, flake8, isort, doc8)"; \
 		$(PY) -m pip install black flake8 isort doc8; \
 	fi
@@ -61,7 +61,7 @@ lint:
 	black --check --diff src/ tests/ frontend/
 	isort --check-only --diff --profile black src/ tests/ frontend/
 	flake8 src/ tests/ frontend/
-	doc8 docs/ README.md
+	doc8 README.md aquable/DOCS.md
 
 precommit:
 	@echo "Pre-commit hooks removed - use 'make lint' for code quality checks"

@@ -98,11 +98,7 @@ def parse_light_payload(payload: bytes) -> ParsedLightStatus:
     while i < length:
         remaining = length - i
         # 00 02 HH MM marks the controller's current clock.
-        if (
-            remaining >= 4
-            and body_bytes[i] == 0x00
-            and body_bytes[i + 1] == 0x02
-        ):
+        if remaining >= 4 and body_bytes[i] == 0x00 and body_bytes[i + 1] == 0x02:
             time_markers.append((body_bytes[i + 2], body_bytes[i + 3]))
             i += 4
             continue

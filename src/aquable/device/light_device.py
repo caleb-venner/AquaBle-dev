@@ -23,9 +23,7 @@ class LightDevice(BaseDevice):
         cmd = commands.create_status_request_command(self.get_next_msg_id())
         await self._send_command(cmd, 3)
 
-    def _notification_handler(
-        self, _sender: BleakGATTCharacteristic, data: bytearray
-    ) -> None:
+    def _notification_handler(self, _sender: BleakGATTCharacteristic, data: bytearray) -> None:
         """BLE notification callback: delegates to handle_notification."""
         self.handle_notification(bytes(data))
 
@@ -55,19 +53,13 @@ class LightDevice(BaseDevice):
                         raw_payload=payload,
                     )
                 self._last_status = parsed
-                self._logger.debug(
-                    "%s: Status payload: %s", self.name, payload.hex()
-                )
+                self._logger.debug("%s: Status payload: %s", self.name, payload.hex())
                 return
             if mode == 0x0A:
-                self._logger.debug(
-                    "%s: Handshake ack: %s", self.name, payload.hex()
-                )
+                self._logger.debug("%s: Handshake ack: %s", self.name, payload.hex())
                 return
 
-        self._logger.debug(
-            "%s: Notification received: %s", self.name, payload.hex()
-        )
+        self._logger.debug("%s: Notification received: %s", self.name, payload.hex())
 
     @property
     def last_status(self) -> Optional[ParsedLightStatus]:
@@ -88,25 +80,19 @@ class LightDevice(BaseDevice):
         if color_id is None:
             self._logger.warning("Color not supported: `%s`", color)
             return
-        cmd = commands.create_manual_setting_command(
-            self.get_next_msg_id(), color_id, brightness
-        )
+        cmd = commands.create_manual_setting_command(self.get_next_msg_id(), color_id, brightness)
         await self._send_command(cmd, 3)
 
     async def set_brightness(self, brightness: int) -> None:
         """Set light brightness."""
         await self.set_color_brightness(brightness)
 
-    async def set_rgb_brightness(
-        self, brightness: tuple[int, int, int]
-    ) -> None:
+    async def set_rgb_brightness(self, brightness: tuple[int, int, int]) -> None:
         """Set RGB brightness."""
         for c, b in enumerate(brightness):
             await self.set_color_brightness(c, b)
 
-    async def set_multi_channel_brightness(
-        self, brightness: tuple[int, ...]
-    ) -> None:
+    async def set_multi_channel_brightness(self, brightness: tuple[int, ...]) -> None:
         """Set multi-channel brightness by sending individual commands per channel."""
         # Send individual commands for each channel (red=0, green=1, blue=2, white=3)
         for channel_index, brightness_value in enumerate(brightness):
@@ -142,9 +128,7 @@ class LightDevice(BaseDevice):
             sunset,
             (max_brightness, 255, 255),
             ramp_up_in_minutes,
-            commands.encode_weekdays(
-                weekdays or [commands.LightWeekday.everyday]
-            ),
+            commands.encode_weekdays(weekdays or [commands.LightWeekday.everyday]),
         )
         await self._send_command(cmd, 3)
 
@@ -163,9 +147,7 @@ class LightDevice(BaseDevice):
             sunset,
             max_brightness,
             ramp_up_in_minutes,
-            commands.encode_weekdays(
-                weekdays or [commands.LightWeekday.everyday]
-            ),
+            commands.encode_weekdays(weekdays or [commands.LightWeekday.everyday]),
         )
         await self._send_command(cmd, 3)
 
@@ -189,14 +171,8 @@ class LightDevice(BaseDevice):
         """
         # Get brightness values for all channels
         brightness_values = []
-        for color_name in sorted(
-            self.colors.keys(), key=lambda x: self.colors[x]
-        ):
-            brightness = (
-                channel_brightness.get(color_name, 100)
-                if channel_brightness
-                else 100
-            )
+        for color_name in sorted(self.colors.keys(), key=lambda x: self.colors[x]):
+            brightness = channel_brightness.get(color_name, 100) if channel_brightness else 100
             brightness_values.append(brightness)
 
         # Convert to tuple
@@ -208,9 +184,7 @@ class LightDevice(BaseDevice):
             sunset,
             brightness_tuple,
             ramp_up_in_minutes,
-            commands.encode_weekdays(
-                weekdays or [commands.LightWeekday.everyday]
-            ),
+            commands.encode_weekdays(weekdays or [commands.LightWeekday.everyday]),
         )
         await self._send_command(cmd, 3)
 
@@ -227,24 +201,18 @@ class LightDevice(BaseDevice):
             sunrise.time(),
             sunset.time(),
             ramp_up_in_minutes,
-            commands.encode_weekdays(
-                weekdays or [commands.LightWeekday.everyday]
-            ),
+            commands.encode_weekdays(weekdays or [commands.LightWeekday.everyday]),
         )
         await self._send_command(cmd, 3)
 
     async def reset_settings(self) -> None:
         """Remove all automation settings from the light."""
-        cmd = commands.create_reset_auto_settings_command(
-            self.get_next_msg_id()
-        )
+        cmd = commands.create_reset_auto_settings_command(self.get_next_msg_id())
         await self._send_command(cmd, 3)
 
     async def enable_auto_mode(self) -> None:
         """Enable auto mode of the light."""
-        switch_cmd = commands.create_switch_to_auto_mode_command(
-            self.get_next_msg_id()
-        )
+        switch_cmd = commands.create_switch_to_auto_mode_command(self.get_next_msg_id())
         time_cmd = commands.create_set_time_command(self.get_next_msg_id())
         await self._send_command(switch_cmd, 3)
         await self._send_command(time_cmd, 3)

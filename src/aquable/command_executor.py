@@ -34,34 +34,24 @@ class CommandExecutor:
             self._device_locks[address] = asyncio.Lock()
         return self._device_locks[address]
 
-    def validate_command_args(
-        self, action: str, args: Optional[Dict[str, Any]]
-    ) -> None:
+    def validate_command_args(self, action: str, args: Optional[Dict[str, Any]]) -> None:
         """Validate command arguments against schema."""
         schema_class = COMMAND_ARG_SCHEMAS.get(action)
         if schema_class is None:
             # Action requires no arguments
             if args is not None and args:
-                raise CommandValidationError(
-                    f"Action '{action}' does not accept arguments"
-                )
+                raise CommandValidationError(f"Action '{action}' does not accept arguments")
             return
 
         if args is None:
-            raise CommandValidationError(
-                f"Action '{action}' requires arguments"
-            )
+            raise CommandValidationError(f"Action '{action}' requires arguments")
 
         try:
             schema_class(**args)
         except ValidationError as exc:
-            raise CommandValidationError(
-                f"Invalid arguments for '{action}': {exc}"
-            ) from exc
+            raise CommandValidationError(f"Invalid arguments for '{action}': {exc}") from exc
 
-    async def execute_command(
-        self, address: str, request: CommandRequest
-    ) -> CommandRecord:
+    async def execute_command(self, address: str, request: CommandRequest) -> CommandRecord:
         """Execute a command synchronously and return the record."""
         # Validate command arguments
         try:
@@ -98,9 +88,7 @@ class CommandExecutor:
                 # Execute with timeout
                 try:
                     result = await asyncio.wait_for(
-                        self._execute_action(
-                            address, request.action, request.args or {}
-                        ),
+                        self._execute_action(address, request.action, request.args or {}),
                         timeout=record.timeout,
                     )
                     record.mark_success(result)
@@ -121,9 +109,7 @@ class CommandExecutor:
 
                 except (BleakNotFoundError, BleakConnectionError) as exc:
                     error_msg = f"Device communication failed: {exc}"
-                    record.mark_failed(
-                        error_msg, ErrorCode.BLE_CONNECTION_ERROR
-                    )
+                    record.mark_failed(error_msg, ErrorCode.BLE_CONNECTION_ERROR)
                     logger.error(
                         "Command %s failed for device %s: %s",
                         request.action,
@@ -144,9 +130,7 @@ class CommandExecutor:
 
                 except Exception as exc:
                     # Catch-all for unexpected errors
-                    error_msg = (
-                        f"Unexpected error during command execution: {exc}"
-                    )
+                    error_msg = f"Unexpected error during command execution: {exc}"
                     record.mark_failed(error_msg, ErrorCode.INTERNAL_ERROR)
                     logger.error(
                         "Command %s failed for device %s: %s",
@@ -158,12 +142,8 @@ class CommandExecutor:
 
         except Exception as exc:
             # Lock acquisition failed or unexpected error
-            record.mark_failed(
-                f"Lock acquisition failed: {exc}", ErrorCode.INTERNAL_ERROR
-            )
-            logger.error(
-                "Failed to acquire lock for device %s: %s", address, exc
-            )
+            record.mark_failed(f"Lock acquisition failed: {exc}", ErrorCode.INTERNAL_ERROR)
+            logger.error("Failed to acquire lock for device %s: %s", address, exc)
 
         return record
 
@@ -196,21 +176,15 @@ class CommandExecutor:
             # Handle manual multi-channel brightness setting in one payload
             channels = args.get("channels", [])
             if not channels:
-                raise ValueError(
-                    "channels argument required for multi-channel brightness"
-                )
+                raise ValueError("channels argument required for multi-channel brightness")
 
             if not isinstance(channels, (list, tuple)) or len(channels) > 4:
-                raise ValueError(
-                    "channels must be a list/tuple of 1-4 brightness values"
-                )
+                raise ValueError("channels must be a list/tuple of 1-4 brightness values")
 
             # Convert to tuple of ints
             brightness_tuple = tuple(int(x) for x in channels)
 
-            status = await self.ble_service.set_multi_channel_brightness(
-                address, brightness_tuple
-            )
+            status = await self.ble_service.set_multi_channel_brightness(address, brightness_tuple)
 
             # Update and persist light configuration
             await self._save_light_brightness_config(address, args)
@@ -242,9 +216,7 @@ class CommandExecutor:
             # Handle either single brightness or per-channel brightness
             brightness_arg = args.get("brightness") or args.get("channels")
             if brightness_arg is None:
-                raise ValueError(
-                    "Either 'brightness' or 'channels' must be provided"
-                )
+                raise ValueError("Either 'brightness' or 'channels' must be provided")
 
             # Convert weekdays to LightWeekday enums if they're strings
             weekdays_arg = args.get("weekdays")
@@ -252,8 +224,7 @@ class CommandExecutor:
                 from .commands.encoder import LightWeekday
 
                 weekdays_arg = [
-                    LightWeekday(day) if isinstance(day, str) else day
-                    for day in weekdays_arg
+                    LightWeekday(day) if isinstance(day, str) else day for day in weekdays_arg
                 ]
 
             status = await self.ble_service.add_light_auto_setting(
@@ -290,9 +261,7 @@ class CommandExecutor:
         else:
             raise ValueError(f"Unsupported action: {action}")
 
-    async def _save_doser_schedule_config(
-        self, address: str, args: Dict[str, Any]
-    ) -> None:
+    async def _save_doser_schedule_config(self, address: str, args: Dict[str, Any]) -> None:
         """Save doser schedule configuration after successful command.
 
         Args:
@@ -312,16 +281,14 @@ class CommandExecutor:
                 device = update_doser_schedule_config(device, args)
                 self.ble_service._doser_storage.upsert_device(device)
                 logger.info(
-                    f"Saved doser configuration for {address}, "
-                    f"head {args['head_index']}"
+                    f"Saved doser configuration for {address}, " f"head {args['head_index']}"
                 )
             else:
                 # Create new configuration from the actual command being sent
                 from .config_helpers import create_doser_config_from_command
 
                 logger.info(
-                    f"Creating new configuration for doser {address} "
-                    f"from schedule command"
+                    f"Creating new configuration for doser {address} " f"from schedule command"
                 )
                 device = create_doser_config_from_command(address, args)
                 self.ble_service._doser_storage.upsert_device(device)
@@ -336,9 +303,7 @@ class CommandExecutor:
                 exc_info=True,
             )
 
-    async def _save_light_brightness_config(
-        self, address: str, args: Dict[str, Any]
-    ) -> None:
+    async def _save_light_brightness_config(self, address: str, args: Dict[str, Any]) -> None:
         """Save light brightness configuration after successful command.
 
         Args:
@@ -356,21 +321,15 @@ class CommandExecutor:
                 # Handle multi-channel brightness command
                 channels = args["channels"]
                 if not isinstance(channels, (list, tuple)):
-                    logger.warning(
-                        f"Invalid channels format for {address}: {channels}"
-                    )
+                    logger.warning(f"Invalid channels format for {address}: {channels}")
                     return
 
-                from .config_helpers import (
-                    update_light_multi_channel_brightness,
-                )
+                from .config_helpers import update_light_multi_channel_brightness
 
                 device = self.ble_service._light_storage.get_device(address)
                 if device:
                     # Update the existing configuration
-                    device = update_light_multi_channel_brightness(
-                        device, list(channels)
-                    )
+                    device = update_light_multi_channel_brightness(device, list(channels))
                     self.ble_service._light_storage.upsert_device(device)
                     logger.info(
                         f"Saved multi-channel light configuration for {address}, "
@@ -397,9 +356,7 @@ class CommandExecutor:
 
             # Handle single-channel brightness command
             if "brightness" not in args:
-                logger.warning(
-                    f"No brightness data found in args for {address}: {args}"
-                )
+                logger.warning(f"No brightness data found in args for {address}: {args}")
                 return
 
             from .config_helpers import update_light_brightness
@@ -414,20 +371,14 @@ class CommandExecutor:
                 )
                 self.ble_service._light_storage.upsert_device(device)
                 logger.info(
-                    f"Saved light configuration for {address}, "
-                    f"brightness={args['brightness']}"
+                    f"Saved light configuration for {address}, " f"brightness={args['brightness']}"
                 )
             else:
                 # Create new configuration from the actual command being sent
                 from .config_helpers import create_light_config_from_command
 
-                logger.info(
-                    f"Creating new profile for light {address} "
-                    f"from brightness command"
-                )
-                device = create_light_config_from_command(
-                    address, "brightness", args
-                )
+                logger.info(f"Creating new profile for light {address} " f"from brightness command")
+                device = create_light_config_from_command(address, "brightness", args)
                 self.ble_service._light_storage.upsert_device(device)
                 logger.info(
                     f"Created and saved new light profile for {address}, "
@@ -440,9 +391,7 @@ class CommandExecutor:
                 exc_info=True,
             )
 
-    async def _save_light_auto_setting_config(
-        self, address: str, args: Dict[str, Any]
-    ) -> None:
+    async def _save_light_auto_setting_config(self, address: str, args: Dict[str, Any]) -> None:
         """Save light auto setting configuration after successful command.
 
         Args:
@@ -459,9 +408,7 @@ class CommandExecutor:
             # Handle either single brightness or per-channel brightness
             brightness_arg = args.get("brightness") or args.get("channels")
             if brightness_arg is None:
-                raise ValueError(
-                    "Either 'brightness' or 'channels' must be provided"
-                )
+                raise ValueError("Either 'brightness' or 'channels' must be provided")
 
             device = self.ble_service._light_storage.get_device(address)
             if device:
@@ -470,11 +417,7 @@ class CommandExecutor:
                 if weekdays:
                     # Handle both enum objects and plain strings, convert to lowercase
                     weekdays = [
-                        (
-                            day.value.lower()
-                            if hasattr(day, "value")
-                            else str(day).lower()
-                        )
+                        (day.value.lower() if hasattr(day, "value") else str(day).lower())
                         for day in weekdays
                     ]
 
@@ -498,12 +441,9 @@ class CommandExecutor:
                 from .config_helpers import create_light_config_from_command
 
                 logger.info(
-                    f"Creating new profile for light {address} "
-                    f"from auto program command"
+                    f"Creating new profile for light {address} " f"from auto program command"
                 )
-                device = create_light_config_from_command(
-                    address, "auto_program", args
-                )
+                device = create_light_config_from_command(address, "auto_program", args)
                 self.ble_service._light_storage.upsert_device(device)
                 logger.info(
                     f"Created and saved new light profile for {address}, "

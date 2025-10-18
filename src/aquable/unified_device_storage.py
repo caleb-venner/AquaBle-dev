@@ -92,9 +92,7 @@ class UnifiedDeviceStorage:
         safe_id = device_id.replace(":", "_")
         return self._devices_dir / f"{safe_id}.json"
 
-    def read_device(
-        self, device_id: str
-    ) -> UnifiedDoserDevice | UnifiedLightDevice | None:
+    def read_device(self, device_id: str) -> UnifiedDoserDevice | UnifiedLightDevice | None:
         """Read a unified device file."""
         device_file = self._get_device_file_path(device_id)
         if not device_file.exists():
@@ -109,17 +107,13 @@ class UnifiedDeviceStorage:
             elif device_type == "light":
                 return UnifiedLightDevice.model_validate(data)
             else:
-                logger.warning(
-                    f"Unknown device type '{device_type}' in {device_file}"
-                )
+                logger.warning(f"Unknown device type '{device_type}' in {device_file}")
                 return None
         except (json.JSONDecodeError, ValueError) as exc:
             logger.error(f"Failed to read device file {device_file}: {exc}")
             return None
 
-    def write_device(
-        self, device: UnifiedDoserDevice | UnifiedLightDevice
-    ) -> None:
+    def write_device(self, device: UnifiedDoserDevice | UnifiedLightDevice) -> None:
         """Write a unified device file atomically."""
         device_file = self._get_device_file_path(device.device_id)
         device_file.parent.mkdir(parents=True, exist_ok=True)
@@ -130,9 +124,7 @@ class UnifiedDeviceStorage:
         # Write atomically
         tmp_file = device_file.with_suffix(".tmp")
         tmp_file.write_text(
-            json.dumps(
-                device.model_dump(mode="json"), indent=2, sort_keys=True
-            ),
+            json.dumps(device.model_dump(mode="json"), indent=2, sort_keys=True),
             encoding="utf-8",
         )
         tmp_file.replace(device_file)
@@ -207,7 +199,5 @@ class UnifiedDeviceStorage:
             logger.info(f"Cleared configurations for device {device_id}")
             return True
         except Exception as e:
-            logger.error(
-                f"Failed to clear configurations for device {device_id}: {e}"
-            )
+            logger.error(f"Failed to clear configurations for device {device_id}: {e}")
             return False

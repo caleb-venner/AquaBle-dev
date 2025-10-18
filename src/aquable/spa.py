@@ -30,9 +30,7 @@ SPA_UNAVAILABLE_MESSAGE = (
 )
 
 
-_DEV_SERVER_ENV = (
-    get_env_with_fallback("AQUA_BLE_FRONTEND_DEV", "") or ""
-).strip()
+_DEV_SERVER_ENV = (get_env_with_fallback("AQUA_BLE_FRONTEND_DEV", "") or "").strip()
 if _DEV_SERVER_ENV == "0":
     DEV_SERVER_CANDIDATES: tuple[httpx.URL, ...] = ()
 elif _DEV_SERVER_ENV:
@@ -145,9 +143,7 @@ async def _proxy_dev_server(path: str) -> Optional[Response]:
         except httpx.HTTPError:
             continue
         headers = {
-            key: value
-            for key, value in response.headers.items()
-            if key.lower() not in _HOP_HEADERS
+            key: value for key, value in response.headers.items() if key.lower() not in _HOP_HEADERS
         }
         return Response(
             content=response.content,

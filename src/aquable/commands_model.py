@@ -13,21 +13,15 @@ from .commands.encoder import LightWeekday, PumpWeekday
 from .errors import ErrorCode
 
 # Command status types
-CommandStatus = Literal[
-    "pending", "running", "success", "failed", "timed_out", "cancelled"
-]
+CommandStatus = Literal["pending", "running", "success", "failed", "timed_out", "cancelled"]
 
 
 class CommandRequest(BaseModel):
     """Incoming command request from client."""
 
-    id: Optional[str] = Field(
-        None, description="Optional client idempotency token"
-    )
+    id: Optional[str] = Field(None, description="Optional client idempotency token")
     action: str = Field(..., description="Command action to execute")
-    args: Optional[Dict[str, Any]] = Field(
-        None, description="Action-specific parameters"
-    )
+    args: Optional[Dict[str, Any]] = Field(None, description="Action-specific parameters")
     timeout: Optional[float] = Field(
         None, ge=1.0, le=30.0, description="Command timeout in seconds"
     )
@@ -103,9 +97,7 @@ class CommandRecord:
         self.result = result
         self.completed_at = time.time()
 
-    def mark_failed(
-        self, error: str, error_code: Optional[ErrorCode] = None
-    ) -> None:
+    def mark_failed(self, error: str, error_code: Optional[ErrorCode] = None) -> None:
         """Mark command as failed."""
         self.status = "failed"
         self.error = error
@@ -161,9 +153,7 @@ class LightMultiChannelBrightnessArgs(BaseModel):
         """Validate brightness values are within valid range."""
         for i, brightness in enumerate(v):
             if not (0 <= brightness <= 100):
-                raise ValueError(
-                    f"Channel {i} brightness must be 0-100, got {brightness}"
-                )
+                raise ValueError(f"Channel {i} brightness must be 0-100, got {brightness}")
         return v
 
 
@@ -176,9 +166,7 @@ class DoserScheduleArgs(BaseModel):
     )
     hour: int = Field(..., ge=0, le=23)
     minute: int = Field(..., ge=0, le=59)
-    weekdays: Optional[list[PumpWeekday]] = Field(
-        None, description="List of weekdays"
-    )
+    weekdays: Optional[list[PumpWeekday]] = Field(None, description="List of weekdays")
     confirm: bool = Field(True)
     wait_seconds: float = Field(2.0, ge=0.5, le=10.0)
 
@@ -191,16 +179,12 @@ class DoserScheduleArgs(BaseModel):
         TODO: Add support for 2-head devices (indices 0-1).
         """
         if not (0 <= v <= 3):
-            raise ValueError(
-                f"Head index must be 0-3 for 4-head doser devices, got {v}"
-            )
+            raise ValueError(f"Head index must be 0-3 for 4-head doser devices, got {v}")
         return v
 
     @field_validator("weekdays")
     @classmethod
-    def validate_weekdays(
-        cls, v: Optional[list[PumpWeekday]]
-    ) -> Optional[list[PumpWeekday]]:
+    def validate_weekdays(cls, v: Optional[list[PumpWeekday]]) -> Optional[list[PumpWeekday]]:
         """Validate weekday selections."""
         if v is not None:
             if not v:
@@ -208,9 +192,7 @@ class DoserScheduleArgs(BaseModel):
 
             # Check for invalid combinations
             if PumpWeekday.everyday in v and len(v) > 1:
-                raise ValueError(
-                    "Cannot combine 'everyday' with specific weekdays"
-                )
+                raise ValueError("Cannot combine 'everyday' with specific weekdays")
 
             # Check for duplicates
             if len(v) != len(set(v)):
@@ -227,24 +209,16 @@ class LightAutoSettingArgs(BaseModel):
     brightness: Optional[int] = Field(
         None, ge=0, le=100, description="Single channel brightness (0-100)"
     )
-    channels: Optional[dict[str, int]] = Field(
-        None, description="Per-channel brightness values"
-    )
+    channels: Optional[dict[str, int]] = Field(None, description="Per-channel brightness values")
     ramp_up_minutes: int = Field(0, description="Ramp up time in minutes")
-    weekdays: Optional[list[LightWeekday]] = Field(
-        None, description="List of weekdays"
-    )
-    label: Optional[str] = Field(
-        None, max_length=100, description="Optional schedule label/name"
-    )
+    weekdays: Optional[list[LightWeekday]] = Field(None, description="List of weekdays")
+    label: Optional[str] = Field(None, max_length=100, description="Optional schedule label/name")
 
     @model_validator(mode="after")
     def validate_brightness_or_channels(self) -> "LightAutoSettingArgs":
         """Ensure either brightness or channels is provided, but not both."""
         if self.brightness is None and self.channels is None:
-            raise ValueError(
-                "Either 'brightness' or 'channels' must be provided"
-            )
+            raise ValueError("Either 'brightness' or 'channels' must be provided")
         if self.brightness is not None and self.channels is not None:
             raise ValueError("Cannot specify both 'brightness' and 'channels'")
         return self
@@ -260,9 +234,7 @@ class LightAutoSettingArgs(BaseModel):
             if not (0 <= minutes <= 59):
                 raise ValueError(f"Minutes must be 0-59, got {minutes}")
         except ValueError as e:
-            if "too many values to unpack" in str(
-                e
-            ) or "not enough values to unpack" in str(e):
+            if "too many values to unpack" in str(e) or "not enough values to unpack" in str(e):
                 raise ValueError(f"Time must be in HH:MM format, got {v}")
             raise
         return v
@@ -274,16 +246,12 @@ class LightAutoSettingArgs(BaseModel):
         if info.data.get("sunrise"):
             sunrise = info.data["sunrise"]
             if sunrise > v:
-                raise ValueError(
-                    f"Sunset ({v}) must be after sunrise ({sunrise})"
-                )
+                raise ValueError(f"Sunset ({v}) must be after sunrise ({sunrise})")
         return v
 
     @field_validator("weekdays")
     @classmethod
-    def validate_weekdays(
-        cls, v: Optional[list[LightWeekday]]
-    ) -> Optional[list[LightWeekday]]:
+    def validate_weekdays(cls, v: Optional[list[LightWeekday]]) -> Optional[list[LightWeekday]]:
         """Validate weekday selections."""
         if v is not None:
             if not v:
@@ -291,9 +259,7 @@ class LightAutoSettingArgs(BaseModel):
 
             # Check for invalid combinations
             if LightWeekday.everyday in v and len(v) > 1:
-                raise ValueError(
-                    "Cannot combine 'everyday' with specific weekdays"
-                )
+                raise ValueError("Cannot combine 'everyday' with specific weekdays")
 
             # Check for duplicates
             if len(v) != len(set(v)):
@@ -312,12 +278,8 @@ class LightAutoSettingArgs(BaseModel):
         # Check against sunrise/sunset span if available
         if info.data.get("sunrise") and info.data.get("sunset"):
             try:
-                sunrise_hours, sunrise_mins = map(
-                    int, info.data["sunrise"].split(":")
-                )
-                sunset_hours, sunset_mins = map(
-                    int, info.data["sunset"].split(":")
-                )
+                sunrise_hours, sunrise_mins = map(int, info.data["sunrise"].split(":"))
+                sunset_hours, sunset_mins = map(int, info.data["sunset"].split(":"))
 
                 sunrise_total_mins = sunrise_hours * 60 + sunrise_mins
                 sunset_total_mins = sunset_hours * 60 + sunset_mins

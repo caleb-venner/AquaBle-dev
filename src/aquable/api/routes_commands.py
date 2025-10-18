@@ -60,17 +60,13 @@ async def execute_command(
             args=command_request.args,
             timeout=command_request.timeout or 10.0,
         )
-        record.mark_failed(
-            f"Unexpected API error: {exc}", ErrorCode.INTERNAL_ERROR
-        )
+        record.mark_failed(f"Unexpected API error: {exc}", ErrorCode.INTERNAL_ERROR)
         service.save_command(record)
         return record.to_dict()
 
 
 @router.get("/devices/{address}/commands")
-async def list_commands(
-    request: Request, address: str, limit: int = 20
-) -> List[Dict[str, Any]]:
+async def list_commands(request: Request, address: str, limit: int = 20) -> List[Dict[str, Any]]:
     """List recent commands for a device."""
     service = request.app.state.service
 
@@ -84,9 +80,7 @@ async def list_commands(
 
 
 @router.get("/devices/{address}/commands/{command_id}")
-async def get_command(
-    request: Request, address: str, command_id: str
-) -> Dict[str, Any]:
+async def get_command(request: Request, address: str, command_id: str) -> Dict[str, Any]:
     """Get a specific command by ID."""
     service = request.app.state.service
 
