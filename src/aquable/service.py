@@ -171,30 +171,20 @@ def main() -> None:  # pragma: no cover
     via 'python3 -m aquable.service'. Configuration is handled via
     environment variables set by the S6 service script.
     """
-    import asyncio
-    import logging
+    import sys
     import uvicorn
 
-    # Configure logging to see any startup errors
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s %(levelname)s [%(name)s] %(message)s",
-    )
-
-    config = uvicorn.Config(
-        "aquable.service:app",
-        host="0.0.0.0",
-        port=8000,
-        log_level="info",
-    )
-    server = uvicorn.Server(config)
-    
     try:
-        asyncio.run(server.serve())
-    except KeyboardInterrupt:
-        pass
+        uvicorn.run(
+            "aquable.service:app",
+            host="0.0.0.0",
+            port=8000,
+            log_level="info",
+            access_log=True,
+        )
     except Exception as e:
-        import sys
-        print(f"ERROR: Failed to start uvicorn: {e}", file=sys.stderr)
-        raise
+        import traceback
+        print(f"FATAL ERROR: {e}", file=sys.stderr)
+        traceback.print_exc(file=sys.stderr)
+        sys.exit(1)
 

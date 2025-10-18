@@ -22,6 +22,9 @@ RUN SETUPTOOLS_SCM_PRETEND_VERSION=2.0.0 pip3 install --no-cache-dir -e .
 # Copy S6 service configuration
 COPY rootfs/ /
 
+# Ensure s6 scripts are executable
+RUN chmod +x /etc/services.d/aquable/run /etc/services.d/aquable/finish
+
 # Set environment variables
 ENV PYTHONPATH=/app/src
 ENV AQUA_BLE_FRONTEND_DIST=/app/frontend/dist
