@@ -165,7 +165,7 @@ async def serve_spa_assets(spa_path: str) -> Response:
 
 def main() -> None:  # pragma: no cover
     """Run the FastAPI service under Uvicorn for Home Assistant add-on.
-    
+
     This function is called by the S6 service in the HA add-on container
     via 'python3 -m aquable.service'. Configuration is handled via
     environment variables set by the S6 service script.
