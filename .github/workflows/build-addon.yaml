@@ -49,6 +49,6 @@ jobs:
         with:
           args: |
             --target aquable \
-            --docker-hub ghcr.io/${{ github.repository }} \
+            --docker-hub ghcr.io/caleb-venner/aquable \
             --version ${{ steps.version.outputs.version }} \
             --amd64
