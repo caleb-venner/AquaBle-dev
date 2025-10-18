@@ -12,6 +12,8 @@ jobs:
   build:
     runs-on: ubuntu-latest
     name: Build add-on
+    env:
+      COSIGN_VERSION: "v2.6.0"
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -49,6 +51,6 @@ jobs:
         with:
           args: |
             --target aquable \
-            --docker-hub ghcr.io/caleb-venner/aquable \
-            --version ${{ steps.version.outputs.version }} \
-            --amd64
+            --docker-hub ghcr.io/${{ github.repository_owner }} \
+            --amd64 \
+            --no-latest
