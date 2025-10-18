@@ -35,10 +35,8 @@
 - `make lint`: Execute pre-commit hooks (black, isort, flake8, doc8)
 - `pre-commit run --all-files`: Full quality check before commits
 
-**Deployment Options**:
-- Home Assistant Add-on (recommended): Automatic Bluetooth access, data persistence, web interface
-- Docker container: Multi-arch support, `docker-compose.yml` for easy setup
-- Direct Python installation: `pip install -e . && aqua-ble-service`
+**Deployment**:
+- **Home Assistant Add-on**: Install from Home Assistant Community Add-ons repository. Automatic Bluetooth access, data persistence, web interface, and timezone management via Home Assistant integration.
 
 ## Project Conventions
 

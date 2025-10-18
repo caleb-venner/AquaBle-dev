@@ -55,7 +55,7 @@ build: front-build
 lint:
 	@if ! command -v doc8 >/dev/null 2>&1; then \
 		echo "Installing linting tools (black, flake8, isort, doc8)"; \
-		$(PY) -m pip install black flake8 isort doc8; \
+		$(PY) -m pip install black flake8 isort doc8 flake8-pyprojecttoml; \
 	fi
 	@echo "Running code quality checks..."
 	black --check --diff src/ tests/ frontend/

@@ -163,21 +163,17 @@ async def serve_spa_assets(spa_path: str) -> Response:
     raise HTTPException(status_code=404)
 
 
-def main() -> None:  # pragma: no cover - thin CLI wrapper
-    """Run the FastAPI service under Uvicorn."""
+def main() -> None:  # pragma: no cover
+    """Run the FastAPI service under Uvicorn for Home Assistant add-on.
+    
+    This function is called by the S6 service in the HA add-on container
+    via 'python3 -m aquable.service'. Configuration is handled via
+    environment variables set by the S6 service script.
+    """
     import uvicorn
-
-    from .config_migration import get_env_with_fallback
-
-    host = get_env_with_fallback("AQUA_BLE_SERVICE_HOST", "0.0.0.0") or "0.0.0.0"
-    port = int(get_env_with_fallback("AQUA_BLE_SERVICE_PORT", "8000") or "8000")
 
     uvicorn.run(
         "aquable.service:app",
-        host=host,
-        port=port,
+        host="0.0.0.0",
+        port=8000,
     )
-
-
-if __name__ == "__main__":  # pragma: no cover
-    main()

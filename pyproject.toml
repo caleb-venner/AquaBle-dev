@@ -43,9 +43,6 @@ where = [
 
 [tool.setuptools_scm]
 
-[project.scripts]
-aquable-service = "aquable.service:main"
-
 [tool.black]
 line-length = 100
 
@@ -53,13 +50,14 @@ line-length = 100
 profile = "black"
 line_length = 100
 
-[flake8]
+[tool.flake8]
 max-line-length = 100
 extend-ignore = [
     "E203",
 ]
 extend-exclude = [
     "archive",
+    "frontend/.venv",
 ]
 
 [tool.doc8]
