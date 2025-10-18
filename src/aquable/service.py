@@ -172,11 +172,27 @@ def main() -> None:  # pragma: no cover
     environment variables set by the S6 service script.
     """
     import sys
+    import os
+    import logging
     import uvicorn
 
+    # Configure logging with timezone support
+    # The TZ environment variable is set by the run script
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)s [%(name)s] %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+    
+    logger = logging.getLogger(__name__)
+    tz = os.getenv("TZ", "UTC")
+    logger.info(f"Starting AquaBle with timezone: {tz}")
+    logger.info(f"App object: {app}")
+    
     try:
+        logger.info("Calling uvicorn.run()...")
         uvicorn.run(
-            "aquable.service:app",
+            app,
             host="0.0.0.0",
             port=8000,
             log_level="info",
@@ -184,7 +200,10 @@ def main() -> None:  # pragma: no cover
         )
     except Exception as e:
         import traceback
-        print(f"FATAL ERROR: {e}", file=sys.stderr)
+        logger.error(f"FATAL ERROR: {e}")
         traceback.print_exc(file=sys.stderr)
         sys.exit(1)
 
+
+if __name__ == "__main__":
+    main()

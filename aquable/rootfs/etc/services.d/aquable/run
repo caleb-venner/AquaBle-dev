@@ -16,6 +16,7 @@ if [[ "${TIMEZONE}" == "auto" ]]; then
     bashio::log.info "Using Home Assistant timezone: ${TIMEZONE}"
 fi
 export TZ="${TIMEZONE}"
+export PYTHONTZPATH="${TIMEZONE}"
 
 # Set paths for add-on environment
 export AQUA_BLE_CONFIG_DIR=/data
@@ -23,6 +24,7 @@ export AQUA_BLE_FRONTEND_DIST=/app/frontend/dist
 export PYTHONPATH=/app/src
 
 bashio::log.info "Configuration loaded - starting service on port 8000"
+bashio::log.info "System timezone: ${TIMEZONE}"
 
 # Start the service - using exec to replace the shell process
 cd /app
