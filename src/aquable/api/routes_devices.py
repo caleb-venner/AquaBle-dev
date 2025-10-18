@@ -64,6 +64,7 @@ async def refresh_status(request: Request, address: str) -> Dict[str, Any]:
 @router.post("/devices/{address}/connect")
 async def reconnect_device(request: Request, address: str) -> Dict[str, Any]:
     """(Re)connect to a device and return its current status."""
+    import asyncio
     import logging
     logger = logging.getLogger(__name__)
     
@@ -73,8 +74,19 @@ async def reconnect_device(request: Request, address: str) -> Dict[str, Any]:
     
     if cached:
         logger.info(f"Found cached device for {address}, type: {cached.device_type}")
-        status = await service.connect_device(address, cached.device_type)
-        return cached_status_to_dict(service, status)
+        try:
+            status = await asyncio.wait_for(
+                service.connect_device(address, cached.device_type),
+                timeout=30.0
+            )
+            logger.info(f"Successfully connected to {address}")
+            return cached_status_to_dict(service, status)
+        except asyncio.TimeoutError:
+            logger.error(f"Connection timeout for cached device {address}")
+            raise HTTPException(status_code=504, detail="Connection timeout") from None
+        except Exception as e:
+            logger.error(f"Failed to connect to cached device {address}: {e}", exc_info=True)
+            raise
 
     logger.info(f"No cached device for {address}, attempting discovery")
     try:
@@ -90,9 +102,19 @@ async def reconnect_device(request: Request, address: str) -> Dict[str, Any]:
         raise HTTPException(status_code=400, detail="Unsupported device type")
     
     logger.info(f"Device kind: {kind}, connecting...")
-    status = await service.connect_device(address, kind)
-    logger.info(f"Successfully connected to {address}")
-    return cached_status_to_dict(service, status)
+    try:
+        status = await asyncio.wait_for(
+            service.connect_device(address, kind),
+            timeout=30.0
+        )
+        logger.info(f"Successfully connected to {address}")
+        return cached_status_to_dict(service, status)
+    except asyncio.TimeoutError:
+        logger.error(f"Connection timeout for device {address}")
+        raise HTTPException(status_code=504, detail="Connection timeout") from None
+    except Exception as e:
+        logger.error(f"Failed to connect to device {address}: {e}", exc_info=True)
+        raise
 
 
 @router.post("/devices/{address}/disconnect")
