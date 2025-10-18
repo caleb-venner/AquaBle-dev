@@ -22,8 +22,13 @@ export AQUA_BLE_CONFIG_DIR=/data
 export AQUA_BLE_FRONTEND_DIST=/app/frontend/dist
 export PYTHONPATH=/app/src
 
+# Configure Bleak/BlueZ
+export BLEAK_LOGGING=1
+export DBUS_SYSTEM_BUS_ADDRESS=unix:path=/run/dbus/system_bus_socket
+
 bashio::log.info "Configuration loaded - starting service on port 8000"
 bashio::log.info "System timezone: ${TIMEZONE}"
+bashio::log.info "D-Bus address: ${DBUS_SYSTEM_BUS_ADDRESS}"
 
 # Start the service - using exec to replace the shell process
 cd /app
