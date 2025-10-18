@@ -40,4 +40,5 @@ jobs:
           args: |
             --target aquable \
             --docker-hub ghcr.io/${{ github.repository_owner }} \
-            --version ${{ github.ref_name }}
+            --version ${{ github.ref_name }} \
+            --amd64
