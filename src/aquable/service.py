@@ -8,10 +8,12 @@ implementation and expose the same public names for backwards compatibility.
 
 from __future__ import annotations
 
+import os
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, Response
+from starlette.middleware.base import BaseHTTPMiddleware
 
 # Ensure the implementation module picks up any env override when this
 # module is reloaded during tests (the tests set AQUA_BLE_STATUS_WAIT
@@ -53,6 +55,63 @@ def get_service() -> BLEService:
 service = get_service()
 
 
+class IngressIPRestrictionMiddleware(BaseHTTPMiddleware):
+    """Middleware to restrict access to Ingress gateway IP when in Ingress mode.
+    
+    Home Assistant Ingress requires that add-ons only accept connections from
+    the Ingress gateway at 172.30.32.2. This middleware enforces that restriction
+    when the add-on is running in Ingress mode (detected by SUPERVISOR_TOKEN env var).
+    """
+    
+    INGRESS_GATEWAY_IP = "172.30.32.2"
+    
+    def __init__(self, app, ingress_enabled: bool = False):
+        super().__init__(app)
+        self.ingress_enabled = ingress_enabled
+    
+    async def dispatch(self, request: Request, call_next):
+        # Only enforce IP restriction when Ingress is enabled
+        if self.ingress_enabled:
+            client_host = request.client.host if request.client else None
+            
+            # Allow health checks from localhost for Docker/HA monitoring
+            if client_host in ("127.0.0.1", "localhost", "::1"):
+                return await call_next(request)
+            
+            # Enforce Ingress gateway IP restriction
+            if client_host != self.INGRESS_GATEWAY_IP:
+                return Response(
+                    content="Access denied: Only Ingress connections allowed",
+                    status_code=403,
+                    media_type="text/plain"
+                )
+        
+        return await call_next(request)
+
+
+class IngressPathMiddleware(BaseHTTPMiddleware):
+    """Middleware to capture and expose X-Ingress-Path header.
+    
+    Home Assistant Ingress adds the X-Ingress-Path header to all requests,
+    which contains the base path for the add-on. This middleware makes it
+    available to the application for constructing proper URLs if needed.
+    """
+    
+    async def dispatch(self, request: Request, call_next):
+        # Capture X-Ingress-Path header if present
+        ingress_path = request.headers.get("X-Ingress-Path", "")
+        
+        # Store in request state for potential use by handlers
+        request.state.ingress_path = ingress_path
+        
+        # Add custom header to response for debugging/frontend use
+        response = await call_next(request)
+        if ingress_path:
+            response.headers["X-AquaBle-Ingress-Path"] = ingress_path
+        
+        return response
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Manage BLE service startup and shutdown via FastAPI lifespan."""
@@ -68,6 +127,15 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Aquarium BLE Service", lifespan=lifespan)
+
+# Add Ingress middleware if running under Home Assistant Supervisor
+# The SUPERVISOR_TOKEN environment variable is set by Home Assistant for all add-ons
+INGRESS_ENABLED = bool(os.getenv("SUPERVISOR_TOKEN"))
+if INGRESS_ENABLED:
+    # Add path middleware first to capture X-Ingress-Path header
+    app.add_middleware(IngressPathMiddleware)
+    # Then add IP restriction to enforce security
+    app.add_middleware(IngressIPRestrictionMiddleware, ingress_enabled=True)
 
 
 # Health check endpoint for container monitoring
@@ -203,18 +271,25 @@ def main() -> None:  # pragma: no cover
     
     logger = logging.getLogger(__name__)
     tz = os.getenv("TZ", "UTC")
+    
+    # Determine port: Ingress uses 8099, standalone uses 8000
+    # When running under Home Assistant Supervisor, SUPERVISOR_TOKEN is set
+    is_ingress = bool(os.getenv("SUPERVISOR_TOKEN"))
+    port = int(os.getenv("INGRESS_PORT", "8099" if is_ingress else "8000"))
+    
     logger.info(f"Starting AquaBle with timezone: {tz}")
+    logger.info(f"Ingress mode: {is_ingress}, listening on port: {port}")
     logger.info(f"App object: {app}")
     
     # Back-compat: export service instance for tests
     service = get_service()
     
     try:
-        logger.info("Calling uvicorn.run()...")
+        logger.info(f"Calling uvicorn.run() on port {port}...")
         uvicorn.run(
             app,
             host="0.0.0.0",
-            port=8000,
+            port=port,
             log_level="info",
             access_log=True,
         )

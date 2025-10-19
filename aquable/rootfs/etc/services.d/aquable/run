@@ -35,7 +35,16 @@ export PYTHONPATH=/app/src
 # Configure Bleak/BlueZ
 export DBUS_SYSTEM_BUS_ADDRESS=unix:path=/run/dbus/system_bus_socket
 
-bashio::log.info "Configuration loaded - starting service on port 8000"
+# Determine if running in Ingress mode (SUPERVISOR_TOKEN is set by Home Assistant)
+if [[ -n "${SUPERVISOR_TOKEN}" ]]; then
+    SERVICE_PORT=8099
+    bashio::log.info "Running in Ingress mode on port ${SERVICE_PORT}"
+else
+    SERVICE_PORT=8000
+    bashio::log.info "Running in standalone mode on port ${SERVICE_PORT}"
+fi
+
+bashio::log.info "Configuration loaded - starting service"
 bashio::log.info "System timezone: ${TIMEZONE}"
 bashio::log.info "D-Bus address: ${DBUS_SYSTEM_BUS_ADDRESS}"
 

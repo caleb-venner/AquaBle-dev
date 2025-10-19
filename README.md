@@ -23,8 +23,20 @@ AquaBle is distributed as a Home Assistant add-on.
 1. Add the custom repository: `https://github.com/caleb-venner/aquable`
 2. Install the "AquaBle" add-on from the repository
 3. Start the add-on
+4. Access the web interface:
+   - **Recommended**: Click "OPEN WEB UI" in the add-on info screen (Ingress)
+   - **Alternative**: Direct access at `http://your_home_assistant_ip:8000`
 
-The web interface will be available at `http://your_home_assistant_ip:8000`. Replace `your_home_assistant_ip` with your Home Assistant's IP address.
+### Ingress Support
+
+AquaBle supports Home Assistant Ingress for seamless integration:
+
+- Access the web interface directly through the Home Assistant UI
+- No port forwarding or authentication configuration needed
+- Click "OPEN WEB UI" in the add-on info screen for instant access
+- Works seamlessly on Home Assistant mobile apps
+
+For more details, see [INGRESS.md](aquable/INGRESS.md).
 
 ## Supported Devices
 

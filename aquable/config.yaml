@@ -13,10 +13,14 @@ host_network: true
 host_dbus: true
 privileged:
   - SYS_ADMIN
+# Ingress provides seamless access via Home Assistant UI
+ingress: true
+ingress_port: 8099
+# Legacy port mapping for direct access (when not using Ingress)
 ports:
   8000/tcp: 8000
 ports_description:
-  8000/tcp: Web interface and REST API
+  8000/tcp: Web interface and REST API (direct access)
 map:
   - config:rw
 options:

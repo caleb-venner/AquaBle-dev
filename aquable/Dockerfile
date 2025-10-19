@@ -34,9 +34,13 @@ RUN chmod +x /etc/services.d/aquable/run /etc/services.d/aquable/finish
 ENV PYTHONPATH=/app/src
 ENV AQUA_BLE_FRONTEND_DIST=/app/frontend/dist
 
-# Expose port
-EXPOSE 8000
+# Expose ports - 8099 for Ingress, 8000 for direct access
+EXPOSE 8099 8000
 
-# Health check
+# Health check - dynamically checks the correct port based on Ingress mode
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:8000/health || exit 1
+  CMD if [ -n "$SUPERVISOR_TOKEN" ]; then \
+        curl -f http://localhost:8099/api/health || exit 1; \
+      else \
+        curl -f http://localhost:8000/api/health || exit 1; \
+      fi
