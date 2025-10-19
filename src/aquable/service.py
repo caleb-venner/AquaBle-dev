@@ -176,21 +176,63 @@ async def _proxy_dev_server(path: str) -> Response | None:
     return await spa._proxy_dev_server(path)
 
 
+def _inject_base_tag_if_needed(request: Request, html_content: str) -> str:
+    """Inject <base> tag into HTML if serving through Ingress.
+    
+    When Home Assistant Ingress proxies requests, it adds X-Ingress-Path header
+    containing the base path (e.g., '/api/hassio_ingress/xyz123'). We need to
+    inject a <base> tag so that relative asset paths resolve correctly.
+    """
+    # Check if request came through Ingress
+    ingress_path = request.headers.get("X-Ingress-Path", "")
+    if not ingress_path:
+        return html_content
+    
+    # Ensure ingress_path ends with /
+    if not ingress_path.endswith("/"):
+        ingress_path += "/"
+    
+    # Inject base tag after <head> opening tag
+    base_tag = f'<base href="{ingress_path}">'
+    
+    # Find <head> tag and inject base tag right after it
+    import re
+    head_pattern = re.compile(r'(<head[^>]*>)', re.IGNORECASE)
+    match = head_pattern.search(html_content)
+    
+    if match:
+        # Insert base tag right after <head>
+        insert_pos = match.end()
+        html_content = (
+            html_content[:insert_pos] +
+            '\n    ' + base_tag +
+            html_content[insert_pos:]
+        )
+    
+    return html_content
+
+
 # Mount SPA assets via helper module
 spa.mount_assets(app)
 
 
 @app.get("/", response_class=HTMLResponse)
-async def serve_spa() -> Response:
+async def serve_spa(request: Request) -> Response:
     """Serve SPA index or proxy to dev server; mirrors legacy behavior for tests."""
     # Use local constants to support monkeypatching in tests
     if SPA_DIST_AVAILABLE:
         primary_path = FRONTEND_DIST / PRIMARY_ENTRY
         if primary_path.exists():
-            return HTMLResponse(primary_path.read_text(encoding="utf-8"))
+            html_content = primary_path.read_text(encoding="utf-8")
+            # Inject base tag for Ingress if X-Ingress-Path is present
+            html_content = _inject_base_tag_if_needed(request, html_content)
+            return HTMLResponse(html_content)
         legacy_path = FRONTEND_DIST / LEGACY_ENTRY
         if legacy_path.exists():
-            return HTMLResponse(legacy_path.read_text(encoding="utf-8"))
+            html_content = legacy_path.read_text(encoding="utf-8")
+            # Inject base tag for Ingress if X-Ingress-Path is present
+            html_content = _inject_base_tag_if_needed(request, html_content)
+            return HTMLResponse(html_content)
     proxied = await _proxy_dev_server(f"/{PRIMARY_ENTRY}")
     if proxied is not None:
         return proxied
@@ -211,7 +253,7 @@ app.include_router(configurations_router)
 
 
 @app.get("/{spa_path:path}", include_in_schema=False)
-async def serve_spa_assets(spa_path: str) -> Response:
+async def serve_spa_assets(spa_path: str, request: Request) -> Response:
     """Serve SPA assets or proxy; mirrors legacy behavior for tests."""
     if not spa_path:
         raise HTTPException(status_code=404)
@@ -243,10 +285,16 @@ async def serve_spa_assets(spa_path: str) -> Response:
         raise HTTPException(status_code=404)
     primary_path = FRONTEND_DIST / PRIMARY_ENTRY
     if primary_path.exists():
-        return HTMLResponse(primary_path.read_text(encoding="utf-8"))
+        html_content = primary_path.read_text(encoding="utf-8")
+        # Inject base tag for Ingress if X-Ingress-Path is present
+        html_content = _inject_base_tag_if_needed(request, html_content)
+        return HTMLResponse(html_content)
     legacy_path = FRONTEND_DIST / LEGACY_ENTRY
     if legacy_path.exists():
-        return HTMLResponse(legacy_path.read_text(encoding="utf-8"))
+        html_content = legacy_path.read_text(encoding="utf-8")
+        # Inject base tag for Ingress if X-Ingress-Path is present
+        html_content = _inject_base_tag_if_needed(request, html_content)
+        return HTMLResponse(html_content)
     raise HTTPException(status_code=404)
 
 

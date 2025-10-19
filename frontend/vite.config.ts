@@ -3,6 +3,7 @@ import { resolve } from "path";
 
 export default defineConfig({
   root: ".",
+  base: "./", // Use relative paths for assets to support Ingress base paths
   server: {
     port: 5173,
     host: "0.0.0.0",
