@@ -77,7 +77,7 @@ async def reconnect_device(request: Request, address: str) -> Dict[str, Any]:
         try:
             status = await asyncio.wait_for(
                 service.connect_device(address, cached.device_type),
-                timeout=30.0
+                timeout=60.0
             )
             logger.info(f"Successfully connected to {address}")
             return cached_status_to_dict(service, status)
@@ -105,7 +105,7 @@ async def reconnect_device(request: Request, address: str) -> Dict[str, Any]:
     try:
         status = await asyncio.wait_for(
             service.connect_device(address, kind),
-            timeout=30.0
+            timeout=60.0
         )
         logger.info(f"Successfully connected to {address}")
         return cached_status_to_dict(service, status)

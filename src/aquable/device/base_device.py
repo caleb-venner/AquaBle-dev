@@ -358,6 +358,7 @@ class BaseDevice(ABC):
                 self._ble_device,
                 self.name,
                 self._disconnected,
+                max_attempts=2,
                 use_services_cache=True,
                 ble_device_callback=lambda: self._ble_device,
             )
@@ -366,11 +367,6 @@ class BaseDevice(ABC):
                 self.name,
                 self.rssi,
             )
-            # Give the device a brief moment to stabilize after connection
-            # before attempting to discover services. Some devices (especially
-            # on macOS CoreBluetooth) disconnect during service discovery
-            # if not given time to settle.
-            await asyncio.sleep(0.1)
             resolved = self._resolve_characteristics(client.services)
             if not resolved:
                 # Try to handle services failing to load

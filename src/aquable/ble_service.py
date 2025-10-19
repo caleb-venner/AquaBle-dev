@@ -337,7 +337,7 @@ class BLEService:
     async def connect_device(self, address: str, device_type: Optional[str] = None) -> CachedStatus:
         """Connect to a device by address and return its cached status.
 
-        Also loads any saved configuration for the device.
+        Just establishes connectivity. Status is fetched separately via status endpoint.
         """
         device = await self._ensure_device(address, device_type)
         device_kind = self._get_device_kind(device)
@@ -347,7 +347,15 @@ class BLEService:
         # Load saved configuration if available
         await self._load_device_configuration(address, device_kind)
 
-        return await self._refresh_device_status(device_kind, persist=True)
+        # Return cached status without forcing a refresh
+        # This allows connection to complete faster without waiting for device response
+        return self._cache.get(address) or CachedStatus(
+            address=address,
+            device_type=device_kind,
+            raw_payload=None,
+            parsed=None,
+            updated_at=time.time(),
+        )
 
     async def _ensure_device(self, address: str, device_type: Optional[str] = None) -> BaseDevice:
         expected_kind = device_type.lower() if device_type else None
