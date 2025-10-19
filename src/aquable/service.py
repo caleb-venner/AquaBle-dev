@@ -49,6 +49,10 @@ def get_service() -> BLEService:
     return _service_instance
 
 
+# Back-compat: export service instance for tests
+service = get_service()
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Manage BLE service startup and shutdown via FastAPI lifespan."""
@@ -189,20 +193,42 @@ def main() -> None:  # pragma: no cover
     import sys
     import os
     import logging
+    import time
     import uvicorn
+
+    # Custom formatter that respects TZ environment variable
+    class TimezoneFormatter(logging.Formatter):
+        """Custom formatter that uses local timezone for timestamps."""
+        
+        def formatTime(self, record, datefmt=None):
+            """Override to use local time instead of GMT."""
+            ct = time.localtime(record.created)
+            if datefmt:
+                s = time.strftime(datefmt, ct)
+            else:
+                s = time.strftime("%Y-%m-%d %H:%M:%S", ct)
+            return s
 
     # Configure logging with timezone support
     # The TZ environment variable is set by the run script
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s %(levelname)s [%(name)s] %(message)s",
+    handler = logging.StreamHandler()
+    formatter = TimezoneFormatter(
+        fmt="%(asctime)s %(levelname)s [%(name)s] %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
+    handler.setFormatter(formatter)
+    
+    root_logger = logging.getLogger()
+    root_logger.setLevel(logging.INFO)
+    root_logger.addHandler(handler)
     
     logger = logging.getLogger(__name__)
     tz = os.getenv("TZ", "UTC")
     logger.info(f"Starting AquaBle with timezone: {tz}")
     logger.info(f"App object: {app}")
+    
+    # Back-compat: export service instance for tests
+    service = get_service()
     
     try:
         logger.info("Calling uvicorn.run()...")

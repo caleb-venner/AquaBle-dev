@@ -12,8 +12,18 @@ export AQUA_BLE_STATUS_WAIT=$(bashio::config 'status_wait_seconds')
 TIMEZONE=$(bashio::config 'timezone')
 if [[ "${TIMEZONE}" == "auto" ]]; then
     # Get Home Assistant timezone via API
-    TIMEZONE=$(bashio::api.supervisor GET /info | jq -r '.data.timezone // "UTC"')
-    bashio::log.info "Using Home Assistant timezone: ${TIMEZONE}"
+    bashio::log.info "Timezone set to 'auto', fetching from Home Assistant..."
+    API_RESPONSE=$(bashio::api.supervisor GET /info 2>&1)
+    TIMEZONE=$(echo "${API_RESPONSE}" | jq -r '.data.timezone // empty' 2>/dev/null)
+    
+    if [[ -z "${TIMEZONE}" ]]; then
+        bashio::log.warning "Failed to get timezone from Home Assistant API"
+        bashio::log.warning "API Response: ${API_RESPONSE}"
+        bashio::log.warning "Falling back to UTC"
+        TIMEZONE="UTC"
+    else
+        bashio::log.info "Using Home Assistant timezone: ${TIMEZONE}"
+    fi
 fi
 export TZ="${TIMEZONE}"
 

@@ -108,6 +108,8 @@ LIGHT_PROFILE_PATH = DEVICE_CONFIG_PATH  # Now uses same unified storage
 AUTO_RECONNECT_ENV = "AQUA_BLE_AUTO_RECONNECT"
 STATUS_CAPTURE_WAIT_ENV = "AQUA_BLE_STATUS_WAIT"
 AUTO_DISCOVER_ENV = "AQUA_BLE_AUTO_DISCOVER"
+AUTO_SAVE_ENV = "AQUA_BLE_AUTO_SAVE"
+
 
 # Get status capture wait with fallback
 STATUS_CAPTURE_WAIT_SECONDS = get_env_float(STATUS_CAPTURE_WAIT_ENV, BLE_STATUS_CAPTURE_WAIT)
@@ -159,6 +161,7 @@ class BLEService:
         self._auto_discover_on_start = _get_env_bool(AUTO_DISCOVER_ENV, False)
         self._reconnect_task: asyncio.Task | None = None
         self._discover_task: asyncio.Task | None = None
+        self._auto_save_config = _get_env_bool(AUTO_SAVE_ENV, True)  # Default value; can be updated based on requirements
 
         # Ensure config directory exists
         CONFIG_DIR.mkdir(parents=True, exist_ok=True)

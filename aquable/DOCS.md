@@ -12,10 +12,12 @@ AquaBle allows you to control Chihiros aquarium lights and dosing pumps over Blu
 
 ## Installation
 
-1. Add this repository to your Home Assistant add-on store
-2. Install the "AquaBle" add-on
-3. Configure the options (see Configuration section)
-4. Start the add-on
+1. In Home Assistant, go to **Settings > Add-ons > Add-on Store**
+2. Click the menu (⋮) in the top right corner and select **Repositories**
+3. Add the repository URL: `https://github.com/caleb-venner/aquable`
+4. Find and install the "AquaBle" add-on
+5. Configure the options (see Configuration section)
+6. Start the add-on
 
 ## Configuration
 
@@ -56,7 +58,7 @@ Your settings will survive:
 - System reboots
 - Home Assistant updates
 
-The data is stored in Home Assistant's `/config` directory under `addons/data/[addon-slug]`.
+The data is stored in the add-on's persistent storage directory, which is mapped to `/data` inside the container. This storage persists across add-on restarts, updates, and Home Assistant updates.
 
 ## API
 
@@ -64,14 +66,21 @@ The add-on provides a REST API for device control and monitoring.
 
 ### Endpoints
 
-- `GET /health` - Health check
-- `GET /devices` - List discovered devices
-- `GET /devices/{address}` - Get device status
-- `POST /devices/{address}/command` - Send command to device
+- `GET /api/health` - Health check
+- `GET /api/status` - Get all device statuses
+- `GET /api/devices` - List discovered devices
+- `GET /api/devices/{address}` - Get specific device status
+- `POST /api/devices/{address}/commands` - Send command to device
+- `GET /api/configurations/lights` - Get light configurations
+- `GET /api/configurations/lights/metadata` - Get light configuration metadata
+- `GET /api/configurations/dosers` - Get doser configurations
+- `GET /api/configurations/dosers/metadata` - Get doser configuration metadata
+- `PUT /api/configurations/lights/{id}` - Update light configuration
+- `PUT /api/configurations/dosers/{id}` - Update doser configuration
 
 ### Web Interface
 
-Access the web interface at `http://homeassistant:8000` to configure devices and view status.
+Access the web interface at `http://your_home_assistant_ip:8000` to configure devices and view status. Replace `your_home_assistant_ip` with your Home Assistant's IP address.
 
 ## Bluetooth Requirements
 

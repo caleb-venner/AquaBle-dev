@@ -15,3 +15,18 @@ Maintained by **Caleb Venner**. This project builds on the open-source work publ
 - Use of this software with Chihiros devices is at your own risk
 - "Chihiros" is a trademark of Chihiros Aquatic Studio (Shanghai Ogino Biotechnology Co.,Ltd) and is used here solely for device identification purposes
 - This software is provided "as-is" without warranty of any kind
+
+## Installation
+
+AquaBle is distributed as a Home Assistant add-on.
+
+1. Add the custom repository: `https://github.com/caleb-venner/aquable`
+2. Install the "AquaBle" add-on from the repository
+3. Start the add-on
+
+The web interface will be available at `http://your_home_assistant_ip:8000`. Replace `your_home_assistant_ip` with your Home Assistant's IP address.
+
+## Supported Devices
+
+- Chihiros LED Aquarium Lights
+- Chihiros Dosing Pumps
