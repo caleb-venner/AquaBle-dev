@@ -19,6 +19,26 @@ import "./ui/dashboard.css";
 let isInitializing = false;
 let isInitialized = false;
 
+/**
+ * Ensure the <base> tag is ready before making any API calls.
+ * In Ingress mode, the backend dynamically injects a base tag with the Ingress path.
+ * We need to wait a tick for the browser to process it.
+ */
+async function ensureBaseTagReady(): Promise<void> {
+  return new Promise((resolve) => {
+    // Check if base tag exists
+    const baseTag = document.querySelector('base');
+    if (baseTag) {
+      console.log(`✅ Base tag found: ${baseTag.href}`);
+      // Give the browser one more tick to fully process it
+      setTimeout(resolve, 0);
+    } else {
+      console.log("ℹ️  No base tag found (direct access mode)");
+      resolve();
+    }
+  });
+}
+
 // Initialize the production dashboard
 async function init() {
   console.log("productionMain.init() called");
@@ -37,6 +57,11 @@ async function init() {
   
   try {
     console.log("Initializing Production Dashboard...");
+
+    // CRITICAL: Ensure base tag is available before any API calls
+    // When running through Ingress, the backend injects a <base> tag dynamically
+    // We need to wait for it to be processed by the browser
+    await ensureBaseTagReady();
 
     const appElement = document.getElementById("app");
     if (!appElement) {
