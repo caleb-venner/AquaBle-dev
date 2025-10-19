@@ -12,6 +12,7 @@
 import { renderProductionDashboard, initializeDashboardHandlers } from "./ui/aquarium-dashboard/dashboard";
 import { createNotificationSystem } from "./ui/notifications";
 import { setupStateSubscriptions } from "./ui/stateSubscriptions";
+import { initializePolling, cleanupPolling } from "./ui/aquarium-dashboard/services/polling-service";
 import "./ui/dashboard.css";
 
 // Guard against double initialization (e.g., from Vite HMR)
@@ -71,6 +72,15 @@ async function init() {
     // Setup state subscriptions for automatic updates AFTER initial load completes
     console.log("Setting up state subscriptions...");
     setupStateSubscriptions();
+
+    // Initialize centralized polling for device status (replaces component-level polling)
+    console.log("Starting centralized device status polling...");
+    initializePolling(30000); // Poll every 30 seconds
+
+    // Register cleanup on page unload
+    window.addEventListener("beforeunload", () => {
+      cleanupPolling();
+    });
 
     console.log("Production Dashboard initialized successfully");
     isInitialized = true;

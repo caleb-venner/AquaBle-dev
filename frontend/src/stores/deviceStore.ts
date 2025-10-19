@@ -257,6 +257,14 @@ const storeInitializer: StateCreator<DeviceStore> = (set, get) => ({
 
               // Handle command result
               if (result.status === "success") {
+                // Invalidate metadata cache since command may have modified device state
+                const { invalidateMetadataCache } = await import("../ui/aquarium-dashboard/services/cache-service");
+                invalidateMetadataCache();
+
+                // Debounced refresh of configurations (avoids rapid re-fetching)
+                const { debouncedRefreshConfigurations } = await import("../ui/aquarium-dashboard/services/data-service");
+                await debouncedRefreshConfigurations();
+
                 // Refresh device status if command was successful
                 await actions.refreshDevice(nextCommand.address);
                 actions.addNotification({

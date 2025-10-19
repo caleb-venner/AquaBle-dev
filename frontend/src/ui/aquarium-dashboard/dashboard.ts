@@ -4,6 +4,7 @@
 
 import { renderProductionDashboard, refreshDashboard } from "./render";
 import { loadAllDashboardData } from "./services/data-service";
+import { initializePolling, cleanupPolling } from "./services/polling-service";
 import { setCurrentTab, getDashboardState } from "./state";
 import { renderWattageCalculator, calculateWattageFromInputs, setWattageTestCase } from "./components/wattage-calculator";
 import "./modals/device-config-modal"; // Import the new unified device config modal
