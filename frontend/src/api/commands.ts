@@ -13,7 +13,7 @@ export async function executeCommand(
   address: string,
   request: CommandRequest
 ): Promise<CommandRecord> {
-  return postJson<CommandRecord>(`/api/devices/${encodeURIComponent(address)}/commands`, request);
+  return postJson<CommandRecord>(`api/devices/${encodeURIComponent(address)}/commands`, request);
 }
 
 /**
@@ -24,7 +24,7 @@ export async function getCommandHistory(
   limit = 20
 ): Promise<CommandRecord[]> {
   return fetchJson<CommandRecord[]>(
-    `/api/devices/${encodeURIComponent(address)}/commands?limit=${limit}`
+    `api/devices/${encodeURIComponent(address)}/commands?limit=${limit}`
   );
 }
 
@@ -36,7 +36,7 @@ export async function getCommand(
   commandId: string
 ): Promise<CommandRecord> {
   return fetchJson<CommandRecord>(
-    `/api/devices/${encodeURIComponent(address)}/commands/${encodeURIComponent(commandId)}`
+    `api/devices/${encodeURIComponent(address)}/commands/${encodeURIComponent(commandId)}`
   );
 }
 
@@ -44,5 +44,5 @@ export async function getCommand(
  * Get light configuration for a device
  */
 export async function getLightConfiguration(address: string) {
-  return fetchJson(`/api/configurations/lights/${encodeURIComponent(address)}`);
+  return fetchJson(`api/configurations/lights/${encodeURIComponent(address)}`);
 }
