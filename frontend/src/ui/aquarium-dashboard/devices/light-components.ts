@@ -11,7 +11,7 @@ import type { CachedStatus } from "../../../types/models";
 /**
  * Extract auto programs from device configuration
  */
-function getDeviceAutoPrograms(deviceAddress: string): AutoProgram[] {
+function getDeviceAutoPrograms(deviceAddress: string): (AutoProgram & { channels?: any[] })[] {
   const store = getDeviceStore();
   const state = store.getState();
   const deviceConfig = state.configurations.lights.get(deviceAddress);
@@ -43,7 +43,8 @@ function getDeviceAutoPrograms(deviceAddress: string): AutoProgram[] {
     sunrise: program.sunrise,
     sunset: program.sunset,
     rampMinutes: program.rampMinutes,
-    levels: program.levels
+    levels: program.levels,
+    channels: deviceConfig.channels // Pass channels for ordering
   }));
 }
 
@@ -105,7 +106,7 @@ export function renderLightCardStatus(device: CachedStatus & { address: string }
 /**
  * Render a single schedule item with color coding
  */
-function renderScheduleItem(schedule: SequentialSchedule): string {
+function renderScheduleItem(schedule: SequentialSchedule & { channels?: any[] }): string {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'current': return 'var(--success)'; // Green
@@ -129,10 +130,23 @@ function renderScheduleItem(schedule: SequentialSchedule): string {
   const accentColor = getStatusColor(schedule.status);
   const statusText = getStatusText(schedule.status);
 
-  // Format channel levels (WRGB values)
-  const channelLevels = Object.entries(schedule.program.levels)
-    .map(([channel, value]) => `${channel.charAt(0).toUpperCase()}:${value}%`)
-    .join(' ');
+  // Format channel levels in the order specified by device channels configuration
+  let channelLevels = '';
+  if (schedule.channels && Array.isArray(schedule.channels)) {
+    // Use the device channel order
+    const levelStrings = schedule.channels
+      .map(channel => {
+        const value = schedule.program.levels[channel.key];
+        return `${channel.key.charAt(0).toUpperCase()}:${value}%`;
+      })
+      .filter(str => str); // Filter out undefined values
+    channelLevels = levelStrings.join(' ');
+  } else {
+    // Fallback to alphabetical sorting if channels not provided
+    channelLevels = Object.entries(schedule.program.levels)
+      .map(([channel, value]) => `${channel.charAt(0).toUpperCase()}:${value}%`)
+      .join(' ');
+  }
 
   // Format time range with day prefix if nextTime exists
   let timeRange: string;

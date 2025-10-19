@@ -11,6 +11,7 @@ export interface AutoProgram {
   sunset: string;
   rampMinutes: number;
   levels: Record<string, number>;
+  channels?: any[]; // Optional device channel definitions for ordering
 }
 
 export interface ScheduleInfo {
@@ -25,6 +26,7 @@ export interface SequentialSchedule {
   status: 'current' | 'next' | 'upcoming' | 'disabled';
   nextTime?: string;
   sortOrder: number; // For ordering: current=0, next=1, then by time
+  channels?: any[]; // Optional device channel definitions for ordering
 }
 
 /**
@@ -190,7 +192,8 @@ export function getAllSchedulesInOrder(programs: AutoProgram[]): SequentialSched
     schedules.push({
       program,
       status: 'current',
-      sortOrder: 0
+      sortOrder: 0,
+      channels: program.channels
     });
   });
 
@@ -213,7 +216,8 @@ export function getAllSchedulesInOrder(programs: AutoProgram[]): SequentialSched
           program: next.program,
           status: 'next',
           nextTime: `${next.day} at ${next.time}`,
-          sortOrder: 1
+          sortOrder: 1,
+          channels: next.program.channels
         });
       }
     }
@@ -229,7 +233,8 @@ export function getAllSchedulesInOrder(programs: AutoProgram[]): SequentialSched
           program,
           status: 'upcoming',
           nextTime: `${occurrence.day} at ${occurrence.time}`,
-          sortOrder: occurrence.minutes
+          sortOrder: occurrence.minutes,
+          channels: program.channels
         });
       }
     }
@@ -241,7 +246,8 @@ export function getAllSchedulesInOrder(programs: AutoProgram[]): SequentialSched
     schedules.push({
       program,
       status: 'disabled',
-      sortOrder: 999 // Put disabled at the end
+      sortOrder: 999, // Put disabled at the end
+      channels: program.channels
     });
   });
 

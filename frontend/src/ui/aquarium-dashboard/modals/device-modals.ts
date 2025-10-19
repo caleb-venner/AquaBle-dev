@@ -440,7 +440,7 @@ export function renderHeadCommandInterface(headIndex: number, head: any, deviceI
       <div class="command-header">
         <h4>Configure Head ${headIndex}</h4>
         <div class="head-status-indicator ${head.active ? 'active' : 'inactive'}">
-          ${head.active ? '🟢 Active' : '🔴 Inactive'}
+          ${head.active ? 'Active' : 'Inactive'}
         </div>
       </div>
 
