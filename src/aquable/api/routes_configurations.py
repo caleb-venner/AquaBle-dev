@@ -11,7 +11,7 @@ from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from ..ble_service import DEVICE_CONFIG_PATH, DOSER_CONFIG_PATH
+from ..ble_service import DEVICE_CONFIG_PATH
 from ..doser_storage import DeviceMetadata, DoserDevice, DoserStorage
 from ..light_storage import LightDevice, LightMetadata, LightStorage
 
@@ -443,8 +443,7 @@ async def get_configuration_summary(
                 "addresses": [d.id for d in lights],
             },
             "storage_paths": {
-                "doser_configs": str(DOSER_CONFIG_PATH),
-                "light_profiles": str(DEVICE_CONFIG_PATH),
+                "config_dir": str(DEVICE_CONFIG_PATH),
             },
         }
     except Exception as e:

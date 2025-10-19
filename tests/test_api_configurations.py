@@ -20,22 +20,22 @@ from aquable.service import app
 def temp_config_dir(monkeypatch):
     """Create a temporary directory for configuration files during tests."""
     temp_dir = Path(tempfile.mkdtemp())
+    devices_dir = temp_dir / "devices"
+    devices_dir.mkdir(parents=True, exist_ok=True)
 
     # Patch the configuration paths in ble_service
     from aquable import ble_service
 
     monkeypatch.setattr(ble_service, "CONFIG_DIR", temp_dir)
-    monkeypatch.setattr(ble_service, "DEVICE_CONFIG_PATH", temp_dir / "devices")
-    monkeypatch.setattr(ble_service, "DOSER_CONFIG_PATH", temp_dir / "devices")
-    monkeypatch.setattr(ble_service, "LIGHT_PROFILE_PATH", temp_dir / "devices")
+    monkeypatch.setattr(ble_service, "DEVICE_CONFIG_PATH", devices_dir)
 
     # Patch the global service instance
     from aquable.doser_storage import DoserStorage
     from aquable.light_storage import LightStorage
     from aquable.service import service
 
-    monkeypatch.setattr(service, "_doser_storage", DoserStorage(temp_dir / "devices", {}))
-    monkeypatch.setattr(service, "_light_storage", LightStorage(temp_dir / "devices", {}))
+    monkeypatch.setattr(service, "_doser_storage", DoserStorage(devices_dir, {}))
+    monkeypatch.setattr(service, "_light_storage", LightStorage(devices_dir, {}))
     monkeypatch.setattr(service, "_device_metadata", {})
 
     # Also patch the paths in the API routes module
@@ -43,13 +43,8 @@ def temp_config_dir(monkeypatch):
 
     monkeypatch.setattr(
         routes_configurations,
-        "DOSER_CONFIG_PATH",
-        temp_dir / "devices",
-    )
-    monkeypatch.setattr(
-        routes_configurations,
         "DEVICE_CONFIG_PATH",
-        temp_dir / "devices",
+        devices_dir,
     )
 
     yield temp_dir

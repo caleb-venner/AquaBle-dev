@@ -1,7 +1,23 @@
-"""Helpers to mount and serve the frontend SPA (built or via dev server)."""
+"""Helpers to mount and serve the frontend SPA (built or via dev server).
+
+DEV SERVER PROXY USAGE:
+    The dev server proxy is for LOCAL DEVELOPMENT ONLY. It allows developers
+    to run the Vite dev server (npm run dev) and have the backend proxy requests
+    to it for hot module reloading.
+    
+    In production (Home Assistant add-on), only built static assets are served.
+    The add-on build process creates the frontend/dist directory, and the proxy
+    logic is never used.
+    
+    Environment variable:
+        AQUA_BLE_FRONTEND_DEV: URL of dev server (e.g., "http://localhost:5173")
+                               Set to "0" to explicitly disable proxy
+                               Automatically disabled when SUPERVISOR_TOKEN is present
+"""
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import Optional
 
@@ -10,12 +26,10 @@ from fastapi import HTTPException
 from fastapi.responses import FileResponse, HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
 
-from .config_migration import get_env_with_fallback
-
 PACKAGE_ROOT = Path(__file__).resolve().parent
 DEFAULT_FRONTEND_DIST = PACKAGE_ROOT.parent.parent / "frontend" / "dist"
 FRONTEND_DIST = Path(
-    get_env_with_fallback("AQUA_BLE_FRONTEND_DIST", str(DEFAULT_FRONTEND_DIST))
+    os.getenv("AQUA_BLE_FRONTEND_DIST", str(DEFAULT_FRONTEND_DIST))
     or str(DEFAULT_FRONTEND_DIST)
 )
 SPA_DIST_AVAILABLE = FRONTEND_DIST.exists()
@@ -30,16 +44,20 @@ SPA_UNAVAILABLE_MESSAGE = (
 )
 
 
-_DEV_SERVER_ENV = (get_env_with_fallback("AQUA_BLE_FRONTEND_DEV", "") or "").strip()
-if _DEV_SERVER_ENV == "0":
+# Disable dev server proxy in Home Assistant add-on (production)
+if os.getenv("SUPERVISOR_TOKEN"):
     DEV_SERVER_CANDIDATES: tuple[httpx.URL, ...] = ()
-elif _DEV_SERVER_ENV:
-    DEV_SERVER_CANDIDATES = (httpx.URL(_DEV_SERVER_ENV.rstrip("/")),)
 else:
-    DEV_SERVER_CANDIDATES = (
-        httpx.URL("http://127.0.0.1:5173"),
-        httpx.URL("http://localhost:5173"),
-    )
+    _DEV_SERVER_ENV = (os.getenv("AQUA_BLE_FRONTEND_DEV", "") or "").strip()
+    if _DEV_SERVER_ENV == "0":
+        DEV_SERVER_CANDIDATES = ()
+    elif _DEV_SERVER_ENV:
+        DEV_SERVER_CANDIDATES = (httpx.URL(_DEV_SERVER_ENV.rstrip("/")),)
+    else:
+        DEV_SERVER_CANDIDATES = (
+            httpx.URL("http://127.0.0.1:5173"),
+            httpx.URL("http://localhost:5173"),
+        )
 
 DEV_SERVER_TIMEOUT = httpx.Timeout(connect=1.0, read=5.0, write=5.0, pool=1.0)
 _HOP_HEADERS = {

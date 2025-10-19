@@ -10,8 +10,8 @@ from aquable.doser_storage import DoserStorage
 
 @pytest.fixture
 def temp_config_dir(tmp_path):
-    """Create temporary configuration directory."""
-    config_dir = tmp_path / ".chihiros"
+    """Create a temporary config directory for the test."""
+    config_dir = tmp_path / ".aqua-ble"
     config_dir.mkdir(parents=True, exist_ok=True)
     return config_dir
 
@@ -27,8 +27,8 @@ def mock_ble_service(doser_storage, temp_config_dir):
     """Create a mocked BLE service with real storage."""
     with patch("aquable.ble_service.CONFIG_DIR", temp_config_dir):
         with patch(
-            "aquable.ble_service.DOSER_CONFIG_PATH",
-            temp_config_dir / "doser_configs.json",
+            "aquable.ble_service.DEVICE_CONFIG_PATH",
+            temp_config_dir / "devices",
         ):
             service = BLEService()
             service._doser_storage = doser_storage

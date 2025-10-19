@@ -10,12 +10,12 @@ import pytest
 
 @pytest.fixture()
 def patched_wait_env(monkeypatch: pytest.MonkeyPatch):
-    """Set a small CHIHIROS_STATUS_CAPTURE_WAIT and reload service module.
+    """Set a small AQUA_BLE_STATUS_WAIT and reload service module.
 
     Ensures the module-level STATUS_CAPTURE_WAIT_SECONDS constant is
     re-evaluated from the environment for the duration of the test.
     """
-    monkeypatch.setenv("CHIHIROS_STATUS_CAPTURE_WAIT", "0.01")
+    monkeypatch.setenv("AQUA_BLE_STATUS_WAIT", "0.01")
     # Reload the service module so the constant is re-evaluated from env
     import aquable.service as service_mod
 
@@ -57,8 +57,7 @@ def test_capture_wait_uses_env_override(monkeypatch: pytest.MonkeyPatch, patched
     async def fake_request_status():  # pragma: no cover
         return None
 
-    # type: ignore[attr-defined]
-    service._doser.request_status = AsyncMock(side_effect=fake_request_status)
+    mock_doser.request_status = AsyncMock(side_effect=fake_request_status)
 
     # Patch serializer to avoid depending on full pump dataclass shape
     from aquable import ble_service as ble_impl

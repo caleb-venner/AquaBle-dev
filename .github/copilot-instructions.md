@@ -1,5 +1,9 @@
 # AquaBle - AI Coding Guidelines
 
+IMPORTANT: This file contains instructions for automated coding assistants and contributors. Please read before making edits.
+
+- Do NOT generate or add user-facing documentation files (guides, HOWTOs, tutorials) unless explicitly requested by the project owner. The project maintainers prefer documentation to be created intentionally and reviewed before inclusion.
+
 ## Architecture Overview
 
 **FastAPI Backend + Vite TypeScript Frontend**: This project manages Chihiros aquarium devices (lights/dosers) over BLE. Backend uses `bleak` library for Bluetooth communication with a modular device class hierarchy. Frontend is a Vite-built SPA using Zustand for state management with command queue and optimistic updates.

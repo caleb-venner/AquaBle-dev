@@ -24,7 +24,7 @@ from .api.routes_commands import router as commands_router
 from .api.routes_configurations import router as configurations_router
 from .api.routes_devices import router as devices_router
 from .ble_service import BLEService
-from .config_migration import get_env_float
+from .env_utils import get_env_float
 
 try:
     _ble_impl.STATUS_CAPTURE_WAIT_SECONDS = get_env_float(

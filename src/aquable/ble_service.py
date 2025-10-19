@@ -10,6 +10,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import os
 import time
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, is_dataclass
@@ -23,10 +24,9 @@ from fastapi import HTTPException
 
 from . import serializers as _serializers
 from .commands import encoder as commands
-from .commands import encoder as doser_commands
 from .commands import ops as device_commands
-from .config_migration import get_config_dir, get_env_bool, get_env_float, get_env_with_fallback
 from .constants import BLE_STATUS_CAPTURE_WAIT
+from .env_utils import get_config_dir, get_env_bool, get_env_float
 from .device import Doser, LightDevice, get_device_from_address, get_model_class_from_name
 from .device.base_device import BaseDevice
 from .errors import DeviceNotFoundError
@@ -101,8 +101,6 @@ async def device_session(address: str) -> AsyncIterator[BaseDevice]:
 CONFIG_DIR = get_config_dir()
 COMMAND_HISTORY_PATH = CONFIG_DIR / "command_history.json"
 DEVICE_CONFIG_PATH = CONFIG_DIR / "devices"  # Unified directory for all device files
-DOSER_CONFIG_PATH = DEVICE_CONFIG_PATH  # Backward compatibility alias
-LIGHT_PROFILE_PATH = DEVICE_CONFIG_PATH  # Now uses same unified storage
 
 # Environment variable names
 AUTO_RECONNECT_ENV = "AQUA_BLE_AUTO_RECONNECT"
@@ -114,15 +112,9 @@ AUTO_SAVE_ENV = "AQUA_BLE_AUTO_SAVE"
 # Get status capture wait with fallback
 STATUS_CAPTURE_WAIT_SECONDS = get_env_float(STATUS_CAPTURE_WAIT_ENV, BLE_STATUS_CAPTURE_WAIT)
 
-
-def _get_env_bool(name: str, default: bool) -> bool:
-    """Wrap for backward compatibility - delegate to config_migration."""
-    return get_env_bool(name, default)
-
-
 # Module logger
 logger = logging.getLogger("aquable.service")
-_default_level = (get_env_with_fallback("AQUA_BLE_LOG_LEVEL", "INFO") or "INFO").upper()
+_default_level = (os.getenv("AQUA_BLE_LOG_LEVEL", "INFO") or "INFO").upper()
 if not logging.getLogger().handlers:
     logging.basicConfig(
         level=getattr(logging, _default_level, logging.INFO),
@@ -154,14 +146,14 @@ class BLEService:
         """Initialize the BLEService, device maps and runtime flags."""
         self._lock = asyncio.Lock()
         self._devices: Dict[str, Dict[str, BaseDevice]] = {}  # kind -> address -> device
-        self._addresses: Dict[str, str] = {}  # kind -> primary address (for backward compatibility)
+        self._addresses: Dict[str, str] = {}  # kind -> primary address for _refresh_device_status
         self._commands: Dict[str, list] = {}  # Per-device command history
         self._device_metadata: Dict[str, dict] = {}  # Per-device metadata
-        self._auto_reconnect = _get_env_bool(AUTO_RECONNECT_ENV, True)
-        self._auto_discover_on_start = _get_env_bool(AUTO_DISCOVER_ENV, False)
+        self._auto_reconnect = get_env_bool(AUTO_RECONNECT_ENV, True)
+        self._auto_discover_on_start = get_env_bool(AUTO_DISCOVER_ENV, False)
         self._reconnect_task: asyncio.Task | None = None
         self._discover_task: asyncio.Task | None = None
-        self._auto_save_config = _get_env_bool(AUTO_SAVE_ENV, True)  # Default value; can be updated based on requirements
+        self._auto_save_config = get_env_bool(AUTO_SAVE_ENV, True)
 
         # Ensure config directory exists
         CONFIG_DIR.mkdir(parents=True, exist_ok=True)
@@ -204,13 +196,9 @@ class BLEService:
         from .doser_storage import DoserStorage
         from .light_storage import LightStorage
 
-        self._doser_storage = DoserStorage(DOSER_CONFIG_PATH, doser_metadata)
+        self._doser_storage = DoserStorage(DEVICE_CONFIG_PATH, doser_metadata)
         self._light_storage = LightStorage(DEVICE_CONFIG_PATH, light_metadata)
-        logger.info(
-            "Configuration storage initialized: doser=%s, light=%s",
-            DOSER_CONFIG_PATH,
-            LIGHT_PROFILE_PATH,
-        )
+        logger.info("Configuration storage initialized: %s", DEVICE_CONFIG_PATH)
 
         # Initialize timezone configuration
         from .time_utils import get_system_timezone
@@ -224,86 +212,6 @@ class BLEService:
             self._display_timezone = get_system_timezone()
             self._global_settings.set_display_timezone(self._display_timezone)
             logger.info("Display timezone initialized: %s", self._display_timezone)
-
-    @property
-    def _doser(self) -> Optional[Doser]:
-        """Return the primary connected doser device if present."""
-        primary_address = self._addresses.get("doser")
-        if primary_address:
-            devices = self._devices.get("doser", {})
-            return cast(Optional[Doser], devices.get(primary_address))
-        return None
-
-    @_doser.setter
-    def _doser(self, value: Optional[Doser]) -> None:
-        """Set or clear the primary cached doser device reference."""
-        if value is None:
-            primary_address = self._addresses.pop("doser", None)
-            if primary_address and "doser" in self._devices:
-                device_dict = self._devices["doser"]
-                device_dict.pop(primary_address, None)
-                if not device_dict:
-                    self._devices.pop("doser", None)
-        else:
-            kind = "doser"
-            address = value.address
-            if kind not in self._devices:
-                self._devices[kind] = {}
-            self._devices[kind][address] = value
-            self._addresses[kind] = address
-
-    @property
-    def _doser_address(self) -> Optional[str]:
-        """Return the stored primary address for the doser device, if any."""
-        return self._addresses.get("doser")
-
-    @_doser_address.setter
-    def _doser_address(self, value: Optional[str]) -> None:
-        """Set or clear the stored primary doser address."""
-        if value is None:
-            self._addresses.pop("doser", None)
-        else:
-            self._addresses["doser"] = value
-
-    @property
-    def _light(self) -> Optional[LightDevice]:
-        """Return the primary connected light device if present."""
-        primary_address = self._addresses.get("light")
-        if primary_address:
-            devices = self._devices.get("light", {})
-            return cast(Optional[LightDevice], devices.get(primary_address))
-        return None
-
-    @_light.setter
-    def _light(self, value: Optional[LightDevice]) -> None:
-        """Set or clear the primary cached light device reference."""
-        if value is None:
-            primary_address = self._addresses.pop("light", None)
-            if primary_address and "light" in self._devices:
-                device_dict = self._devices["light"]
-                device_dict.pop(primary_address, None)
-                if not device_dict:
-                    self._devices.pop("light", None)
-        else:
-            kind = "light"
-            address = value.address
-            if kind not in self._devices:
-                self._devices[kind] = {}
-            self._devices[kind][address] = value
-            self._addresses[kind] = address
-
-    @property
-    def _light_address(self) -> Optional[str]:
-        """Return the stored address for the light device, if any."""
-        return self._addresses.get("light")
-
-    @_light_address.setter
-    def _light_address(self, value: Optional[str]) -> None:
-        """Set or clear the stored light address."""
-        if value is None:
-            self._addresses.pop("light", None)
-        else:
-            self._addresses["light"] = value
 
     def current_device_address(self, device_type: str) -> Optional[str]:
         """Return the current primary address for a device type, if known."""
@@ -673,9 +581,6 @@ class BLEService:
                     "(will be created when user configures device)"
                 )
 
-    def _infer_device_type(self, device: BaseDevice) -> Optional[str]:
-        return self._get_device_kind(device)
-
     async def start(self) -> None:
         """Start background tasks and load persisted state."""
         await self._load_state()
@@ -815,7 +720,7 @@ class BLEService:
             logger.warning("request_status: device not found for %s: %s", address, exc)
             raise HTTPException(status_code=404, detail="Device not found") from exc
 
-        device_type = self._infer_device_type(device)
+        device_type = self._get_device_kind(device)
         if not device_type:
             raise HTTPException(status_code=400, detail="Unsupported device type")
 
@@ -875,7 +780,7 @@ class BLEService:
         volume_tenths_ml: int,
         hour: int,
         minute: int,
-        weekdays: Optional[Sequence[doser_commands.PumpWeekday]] = None,
+        weekdays: Optional[Sequence[commands.PumpWeekday]] = None,
         confirm: bool = False,
         wait_seconds: float = 1.5,
     ) -> CachedStatus:

@@ -280,25 +280,6 @@ def encode_weekdays(
     raise ValueError(f"Unsupported weekday format: {type(weekdays)}")
 
 
-# Backward compatibility aliases (deprecated)
-def encode_light_weekdays(selection: List[LightWeekday]) -> int:
-    """Encode a list of light-style weekday selections into a 7-bit mask.
-
-    Deprecated: Use encode_weekdays() instead.
-    """
-    return encode_weekdays(selection)
-
-
-def encode_pump_weekdays(
-    weekdays: Sequence[PumpWeekday] | PumpWeekday | None,
-) -> int:
-    """Convert a collection of pump/doser weekdays into the pump bitmask.
-
-    Deprecated: Use encode_weekdays() instead.
-    """
-    return encode_weekdays(weekdays)
-
-
 def _encode_uart_command(
     cmd_id: int, mode: int, msg_id: tuple[int, int], params: Iterable[int]
 ) -> bytearray:

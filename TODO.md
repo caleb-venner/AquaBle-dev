@@ -2,8 +2,9 @@
 
 ## General -
 
-- When new light automode config is sent and saved, dynamic reload of device card and settings window.
+- When new light automode config is sent and saved --> dynamic reload of device card and settings window.
 - Onboarding process: Load in doser settings from payload decoding. Easier than redoing schedules.
+- Need to decide when/what triggers a payload status request from devies
 
 ## Nice to have
 
