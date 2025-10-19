@@ -14,7 +14,7 @@ if [[ "${TIMEZONE}" == "auto" ]]; then
     # Get Home Assistant timezone via API
     bashio::log.info "Timezone set to 'auto', fetching from Home Assistant..."
     API_RESPONSE=$(bashio::api.supervisor GET /info 2>&1)
-    TIMEZONE=$(echo "${API_RESPONSE}" | jq -r '.data.timezone // empty' 2>/dev/null)
+    TIMEZONE=$(echo "${API_RESPONSE}" | jq -r '.timezone // empty' 2>/dev/null)
     
     if [[ -z "${TIMEZONE}" ]]; then
         bashio::log.warning "Failed to get timezone from Home Assistant API"
