@@ -68,9 +68,7 @@ async def list_doser_configurations(
 
 
 @router.get("/dosers/metadata", response_model=List[DeviceMetadata])
-async def list_doser_metadata(
-    storage: DoserStorage = Depends(get_doser_storage),
-):
+async def list_doser_metadata():
     """
     Get metadata for all dosers (both full devices and metadata-only).
 
@@ -79,7 +77,25 @@ async def list_doser_metadata(
     configurations.
     """
     try:
-        metadata_list = storage.list_device_metadata()
+        from ..service import get_service
+        service = get_service()
+        all_devices = service._unified_storage.list_all_devices()
+        
+        metadata_list = []
+        for device in all_devices:
+            if device.device_type == "doser" and device.metadata:
+                # Convert unified metadata to DeviceMetadata
+                metadata_dict = device.metadata.model_dump()
+                metadata = DeviceMetadata(
+                    id=metadata_dict.get("id", device.device_id),
+                    name=metadata_dict.get("name"),
+                    headNames=metadata_dict.get("headNames"),
+                    autoReconnect=metadata_dict.get("autoReconnect", False),
+                    createdAt=metadata_dict.get("createdAt"),
+                    updatedAt=metadata_dict.get("updatedAt"),
+                )
+                metadata_list.append(metadata)
+        
         logger.info(f"Retrieved {len(metadata_list)} doser metadata entries")
         return metadata_list
     except Exception as e:
@@ -256,9 +272,7 @@ async def list_light_configurations(
 
 
 @router.get("/lights/metadata", response_model=List[LightMetadata])
-async def list_light_metadata(
-    storage: LightStorage = Depends(get_light_storage),
-):
+async def list_light_metadata():
     """
     Get metadata for all lights.
 
@@ -269,7 +283,21 @@ async def list_light_metadata(
         List of light metadata
     """
     try:
-        metadata_list = storage.list_light_metadata()
+        from ..service import get_service
+        service = get_service()
+        all_devices = service._unified_storage.list_all_devices()
+        
+        metadata_list = []
+        for device in all_devices:
+            if device.device_type == "light" and device.metadata:
+                # Convert unified metadata to LightMetadata
+                metadata_dict = device.metadata.model_dump()
+                metadata = LightMetadata(
+                    id=metadata_dict.get("id", device.device_id),
+                    name=metadata_dict.get("name"),
+                )
+                metadata_list.append(metadata)
+        
         logger.info(f"Retrieved {len(metadata_list)} light metadata entries")
         return metadata_list
     except Exception as e:

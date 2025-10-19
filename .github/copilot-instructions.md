@@ -36,7 +36,7 @@
 - `pre-commit run --all-files`: Full quality check before commits
 
 **Deployment**:
-- **Home Assistant Add-on**: Install from Home Assistant Community Add-ons repository. Automatic Bluetooth access, data persistence, web interface, and timezone management via Home Assistant integration.
+- **Home Assistant Add-on (Ingress Only)**: The project is deployed exclusively as a Home Assistant add-on using Ingress. Install from Home Assistant Community Add-ons repository for automatic Bluetooth access, data persistence, web interface, and timezone management via Home Assistant integration. No other deployment methods are supported.
 
 ## Project Conventions
 
@@ -97,7 +97,7 @@ class LightDevice(BaseDevice):
 - TX characteristic: `6E400003-B5A3-F393-E0A9-E50E24DCCA9E` (receive notifications)
 - Commands sent as BLE notifications, responses received via notifications
 
-**Home Assistant**: Add-on provides automatic Bluetooth access and data persistence. Exposes devices as entities with MQTT integration potential.
+**Home Assistant (Ingress)**: Add-on provides automatic Bluetooth access and data persistence through Home Assistant Ingress. Exposes devices as entities with MQTT integration potential. All frontend communication goes through Home Assistant's Ingress proxy system.
 
 **Frontend Communication**: REST API endpoints consumed by TypeScript frontend. Command queue managed client-side with retry logic and optimistic updates. Backend proxies frontend dev server during development.
 
@@ -160,5 +160,3 @@ await actions.processCommandQueue(); // Processes queue sequentially
 - Explanations of what was changed (inline, not as documents)
 
 If changes are significant and deserve documentation, ask the user first before creating any files.
-
-```
