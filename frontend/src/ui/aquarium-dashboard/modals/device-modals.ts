@@ -800,7 +800,20 @@ async function sendDoserScheduleCommand(address: string, headIndex: number): Pro
 
     // Get selected weekdays
     const weekdayCheckboxes = document.querySelectorAll(`input[id^="weekday-${headIndex}-"]:checked`);
-    const weekdays = Array.from(weekdayCheckboxes).map(cb => (cb as HTMLInputElement).value);
+    const weekdayNames = Array.from(weekdayCheckboxes).map(cb => (cb as HTMLInputElement).value);
+
+    // Map day abbreviations to PumpWeekday enum integer values
+    const dayToEnumValue: { [key: string]: number } = {
+      'Mon': 64,  // monday
+      'Tue': 32,  // tuesday
+      'Wed': 16,  // wednesday
+      'Thu': 8,   // thursday
+      'Fri': 4,   // friday
+      'Sat': 2,   // saturday
+      'Sun': 1    // sunday
+    };
+
+    const weekdays = weekdayNames.map(day => dayToEnumValue[day]).filter(val => val !== undefined);
 
     // Convert dose amount to tenths of ml (backend expects integer)
     const volumeTenthsMl = Math.round(doseAmount * 10);

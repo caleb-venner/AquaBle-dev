@@ -207,11 +207,13 @@ async def get_doser_metadata(
 
     This endpoint returns lightweight device information including
     device name and head names without full configuration data.
+    Returns an empty metadata object if no metadata exists yet.
     """
     try:
         metadata = storage.get_device_metadata(address)
         if metadata is None:
-            raise HTTPException(status_code=404, detail=f"No metadata found for doser {address}")
+            # Return empty metadata for devices without existing metadata
+            metadata = DeviceMetadata(id=address)
         return metadata
     except Exception as e:
         logger.error(f"Error retrieving doser metadata: {e}", exc_info=True)
@@ -326,7 +328,7 @@ async def get_light_configuration(address: str, storage: LightStorage = Depends(
     return device
 
 
-@router.get("/lights/{address}/metadata", response_model=LightMetadata | None)
+@router.get("/lights/{address}/metadata", response_model=LightMetadata)
 async def get_light_metadata(
     address: str,
     storage: LightStorage = Depends(get_light_storage),
@@ -338,11 +340,14 @@ async def get_light_metadata(
         address: The MAC address of the light device
 
     Returns:
-        The light metadata if found, null otherwise
+        The light metadata, or empty metadata if not found yet
     """
     try:
         metadata = storage.get_light_metadata(address)
-        if metadata:
+        if metadata is None:
+            # Return empty metadata for devices without existing metadata
+            metadata = LightMetadata(id=address)
+        else:
             logger.info(f"Retrieved metadata for light {address}")
         return metadata
     except Exception as e:
