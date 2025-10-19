@@ -600,26 +600,27 @@ class BLEService:
             logger.exception("Auto-discover worker failed unexpectedly")
 
     async def _reconnect_and_refresh(self) -> None:
-        """Reconnect to cached devices and refresh their live status."""
+        """Reconnect to cached devices without aggressively refreshing status.
+        
+        For aquarium devices, we just ensure connectivity without polling status,
+        since status only changes when users explicitly modify configuration.
+        """
         try:
             await self._attempt_reconnect()
             for address, status in list(self._cache.items()):
                 try:
                     logger.debug(
-                        "Refreshing live status for %s (type=%s)",
+                        "Ensuring connectivity for %s (type=%s)",
                         address,
                         status.device_type,
                     )
                     await self._ensure_device(address, status.device_type)
-                    live = await self._refresh_device_status(status.device_type)
-                    self._cache[address] = live
                     logger.info(
-                        "Refreshed %s %s (saved to unified storage)",
-                        status.device_type,
+                        "Device %s is now available (cached, not refreshing status)",
                         address,
                     )
                 except Exception as exc:  # pragma: no cover - runtime diagnostics
-                    logger.warning("Failed to refresh %s: %s", address, exc)
+                    logger.warning("Could not reconnect to %s: %s", address, exc)
                     continue
         except asyncio.CancelledError:
             logger.info("Reconnect worker cancelled")

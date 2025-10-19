@@ -382,8 +382,9 @@ const storeInitializer: StateCreator<DeviceStore> = (set, get) => ({
       // Stage 2: Load live status and overlay on configurations
       await get().actions.refreshDevices();
 
-      // Stage 3: Start polling for real-time updates (placeholder)
-      get().actions.startPolling();
+      // Stage 3: Polling disabled by default - aquarium devices don't need frequent status updates
+      // Status only changes when users explicitly modify configuration
+      // Re-enable by uncommenting if real-time monitoring is needed: get().actions.startPolling();
     },
 
     refreshDevices: async () => {
