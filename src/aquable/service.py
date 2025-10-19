@@ -33,12 +33,27 @@ except Exception:
     # Be conservative: if parsing fails, leave the implementation default.
     pass
 
-service = BLEService()
+# Global service instance - initialized lazily on first access
+_service_instance: BLEService | None = None
+
+
+def get_service() -> BLEService:
+    """Get or create the singleton BLE service instance.
+    
+    This lazy initialization prevents double-initialization when uvicorn
+    imports the module in both main and worker processes.
+    """
+    global _service_instance
+    if _service_instance is None:
+        _service_instance = BLEService()
+    return _service_instance
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Manage BLE service startup and shutdown via FastAPI lifespan."""
+    # Initialize service lazily - only in the worker process that handles requests
+    service = get_service()
     # Make service instance available to routers
     app.state.service = service
     await service.start()
@@ -57,7 +72,7 @@ async def health_check():
     """Health check endpoint for Docker/HA monitoring."""
     try:
         # Basic service availability check
-        cached_statuses = service.get_status_snapshot()
+        cached_statuses = get_service().get_status_snapshot()
         device_count = len(cached_statuses)
         return {
             "status": "healthy",

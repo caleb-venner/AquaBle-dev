@@ -20,18 +20,26 @@ router = APIRouter(prefix="/api/configurations", tags=["configurations"])
 
 
 # Dependency injection for storage instances
+_doser_storage_cache = None
+_light_storage_cache = None
+
+
 def get_doser_storage() -> DoserStorage:
     """Get DoserStorage instance."""
-    from ..service import service
-
-    return service._doser_storage
+    global _doser_storage_cache
+    if _doser_storage_cache is None:
+        from ..service import get_service
+        _doser_storage_cache = get_service()._doser_storage
+    return _doser_storage_cache
 
 
 def get_light_storage() -> LightStorage:
     """Get LightStorage instance."""
-    from ..service import service
-
-    return service._light_storage
+    global _light_storage_cache
+    if _light_storage_cache is None:
+        from ..service import get_service
+        _light_storage_cache = get_service()._light_storage
+    return _light_storage_cache
 
 
 # ============================================================================

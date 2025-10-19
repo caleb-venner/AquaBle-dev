@@ -23,10 +23,10 @@ export async function getLiveStatus(): Promise<LiveStatusResponse> {
 }
 
 /**
- * Connect to a specific device
+ * Connect to a specific device and return its updated status
  */
-export async function connectDevice(address: string): Promise<void> {
-  await postJson(`/api/devices/${encodeURIComponent(address)}/connect`, {});
+export async function connectDevice(address: string): Promise<CachedStatus> {
+  return postJson<CachedStatus>(`/api/devices/${encodeURIComponent(address)}/connect`, {});
 }
 
 /**

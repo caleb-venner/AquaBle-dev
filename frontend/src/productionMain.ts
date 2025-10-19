@@ -60,9 +60,13 @@ async function init() {
 
     // Load dashboard data BEFORE setting up subscriptions to avoid duplicate loads
     console.log("Loading dashboard data...");
-    const { loadAllDashboardData } = await import("./ui/aquarium-dashboard/dashboard");
+    const { loadAllDashboardData, refreshDashboard } = await import("./ui/aquarium-dashboard/dashboard");
     await loadAllDashboardData();
     console.log("Dashboard data loaded");
+
+    // Re-render dashboard with loaded data
+    console.log("Refreshing dashboard with loaded data...");
+    refreshDashboard();
 
     // Setup state subscriptions for automatic updates AFTER initial load completes
     console.log("Setting up state subscriptions...");

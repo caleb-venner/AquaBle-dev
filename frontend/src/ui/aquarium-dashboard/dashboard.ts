@@ -184,7 +184,12 @@ export function initializeDashboardHandlers(): void {
         }
       } else {
         // Connect if currently disconnected
-        await connectDevice(address);
+        const connectedStatus = await connectDevice(address);
+        
+        // Immediately update the Zustand store with the connected status
+        useActions().updateDevice(address, connectedStatus);
+        
+        // Also refresh all device statuses to get updated "connected" states for other devices
         await refreshDeviceStatusOnly();
 
         // Refresh dashboard UI to reflect connection status

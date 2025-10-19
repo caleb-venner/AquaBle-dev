@@ -382,9 +382,34 @@ const storeInitializer: StateCreator<DeviceStore> = (set, get) => ({
       // Stage 2: Load live status and overlay on configurations
       await get().actions.refreshDevices();
 
-      // Stage 3: Polling disabled by default - aquarium devices don't need frequent status updates
-      // Status only changes when users explicitly modify configuration
-      // Re-enable by uncommenting if real-time monitoring is needed: get().actions.startPolling();
+      // Stage 3: Enable temporary polling during startup to catch devices connecting
+      // Backend reconnects to devices in background on startup, so we poll briefly
+      // to detect when devices become connected. Polling auto-stops after 30 seconds.
+      const devices = get().devices;
+      const hasDisconnectedDevices = Array.from(devices.values()).some(
+        device => device.status && !device.status.connected
+      );
+      
+      if (hasDisconnectedDevices || devices.size === 0) {
+        console.log("⏱️ Starting temporary polling to detect device connections...");
+        get().actions.startPolling(3000); // Poll every 3 seconds
+        
+        // Stop polling after 30 seconds (backend should have reconnected by then)
+        setTimeout(() => {
+          const currentDevices = get().devices;
+          const stillHasDisconnected = Array.from(currentDevices.values()).some(
+            device => device.status && !device.status.connected
+          );
+          
+          if (!stillHasDisconnected) {
+            console.log("✅ All devices connected, stopping polling");
+            get().actions.stopPolling();
+          } else {
+            console.log("⚠️ Some devices still disconnected after 30s, stopping polling anyway");
+            get().actions.stopPolling();
+          }
+        }, 30000);
+      }
     },
 
     refreshDevices: async () => {
