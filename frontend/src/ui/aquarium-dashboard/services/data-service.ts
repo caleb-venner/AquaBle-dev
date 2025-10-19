@@ -3,8 +3,6 @@
  */
 
 import {
-  getDoserConfigurations,
-  getLightConfigurations,
   getConfigurationSummary,
   listDoserMetadata,
   listLightMetadata,
@@ -12,10 +10,8 @@ import {
 } from "../../../api/configurations";
 import { getDeviceStatus } from "../../../api/devices";
 import type { StatusResponse } from "../../../types/models";
-import type { DoserDevice, LightDevice, DeviceMetadata, LightMetadata } from "../../../api/configurations";
+import type { DeviceMetadata, LightMetadata } from "../../../api/configurations";
 import {
-  setDoserConfigs,
-  setLightConfigs,
   setDoserMetadata,
   setLightMetadata,
   setSummary,
@@ -39,62 +35,43 @@ export async function loadAllDashboardData(): Promise<void> {
     await useActions().initializeStore();
     console.log("✅ Zustand store initialized");
 
-    // Continue with existing data loading for dashboard-specific state
-    // Load configurations, metadata, and device status in parallel
+    // Continue with dashboard-specific data loading
+    // Load metadata, summary, and device status in parallel
+    // (configurations and status already loaded by initializeStore)
     const results = await Promise.allSettled([
-      getDoserConfigurations(),
-      getLightConfigurations(),
       getConfigurationSummary(),
       getDeviceStatus(),
       listDoserMetadata(),
       listLightMetadata(),
     ]);
 
-    // Handle doser configs
-    if (results[0].status === "fulfilled") {
-      setDoserConfigs(results[0].value);
-    } else {
-      console.error("❌ Failed to load doser configs:", results[0].reason);
-      setDoserConfigs([]);
-    }
-
-    // Handle light configs
-    if (results[1].status === "fulfilled") {
-      setLightConfigs(results[1].value);
-    } else {
-      console.error("❌ Failed to load light configs:", results[1].reason);
-      setLightConfigs([]);
-    }
-
     // Handle summary (gracefully fail if it errors)
-    if (results[2].status === "fulfilled") {
-      setSummary(results[2].value);
+    if (results[0].status === "fulfilled") {
+      setSummary(results[0].value);
     } else {
-      console.error("❌ Failed to load summary:", results[2].reason);
-      // Create a fallback summary from the configs we did load
-      const doserConfigs = results[0].status === "fulfilled" ? results[0].value : [];
-      const lightConfigs = results[1].status === "fulfilled" ? results[1].value : [];
+      console.error("❌ Failed to load summary:", results[0].reason);
+      // Create a fallback summary (configurations already loaded in Zustand)
       const fallbackSummary: ConfigurationSummary = {
-        total_configurations: doserConfigs.length + lightConfigs.length,
+        total_configurations: 0,
         dosers: {
-          count: doserConfigs.length,
-          addresses: doserConfigs.map(d => d.id),
+          count: 0,
+          addresses: [],
         },
         lights: {
-          count: lightConfigs.length,
-          addresses: lightConfigs.map(d => d.id),
+          count: 0,
+          addresses: [],
         },
         storage_paths: {
-          doser_configs: "~/.chihiros/doser_configs.json",
-          light_profiles: "~/.chihiros/light_profiles.json",
+          doser_configs: "~/.aquable/devices",
+          light_profiles: "~/.aquable/devices",
         },
       };
       setSummary(fallbackSummary);
     }
 
     // Handle device status
-    if (results[3].status === "fulfilled") {
-      const newStatus = results[3].value;
+    if (results[1].status === "fulfilled") {
+      const newStatus = results[1].value;
       const previousState = getDashboardState();
       const previousStatus = previousState.deviceStatus;
 
@@ -115,33 +92,31 @@ export async function loadAllDashboardData(): Promise<void> {
         }
       });
     } else {
-      console.error("❌ Failed to load device status:", results[3].reason);
+      console.error("❌ Failed to load device status:", results[1].reason);
       setDeviceStatus({});
     }
 
     // Handle doser metadata
-    if (results[4].status === "fulfilled") {
-      setDoserMetadata(results[4].value);
+    if (results[2].status === "fulfilled") {
+      setDoserMetadata(results[2].value);
     } else {
-      console.error("❌ Failed to load doser metadata:", results[4].reason);
+      console.error("❌ Failed to load doser metadata:", results[2].reason);
       setDoserMetadata([]);
     }
 
     // Handle light metadata
-    if (results[5].status === "fulfilled") {
-      setLightMetadata(results[5].value);
+    if (results[3].status === "fulfilled") {
+      setLightMetadata(results[3].value);
     } else {
-      console.error("❌ Failed to load light metadata:", results[5].reason);
+      console.error("❌ Failed to load light metadata:", results[3].reason);
       setLightMetadata([]);
     }
 
     const state = {
-      dosers: results[0].status === "fulfilled" ? results[0].value.length : 0,
-      lights: results[1].status === "fulfilled" ? results[1].value.length : 0,
-      devices: results[3].status === "fulfilled" ? Object.keys(results[3].value).length : 0,
-      doserMetadata: results[4].status === "fulfilled" ? results[4].value.length : 0,
-      lightMetadata: results[5].status === "fulfilled" ? results[5].value.length : 0,
-      summary: results[2].status === "fulfilled" ? "loaded" : "fallback"
+      devices: results[1].status === "fulfilled" ? Object.keys(results[1].value).length : 0,
+      doserMetadata: results[2].status === "fulfilled" ? results[2].value.length : 0,
+      lightMetadata: results[3].status === "fulfilled" ? results[3].value.length : 0,
+      summary: results[0].status === "fulfilled" ? "loaded" : "fallback"
     };
 
     console.log("✅ Loaded dashboard data:", state);

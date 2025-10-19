@@ -150,3 +150,15 @@ await actions.processCommandQueue(); // Processes queue sequentially
 - `pyproject.toml`: Dependencies (Python 3.10+, bleak, fastapi) and build configuration
 - `Makefile`: Development workflow shortcuts (`make dev`, `make test`, `make lint`)
 - `~/.aquable/`: Configuration directory (global_settings.json, devices/, auto-created)
+
+## Guidelines for AI Assistant
+
+**Do NOT create summary documentation or improvement reports** unless explicitly requested by the user. Focus only on:
+- Fixing bugs or issues raised
+- Implementing features requested
+- Code quality improvements when asked
+- Explanations of what was changed (inline, not as documents)
+
+If changes are significant and deserve documentation, ask the user first before creating any files.
+
+```

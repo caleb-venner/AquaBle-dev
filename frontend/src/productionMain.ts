@@ -14,10 +14,28 @@ import { createNotificationSystem } from "./ui/notifications";
 import { setupStateSubscriptions } from "./ui/stateSubscriptions";
 import "./ui/dashboard.css";
 
+// Guard against double initialization (e.g., from Vite HMR)
+let isInitializing = false;
+let isInitialized = false;
+
 // Initialize the production dashboard
 async function init() {
+  console.log("productionMain.init() called");
+  
+  if (isInitializing) {
+    console.warn("Already initializing, skipping duplicate call");
+    return;
+  }
+  
+  if (isInitialized) {
+    console.warn("Already initialized, skipping duplicate call");
+    return;
+  }
+  
+  isInitializing = true;
+  
   try {
-    console.log("🚀 Initializing Production Dashboard...");
+    console.log("Initializing Production Dashboard...");
 
     const appElement = document.getElementById("app");
     if (!appElement) {
@@ -33,18 +51,27 @@ async function init() {
     // Initialize notification system
     createNotificationSystem();
 
-    // Setup state subscriptions for automatic updates
-    setupStateSubscriptions();
-
     // Initialize dashboard handlers
     initializeDashboardHandlers();
 
     // Render the dashboard
+    console.log("Rendering dashboard HTML...");
     appElement.innerHTML = renderProductionDashboard();
 
-    console.log("✅ Production Dashboard initialized successfully");
+    // Load dashboard data BEFORE setting up subscriptions to avoid duplicate loads
+    console.log("Loading dashboard data...");
+    const { loadAllDashboardData } = await import("./ui/aquarium-dashboard/dashboard");
+    await loadAllDashboardData();
+    console.log("Dashboard data loaded");
+
+    // Setup state subscriptions for automatic updates AFTER initial load completes
+    console.log("Setting up state subscriptions...");
+    setupStateSubscriptions();
+
+    console.log("Production Dashboard initialized successfully");
+    isInitialized = true;
   } catch (error) {
-    console.error("❌ Failed to initialize Production Dashboard:", error);
+    console.error("Failed to initialize Production Dashboard:", error);
 
     const appElement = document.getElementById("app");
     if (appElement) {
@@ -61,6 +88,8 @@ async function init() {
         </div>
       `;
     }
+  } finally {
+    isInitializing = false;
   }
 }
 

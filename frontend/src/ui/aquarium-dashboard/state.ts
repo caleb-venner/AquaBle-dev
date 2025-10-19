@@ -19,6 +19,7 @@ let dashboardState: DashboardState = {
   connectingDevices: new Set<string>(),
   connectionStability: {},
   isRefreshing: false,
+  isDataLoaded: false,
 };
 
 /**
@@ -166,4 +167,11 @@ export function getConnectionStability(address: string): ConnectionStability {
  */
 export function setRefreshing(refreshing: boolean): void {
   dashboardState.isRefreshing = refreshing;
+}
+
+/**
+ * Set data loaded state
+ */
+export function setDataLoaded(loaded: boolean): void {
+  dashboardState.isDataLoaded = loaded;
 }

@@ -72,7 +72,7 @@ async def list_doser_metadata(
     """
     try:
         metadata_list = storage.list_device_metadata()
-        logger.info(f"Retrieved metadata for {len(metadata_list)} dosers")
+        logger.info(f"Retrieved {len(metadata_list)} doser metadata entries")
         return metadata_list
     except Exception as e:
         logger.error(f"Error listing doser metadata: {e}", exc_info=True)
@@ -234,17 +234,17 @@ async def list_light_configurations(
     """
     Get all saved light configurations.
 
-    Returns a list of all light profiles stored in the system.
-    These profiles persist across device connections and can be
+    Returns a list of all light configurations stored in the system.
+    These configurations persist across device connections and can be
     used to quickly restore or sync settings to devices.
     """
     try:
         devices = storage.list_devices()
-        logger.info(f"Retrieved {len(devices)} light profiles")
+        logger.info(f"Retrieved {len(devices)} light configurations")
         return devices
     except Exception as e:
-        logger.error(f"Error listing light profiles: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to list profiles: {str(e)}")
+        logger.error(f"Error listing light configurations: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to list configurations: {str(e)}")
 
 
 @router.get("/lights/metadata", response_model=List[LightMetadata])
@@ -427,15 +427,14 @@ async def get_system_timezone() -> dict:
         dict: Contains system timezone information
     """
     try:
-        from ..timezone_utils import get_system_timezone, get_timezone_for_new_device
+        from ..time_utils import get_system_timezone
 
         system_tz = get_system_timezone()
-        default_tz = get_timezone_for_new_device()
 
         return {
             "system_timezone": system_tz,
-            "default_for_new_devices": default_tz,
-            "note": "This timezone will be used as the default for " "new device configurations",
+            "default_for_new_devices": system_tz,
+            "note": "This timezone will be used as the default for new device configurations",
         }
     except Exception as e:
         logger.error(f"Error getting system timezone: {e}", exc_info=True)

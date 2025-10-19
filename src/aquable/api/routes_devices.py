@@ -51,6 +51,25 @@ async def scan_devices(request: Request, timeout: float = 5.0) -> list[Dict[str,
             status_code=403,
             detail="Bluetooth permission denied. Check add-on permissions.",
         ) from e
+    except Exception as e:
+        # Catch BleakError and other Bluetooth-related errors
+        error_msg = str(e).lower()
+        if "bluetooth device is turned off" in error_msg or "not available" in error_msg:
+            raise HTTPException(
+                status_code=503,
+                detail="Bluetooth is disabled or not available on this device. "
+                "Enable Bluetooth to scan for devices.",
+            ) from e
+        elif "adapter" in error_msg or "controller" in error_msg:
+            raise HTTPException(
+                status_code=503,
+                detail="Bluetooth adapter not found. Ensure Bluetooth hardware is present and enabled.",
+            ) from e
+        # Re-raise as generic 503 for other scan errors
+        raise HTTPException(
+            status_code=503,
+            detail=f"Bluetooth scan failed: {str(e)}",
+        ) from e
 
 
 @router.post("/devices/{address}/status")

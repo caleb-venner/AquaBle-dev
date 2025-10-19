@@ -27,6 +27,7 @@ export interface DashboardState {
   connectingDevices: Set<string>; // Track devices currently being connected
   connectionStability: Record<string, ConnectionStability>; // Track connection health per device
   isRefreshing: boolean; // Track refresh all state
+  isDataLoaded: boolean; // Track if initial data loading is complete
 }
 
 export interface DashboardHandlers {

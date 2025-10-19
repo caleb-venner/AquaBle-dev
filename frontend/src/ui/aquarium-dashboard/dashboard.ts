@@ -245,4 +245,4 @@ export function initializeDashboardHandlers(): void {
 }
 
 // Auto-load data on module import
-loadAllDashboardData();
+// loadAllDashboardData(); // Moved to productionMain.ts
