@@ -2,7 +2,7 @@
  * Doser device rendering components
  */
 
-import { getDashboardState } from "../state";
+import { deviceStore } from "../../../stores/deviceStore";
 import { formatDateTime, getWeekdayName } from "../../../utils";
 import { getDoserHeadName, getHeadConfigData } from "../utils/device-utils";
 import type { CachedStatus } from "../../../types/models";
@@ -38,8 +38,8 @@ export function renderDoserCardStatus(device: CachedStatus & { address: string }
   const activeHeads = heads.filter((head: any) => head.mode !== 4).length;
 
   // Find the saved configuration for this device
-  const state = getDashboardState();
-  const savedConfig = state.doserConfigs.find(config => config.id === device.address);
+  const zustandState = deviceStore.getState();
+  const savedConfig = zustandState.configurations.dosers.get(device.address);
 
   return `
     <div style="padding: 16px; background: var(--bg-secondary);">

@@ -5,7 +5,7 @@
 import { renderProductionDashboard, refreshDashboard } from "./render";
 import { loadAllDashboardData } from "./services/data-service";
 import { initializePolling, cleanupPolling } from "./services/polling-service";
-import { setCurrentTab, getDashboardState } from "./state";
+import { deviceStore } from "../../stores/deviceStore";
 import { renderWattageCalculator, calculateWattageFromInputs, setWattageTestCase } from "./components/wattage-calculator";
 import "./modals/device-config-modal"; // Import the new unified device config modal
 import "./modals/scan-connect-modal"; // Import the scan and connect modal
@@ -23,7 +23,7 @@ export { calculateWattageFromInputs, setWattageTestCase };
 export function initializeDashboardHandlers(): void {
   // Tab switching
   (window as any).switchTab = async (tab: "overview" | "dev") => {
-    setCurrentTab(tab);
+    deviceStore.getState().actions.setCurrentView(tab);
     refreshDashboard();
   };
 
@@ -65,29 +65,26 @@ export function initializeDashboardHandlers(): void {
 
   // Data refresh
   (window as any).handleRefreshAll = async () => {
-    const { useActions } = await import("../../stores/deviceStore");
     const { refreshDeviceStatusOnly } = await import('./services/data-service');
-    const { getDashboardState, setRefreshing } = await import('./state');
     const { refreshDashboard } = await import('./render');
 
     try {
-      setRefreshing(true);
-      refreshDashboard(); // Show refreshing state
+      // Show refreshing state
+      refreshDashboard();
 
       // Only refresh device status, not all data
       await refreshDeviceStatusOnly();
 
-      useActions().addNotification({
+      deviceStore.getState().actions.addNotification({
         type: 'success',
         message: 'Device status refreshed successfully'
       });
     } catch (error) {
-      useActions().addNotification({
+      deviceStore.getState().actions.addNotification({
         type: 'error',
         message: `Failed to refresh device status: ${error instanceof Error ? error.message : String(error)}`
       });
     } finally {
-      setRefreshing(false);
       refreshDashboard(); // Remove refreshing state
     }
   };
@@ -115,31 +112,21 @@ export function initializeDashboardHandlers(): void {
   (window as any).openDeviceSettings = async (address: string, deviceType: string) => {
     if (deviceType === 'doser') {
       const { showDoserDeviceSettingsModal } = await import('./modals/device-modals');
-      const state = getDashboardState();
-      const device = state.deviceStatus?.[address];
-      if (device) {
-        // Convert to DoserDevice format for the modal
-        const doserDevice = {
-          id: address,
-          name: device.model_name || undefined,
-          heads: [] // Will be populated by the modal
-        };
-        showDoserDeviceSettingsModal(doserDevice);
-      }
+      const doserDevice = {
+        id: address,
+        name: undefined,
+        heads: [] // Will be populated by the modal
+      };
+      showDoserDeviceSettingsModal(doserDevice);
     } else if (deviceType === 'light') {
       const { showLightDeviceSettingsModal } = await import('./modals/device-modals');
-      const state = getDashboardState();
-      const device = state.deviceStatus?.[address];
-      if (device) {
-        // Convert to LightDevice format for the modal
-        const lightDevice = {
-          id: address,
-          name: device.model_name || undefined,
-          channels: [], // Will be populated by the modal
-          profile: { mode: 'manual' as const, levels: {} }
-        };
-        showLightDeviceSettingsModal(lightDevice);
-      }
+      const lightDevice = {
+        id: address,
+        name: undefined,
+        channels: [], // Will be populated by the modal
+        profile: { mode: 'manual' as const, levels: {} }
+      };
+      showLightDeviceSettingsModal(lightDevice);
     }
   };
 
@@ -159,8 +146,8 @@ export function initializeDashboardHandlers(): void {
 
     try {
       // Check current connection state to determine action
-      const state = getDashboardState();
-      const device = state.deviceStatus?.[address];
+      const zustandState = deviceStore.getState();
+      const device = zustandState.devices.get(address)?.status;
       const isCurrentlyConnected = device?.connected;
 
       if (isCurrentlyConnected) {

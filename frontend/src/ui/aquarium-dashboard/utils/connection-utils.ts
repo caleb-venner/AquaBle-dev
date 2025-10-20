@@ -2,7 +2,6 @@
  * Connection status utilities
  */
 
-import { getConnectionStability } from "../state";
 import type { CachedStatus } from "../../../types/models";
 import type { ConnectionStability } from "../types";
 
@@ -11,7 +10,7 @@ export type ConnectionHealth = 'stable' | 'unstable' | 'disconnected' | 'reconne
 /**
  * Determine overall connection health based on device status and stability tracking
  */
-export function getConnectionHealth(deviceStatus: CachedStatus | null, deviceAddress: string): ConnectionHealth {
+export function getConnectionHealth(deviceStatus: CachedStatus | null): ConnectionHealth {
   if (!deviceStatus) {
     return 'disconnected';
   }
@@ -19,21 +18,6 @@ export function getConnectionHealth(deviceStatus: CachedStatus | null, deviceAdd
   // If device is not connected according to status
   if (!deviceStatus.connected) {
     return 'disconnected';
-  }
-
-  const stability = getConnectionStability(deviceAddress);
-
-  // If we're tracking connection issues
-  if (!stability.isStable) {
-    // If last disconnect was recent (within 2 minutes), consider unstable
-    if (stability.lastDisconnectTime && (Date.now() - stability.lastDisconnectTime) < 120000) {
-      return 'unstable';
-    }
-
-    // If multiple consecutive failures, consider unstable
-    if (stability.consecutiveFailures > 2) {
-      return 'unstable';
-    }
   }
 
   return 'stable';
@@ -73,8 +57,8 @@ export function getConnectionStatusDisplay(health: ConnectionHealth): {
 /**
  * Render connection status badge
  */
-export function renderConnectionStatus(deviceStatus: CachedStatus | null, deviceAddress: string): string {
-  const health = getConnectionHealth(deviceStatus, deviceAddress);
+export function renderConnectionStatus(deviceStatus: CachedStatus | null): string {
+  const health = getConnectionHealth(deviceStatus);
   const display = getConnectionStatusDisplay(health);
 
   return `
@@ -93,8 +77,8 @@ export function renderConnectionStatus(deviceStatus: CachedStatus | null, device
 /**
  * Render larger connection status for modals (inline with close button)
  */
-export function renderModalConnectionStatus(deviceStatus: CachedStatus | null, deviceAddress: string): string {
-  const health = getConnectionHealth(deviceStatus, deviceAddress);
+export function renderModalConnectionStatus(deviceStatus: CachedStatus | null): string {
+  const health = getConnectionHealth(deviceStatus);
   const display = getConnectionStatusDisplay(health);
 
   return `
@@ -113,27 +97,12 @@ export function renderModalConnectionStatus(deviceStatus: CachedStatus | null, d
 /**
  * Get user-friendly message for connection issues
  */
-export function getConnectionMessage(health: ConnectionHealth, deviceAddress: string): string | null {
-  const stability = getConnectionStability(deviceAddress);
-
+export function getConnectionMessage(health: ConnectionHealth): string | null {
   switch (health) {
     case 'unstable':
-      const failures = stability.consecutiveFailures;
-      const lastDisconnect = stability.lastDisconnectTime;
-
-      if (failures > 2) {
-        return `This device has experienced ${failures} recent connection failures. Commands may be slow or fail.`;
-      }
-
-      if (lastDisconnect && (Date.now() - lastDisconnect) < 60000) {
-        return 'This device recently disconnected and may be experiencing BLE connectivity issues.';
-      }
-
-      return 'This device is experiencing connection instability. Try moving closer or reducing interference.';
-
+      return 'This device is experiencing connection issues. Commands may be slow or fail.';
     case 'disconnected':
       return 'This device is not connected. Try refreshing or reconnecting the device.';
-
     default:
       return null;
   }

@@ -2,7 +2,7 @@
  * Dashboard event handlers - Read-only dashboard with no scanning/connection capabilities
  */
 
-import { getDashboardState, setCurrentTab } from "../state";
+import { deviceStore } from "../../../stores/deviceStore";
 import type { DashboardTab } from "../types";
 import { loadAllDashboardData } from "../services/data-service";
 
@@ -20,7 +20,8 @@ export async function handleRefreshAll(): Promise<void> {
 
 // Tab switching handler
 export async function switchTab(tabName: string): Promise<void> {
-  setCurrentTab(tabName as DashboardTab);
+  // Use Zustand to update current view
+  deviceStore.getState().actions.setCurrentView(tabName as any);
 
   // Update URL hash for bookmarking
   window.location.hash = tabName;

@@ -2,18 +2,16 @@
  * Light device rendering components
  */
 
-import { getDashboardState } from "../state";
+import { deviceStore } from "../../../stores/deviceStore";
 import { getWeekdayName, formatDateTime, getDeviceChannelNames } from "../../../utils";
 import { getCurrentScheduleInfo, AutoProgram, getAllSchedulesInOrder, SequentialSchedule } from "../../../utils/schedule-utils";
-import { getDeviceStore } from "../../../stores/deviceStore";
 import type { CachedStatus } from "../../../types/models";
 
 /**
  * Extract auto programs from device configuration
  */
 function getDeviceAutoPrograms(deviceAddress: string): (AutoProgram & { channels?: any[] })[] {
-  const store = getDeviceStore();
-  const state = store.getState();
+  const state = deviceStore.getState();
   const deviceConfig = state.configurations.lights.get(deviceAddress);
 
   if (!deviceConfig?.configurations) {
@@ -79,7 +77,9 @@ export function renderLightCardStatus(device: CachedStatus & { address: string }
     : 0;
 
   // Use device type to determine channel count
-  const channelNames = getDeviceChannelNames(device.address, getDashboardState);
+  const zustandState = deviceStore.getState();
+  const lightConfig = zustandState.configurations.lights.get(device.address);
+  const channelNames = lightConfig?.channels?.map((ch: any) => ch.label) || ['Channel 1', 'Channel 2', 'Channel 3', 'Channel 4'];
   const channelCount = channelNames.length;
 
   // Get schedule information for auto mode devices

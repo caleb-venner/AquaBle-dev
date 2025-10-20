@@ -2,15 +2,16 @@
  * Device-specific utilities
  */
 
-import { getDashboardState } from "../state";
+import { deviceStore } from "../../../stores/deviceStore";
 
 /**
  * Get the configured name for a doser head
  */
 export function getDoserHeadName(deviceAddress: string, headIndex: number): string | null {
-  const state = getDashboardState();
-  const metadata = state.doserMetadata.find(m => m.id === deviceAddress);
-  return metadata?.headNames?.[headIndex] || null;
+  const state = deviceStore.getState();
+  const configs = Array.from(state.configurations.dosers.values());
+  const config = configs.find(c => c.id === deviceAddress);
+  return config?.name || null; // Note: headNames mapping not available in current config structure
 }
 
 /**
@@ -19,9 +20,9 @@ export function getDoserHeadName(deviceAddress: string, headIndex: number): stri
 export function getHeadLifetimeTotal(headIndex: number, deviceAddress?: string): string {
   if (!deviceAddress) return 'N/A';
 
-  const state = getDashboardState();
-  const device = state.deviceStatus?.[deviceAddress];
-  const parsed = device?.parsed as any;
+  const state = deviceStore.getState();
+  const device = state.devices.get(deviceAddress);
+  const parsed = device?.status?.parsed as any;
 
   if (!parsed || !parsed.lifetime_totals_tenths_ml || !Array.isArray(parsed.lifetime_totals_tenths_ml)) {
     return 'N/A';
@@ -84,14 +85,15 @@ export function formatScheduleDays(weekdays: number[] | undefined): string {
  * Get configuration data for a specific head
  */
 export function getHeadConfigData(headIndex: number, deviceAddress: string): { setDose: string; schedule: string } {
-  const state = getDashboardState();
-  const savedConfig = state.doserConfigs.find(config => config.id === deviceAddress);
+  const state = deviceStore.getState();
+  const savedConfigs = Array.from(state.configurations.dosers.values());
+  const savedConfig = savedConfigs.find((config: any) => config.id === deviceAddress);
 
   if (!savedConfig || !savedConfig.configurations || savedConfig.configurations.length === 0) {
     return { setDose: 'N/A', schedule: 'N/A' };
   }
 
-  const activeConfig = savedConfig.configurations.find(c => c.id === savedConfig.activeConfigurationId);
+  const activeConfig = savedConfig.configurations.find((c: any) => c.id === savedConfig.activeConfigurationId);
   if (!activeConfig || !activeConfig.revisions || activeConfig.revisions.length === 0) {
     return { setDose: 'N/A', schedule: 'N/A' };
   }

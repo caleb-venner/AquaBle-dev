@@ -2,7 +2,7 @@
  * Device card rendering functions
  */
 
-import { getDashboardState } from "../state";
+import { deviceStore } from "../../../stores/deviceStore";
 import { getDeviceDisplayName, getTimeAgo } from "../../../utils";
 /* import { renderConnectionStatus } from "../utils/connection-utils"; */
 import { renderLightCardStatus/* , renderChannelLevels */ } from "./light-components";
@@ -36,7 +36,18 @@ export function renderDeviceSection(
 function renderDeviceTile(device: CachedStatus & { address: string }): string {
   const statusColor = device.connected ? "var(--success)" : "var(--gray-400)";
   const statusText = device.connected ? "Connected" : "Disconnected";
-  const deviceName = getDeviceDisplayName(device.address, getDashboardState);
+  
+  // Get device display name from Zustand store
+  const zustandState = deviceStore.getState();
+  let deviceName = 'Unknown Device';
+  if (device.device_type === "doser") {
+    const config = zustandState.configurations.dosers.get(device.address);
+    deviceName = config?.name || device.model_name || 'Unknown Device';
+  } else if (device.device_type === "light") {
+    const config = zustandState.configurations.lights.get(device.address);
+    deviceName = config?.name || device.model_name || 'Unknown Device';
+  }
+  
   const timeAgo = getTimeAgo(device.updated_at);
 
   return `

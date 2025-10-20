@@ -21,7 +21,7 @@ export function apiToDoserDevice(apiDevice: ApiDoserDevice): DomainDoserDevice {
         label: "Head 1",
         active: false,
         schedule: { mode: 'single' as const, dailyDoseMl: 10.0, startTime: '09:00' },
-        recurrence: { days: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] },
+        recurrence: { days: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] },
         missedDoseCompensation: false,
         calibration: { mlPerSecond: 1.0, lastCalibratedAt: new Date().toISOString() }
       },
@@ -30,7 +30,7 @@ export function apiToDoserDevice(apiDevice: ApiDoserDevice): DomainDoserDevice {
         label: "Head 2",
         active: false,
         schedule: { mode: 'single' as const, dailyDoseMl: 10.0, startTime: '09:00' },
-        recurrence: { days: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] },
+        recurrence: { days: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] },
         missedDoseCompensation: false,
         calibration: { mlPerSecond: 1.0, lastCalibratedAt: new Date().toISOString() }
       },
@@ -39,7 +39,7 @@ export function apiToDoserDevice(apiDevice: ApiDoserDevice): DomainDoserDevice {
         label: "Head 3",
         active: false,
         schedule: { mode: 'single' as const, dailyDoseMl: 10.0, startTime: '09:00' },
-        recurrence: { days: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] },
+        recurrence: { days: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] },
         missedDoseCompensation: false,
         calibration: { mlPerSecond: 1.0, lastCalibratedAt: new Date().toISOString() }
       },
@@ -48,7 +48,7 @@ export function apiToDoserDevice(apiDevice: ApiDoserDevice): DomainDoserDevice {
         label: "Head 4",
         active: false,
         schedule: { mode: 'single' as const, dailyDoseMl: 10.0, startTime: '09:00' },
-        recurrence: { days: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] },
+        recurrence: { days: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] },
         missedDoseCompensation: false,
         calibration: { mlPerSecond: 1.0, lastCalibratedAt: new Date().toISOString() }
       }
@@ -94,7 +94,7 @@ export function createDefaultDoserDevice(address: string, name?: string): Domain
         label: "Head 1",
         active: false,
         schedule: { mode: 'single' as const, dailyDoseMl: 10.0, startTime: '09:00' },
-        recurrence: { days: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] },
+        recurrence: { days: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] },
         missedDoseCompensation: false,
         calibration: { mlPerSecond: 1.0, lastCalibratedAt: new Date().toISOString() }
       },
@@ -103,7 +103,7 @@ export function createDefaultDoserDevice(address: string, name?: string): Domain
         label: "Head 2",
         active: false,
         schedule: { mode: 'single' as const, dailyDoseMl: 10.0, startTime: '09:00' },
-        recurrence: { days: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] },
+        recurrence: { days: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] },
         missedDoseCompensation: false,
         calibration: { mlPerSecond: 1.0, lastCalibratedAt: new Date().toISOString() }
       },
@@ -112,7 +112,7 @@ export function createDefaultDoserDevice(address: string, name?: string): Domain
         label: "Head 3",
         active: false,
         schedule: { mode: 'single' as const, dailyDoseMl: 10.0, startTime: '09:00' },
-        recurrence: { days: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] },
+        recurrence: { days: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] },
         missedDoseCompensation: false,
         calibration: { mlPerSecond: 1.0, lastCalibratedAt: new Date().toISOString() }
       },
@@ -121,7 +121,7 @@ export function createDefaultDoserDevice(address: string, name?: string): Domain
         label: "Head 4",
         active: false,
         schedule: { mode: 'single' as const, dailyDoseMl: 10.0, startTime: '09:00' },
-        recurrence: { days: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] },
+        recurrence: { days: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] },
         missedDoseCompensation: false,
         calibration: { mlPerSecond: 1.0, lastCalibratedAt: new Date().toISOString() }
       }

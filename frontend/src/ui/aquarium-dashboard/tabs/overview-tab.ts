@@ -2,20 +2,23 @@
  * Overview tab rendering
  */
 
-import { getDashboardState } from "../state";
+import { deviceStore } from "../../../stores/deviceStore";
+import type { CachedStatus } from "../../../types/models";
 import { renderDeviceSection } from "../devices/device-card";
 
 /**
  * Render the overview tab - shows device connection status
  */
 export function renderOverviewTab(): string {
-  const state = getDashboardState();
+  const state = deviceStore.getState();
 
-  // Convert StatusResponse object to array
-  const devices = Object.entries(state.deviceStatus || {}).map(([address, status]) => ({
-    ...status,
-    address
-  }));
+  // Convert device Map to array of connected devices
+  const devices: (CachedStatus & { address: string })[] = Array.from(state.devices.values())
+    .filter(device => device.status?.connected)
+    .map(device => ({
+      ...(device.status as CachedStatus),
+      address: device.address
+    }));
 
   // Show empty state if no devices
   if (devices.length === 0) {

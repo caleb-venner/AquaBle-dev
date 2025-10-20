@@ -2,17 +2,22 @@
  * Dev tab rendering
  */
 
-import { getDashboardState } from "../state";
+import { deviceStore } from "../../../stores/deviceStore";
+import type { CachedStatus } from "../../../types/models";
 
 /**
  * Render the dev tab - shows raw payload data for debugging
  */
 export function renderDevTab(): string {
-  const state = getDashboardState();
-  const devices = state.deviceStatus ? Object.entries(state.deviceStatus).map(([address, status]) => ({
-    ...status,
-    address
-  })) : [];
+  const state = deviceStore.getState();
+  
+  // Convert device Map to array
+  const devices: (CachedStatus & { address: string })[] = Array.from(state.devices.values())
+    .map(device => ({
+      ...(device.status as CachedStatus),
+      address: device.address
+    }))
+    .filter(d => d.address); // Filter out devices without status
 
   return `
     <div style="display: flex; flex-direction: column; gap: 24px;">

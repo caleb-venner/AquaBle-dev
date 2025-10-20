@@ -11,16 +11,7 @@ import {
 import { getDeviceStatus } from "../../../api/devices";
 import type { StatusResponse } from "../../../types/models";
 import type { DeviceMetadata, LightMetadata } from "../../../api/configurations";
-import {
-  setDoserMetadata,
-  setLightMetadata,
-  setSummary,
-  setDeviceStatus,
-  setError,
-  markDeviceStable,
-  markDeviceUnstable,
-  getDashboardState,
-} from "../state";
+import { deviceStore } from "../../../stores/deviceStore";
 import {
   cacheService,
   CACHE_KEYS,
@@ -32,13 +23,13 @@ import {
  * Load all dashboard data from APIs
  */
 export async function loadAllDashboardData(): Promise<void> {
-  setError(null);
+  const actions = deviceStore.getState().actions;
+  actions.setGlobalError(null);
 
   try {
     // Initialize the Zustand store with two-stage loading
     console.log("🔄 Initializing Zustand store...");
-    const { useActions } = await import("../../../stores/deviceStore");
-    await useActions().initializeStore();
+    await actions.initializeStore();
     console.log("✅ Zustand store initialized");
 
     // Prepare API calls with caching
@@ -110,69 +101,36 @@ export async function loadAllDashboardData(): Promise<void> {
 
     // Handle summary (gracefully fail if it errors)
     if (apiCalls[0].status === "fulfilled") {
-      setSummary(apiCalls[0].value);
+      console.log("✅ Summary loaded");
     } else {
       console.error("❌ Failed to load summary:", apiCalls[0].reason);
-      // Create a fallback summary (configurations already loaded in Zustand)
-      const fallbackSummary: ConfigurationSummary = {
-        total_configurations: 0,
-        dosers: {
-          count: 0,
-          addresses: [],
-        },
-        lights: {
-          count: 0,
-          addresses: [],
-        },
-        storage_paths: {
-          doser_configs: "~/.aquable/devices",
-          light_profiles: "~/.aquable/devices",
-        },
-      };
-      setSummary(fallbackSummary);
     }
 
     // Handle device status
     if (apiCalls[1].status === "fulfilled") {
       const newStatus = apiCalls[1].value;
-      const previousState = getDashboardState();
-      const previousStatus = previousState.deviceStatus;
-
-      setDeviceStatus(newStatus);
-
-      // Track connection stability changes
+      const state = deviceStore.getState();
+      
+      // Update device status in Zustand store
       Object.entries(newStatus).forEach(([address, status]) => {
-        const previousDeviceStatus = previousStatus?.[address];
-
-        // If device just disconnected
-        if (previousDeviceStatus?.connected && !status.connected) {
-          markDeviceUnstable(address);
-        }
-        // If device is connected and was previously tracked as unstable, reset if it's been stable for a while
-        else if (status.connected && previousDeviceStatus?.connected) {
-          // Device has been consistently connected, mark as stable
-          markDeviceStable(address);
-        }
+        actions.updateDevice(address, status);
       });
     } else {
       console.error("❌ Failed to load device status:", apiCalls[1].reason);
-      setDeviceStatus({});
     }
 
     // Handle doser metadata
     if (apiCalls[2].status === "fulfilled") {
-      setDoserMetadata(apiCalls[2].value);
+      console.log("✅ Doser metadata loaded:", apiCalls[2].value.length);
     } else {
       console.error("❌ Failed to load doser metadata:", apiCalls[2].reason);
-      setDoserMetadata([]);
     }
 
     // Handle light metadata
     if (apiCalls[3].status === "fulfilled") {
-      setLightMetadata(apiCalls[3].value);
+      console.log("✅ Light metadata loaded:", apiCalls[3].value.length);
     } else {
       console.error("❌ Failed to load light metadata:", apiCalls[3].reason);
-      setLightMetadata([]);
     }
 
     const state = {
@@ -186,9 +144,8 @@ export async function loadAllDashboardData(): Promise<void> {
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : String(err);
     console.error("❌ Failed to load dashboard data:", errorMessage);
-    setError(`Failed to load dashboard data: ${errorMessage}`);
-    // Ensure deviceStatus is set to empty object so UI shows "no devices" instead of "no data"
-    setDeviceStatus({});
+    const actions = deviceStore.getState().actions;
+    actions.setGlobalError(`Failed to load dashboard data: ${errorMessage}`);
   }
 }
 
@@ -198,12 +155,8 @@ export async function loadAllDashboardData(): Promise<void> {
 export async function refreshDeviceStatusOnly(): Promise<void> {
   try {
     // Refresh Zustand store
-    const { useActions } = await import("../../../stores/deviceStore");
-    await useActions().refreshDevices();
-
-    // Also refresh local dashboard state for compatibility
-    const status = await getDeviceStatus();
-    setDeviceStatus(status);
+    const actions = deviceStore.getState().actions;
+    await actions.refreshDevices();
   } catch (error) {
     console.error("❌ Failed to refresh device status:", error);
   }

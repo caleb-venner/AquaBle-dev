@@ -3,9 +3,8 @@
  * Separate from the device commands/settings modal
  */
 
-import { getDashboardState } from "../state";
+import { deviceStore } from "../../../stores/deviceStore";
 import { updateDoserMetadata, updateLightMetadata } from "../../../api/configurations";
-import { useActions } from "../../../stores/deviceStore";
 
 type DeviceMetadata = {
   id: string;
@@ -24,8 +23,8 @@ export async function showDeviceConfigModal(address: string, deviceType: 'doser'
   modal.className = 'modal-overlay';
 
   // Get current device status
-  const state = getDashboardState();
-  const deviceStatus = state.deviceStatus?.[address];
+  const state = deviceStore.getState();
+  const deviceStatus = state.devices.get(address)?.status;
   if (!deviceStatus) {
     console.error('Device not found:', address);
     return;
@@ -206,7 +205,7 @@ async function handleSaveConfig(
     }
 
     // Show success notification
-    useActions().addNotification({
+    deviceStore.getState().actions.addNotification({
       type: 'success',
       message: 'Settings saved successfully'
     });
@@ -222,7 +221,7 @@ async function handleSaveConfig(
     modal.remove();
   } catch (error) {
     console.error('Failed to save settings:', error);
-    useActions().addNotification({
+    deviceStore.getState().actions.addNotification({
       type: 'error',
       message: `Failed to save settings: ${error instanceof Error ? error.message : 'Unknown error'}`
     });

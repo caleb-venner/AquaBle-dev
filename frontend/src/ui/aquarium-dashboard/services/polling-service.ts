@@ -4,7 +4,7 @@
  */
 
 import { getDeviceStatus } from "../../../api/devices";
-import { setDeviceStatus, getDashboardState, markDeviceStable, markDeviceUnstable } from "../state";
+import { deviceStore } from "../../../stores/deviceStore";
 
 interface PollingState {
   isActive: boolean;
@@ -104,21 +104,10 @@ class PollingService {
       // Reset failure count on successful poll
       this.state.failureCount = 0;
 
-      // Update local state
-      setDeviceStatus(status);
-
-      // Track connection stability
-      const previousState = getDashboardState();
-      const previousStatus = previousState.deviceStatus;
-
-      Object.entries(status).forEach(([address, deviceStatus]: [string, any]) => {
-        const previousDeviceStatus = previousStatus?.[address];
-
-        if (previousDeviceStatus?.connected && !deviceStatus.connected) {
-          markDeviceUnstable(address);
-        } else if (deviceStatus.connected && previousDeviceStatus?.connected) {
-          markDeviceStable(address);
-        }
+      // Update Zustand store
+      const actions = deviceStore.getState().actions;
+      Object.entries(status).forEach(([address, deviceStatus]) => {
+        actions.updateDevice(address, deviceStatus);
       });
 
       // Notify subscribers

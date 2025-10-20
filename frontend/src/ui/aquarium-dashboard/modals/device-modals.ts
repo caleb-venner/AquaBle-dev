@@ -6,7 +6,7 @@ import type { DoserDevice, LightDevice } from "../../../types/models";
 import { executeCommand } from "../../../api/commands";
 import type { CommandRequest } from "../../../types/models";
 import { getDeviceChannelNames } from "../../../utils";
-import { getDashboardState } from "../state";
+import { deviceStore } from "../../../stores/deviceStore";
 
 /**
  * Show the doser device settings modal - for commands and schedules (visual only)
@@ -266,8 +266,10 @@ function renderLightDeviceSettingsInterface(device: LightDevice): string {
  * Render Manual Mode tab content
  */
 function renderLightManualModeTab(device: LightDevice): string {
-  // Get channel names dynamically from device model
-  const channelNames = getDeviceChannelNames(device.id, getDashboardState);
+  // Get channel names from device configuration
+  const zustandState = deviceStore.getState();
+  const lightConfig = zustandState.configurations.lights.get(device.id);
+  const channelNames = lightConfig?.channels?.map((ch: any) => ch.label) || ['Channel 1', 'Channel 2', 'Channel 3', 'Channel 4'];
 
   return `
     <div class="settings-section">
@@ -306,8 +308,10 @@ function renderLightManualModeTab(device: LightDevice): string {
  * Render Auto Mode tab content
  */
 function renderLightAutoModeTab(device: LightDevice): string {
-  // Get channel names dynamically from device model
-  const channelNames = getDeviceChannelNames(device.id, getDashboardState);
+  // Get channel names from device configuration
+  const zustandState = deviceStore.getState();
+  const lightConfig = zustandState.configurations.lights.get(device.id);
+  const channelNames = lightConfig?.channels?.map((ch: any) => ch.label) || ['Channel 1', 'Channel 2', 'Channel 3', 'Channel 4'];
   const channelCount = channelNames.length;
 
   // Determine grid layout based on channel count
