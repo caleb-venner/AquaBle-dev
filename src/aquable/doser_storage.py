@@ -337,9 +337,38 @@ class DoserStorage:
         # Ensure the directory exists
         self._base_path.mkdir(parents=True, exist_ok=True)
 
+        # Load metadata from all device files (including metadata-only files)
+        self._load_all_metadata_from_disk()
+
     def _get_device_file_path(self, device_id: str) -> Path:
         """Get the file path for a specific device."""
         return self._base_path / f"{device_id}.json"
+
+    def _load_all_metadata_from_disk(self) -> None:
+        """Load metadata from all device files (including metadata-only files).
+        
+        This ensures that metadata for newly discovered devices without
+        configurations is loaded from disk on startup.
+        """
+        try:
+            for device_file in self._list_device_files():
+                try:
+                    device_id = device_file.stem  # filename without .json
+                    raw = device_file.read_text(encoding="utf-8").strip()
+                    if not raw:
+                        continue
+
+                    data = json.loads(raw)
+
+                    # Load metadata if present
+                    if "metadata" in data and data["metadata"]:
+                        self._metadata_dict[device_id] = data["metadata"]
+                except (json.JSONDecodeError, OSError):
+                    # Skip files that can't be read
+                    pass
+        except (OSError, ValueError):
+            # Directory might not exist or other issues - that's ok
+            pass
 
     def _read_device_file(self, device_id: str) -> DoserDevice | None:
         """Read a single device from its JSON file (unified format)."""
@@ -363,14 +392,14 @@ class DoserStorage:
                 # Extract device_data (configuration)
                 device_data = data.get("device_data")
 
-                # If device_data is None, this is a newly discovered
-                # device without config
-                if device_data is None:
-                    return None
-
                 # Load metadata into shared dict if present
                 if "metadata" in data and data["metadata"]:
                     self._metadata_dict[device_id] = data["metadata"]
+
+                # If device_data is None, this is a metadata-only file
+                # (newly discovered device without config)
+                if device_data is None:
+                    return None
             else:
                 # Old format (direct device data) - backward compatibility
                 device_data = data
@@ -411,6 +440,37 @@ class DoserStorage:
         # Preserve last_status if it existed
         if existing_last_status:
             data["last_status"] = existing_last_status
+
+        tmp_file = device_file.with_suffix(".tmp")
+        tmp_file.write_text(json.dumps(data, indent=2, sort_keys=True), encoding="utf-8")
+        tmp_file.replace(device_file)
+
+    def _write_metadata_file(self, device_id: str, metadata: dict) -> None:
+        """Write metadata-only file for a device (for devices without configurations).
+        
+        This preserves existing device files but ensures metadata is persisted.
+        """
+        device_file = self._get_device_file_path(device_id)
+        device_file.parent.mkdir(parents=True, exist_ok=True)
+
+        # Read existing file if it exists to preserve device_data and last_status
+        existing_data = {}
+        if device_file.exists():
+            try:
+                existing_data = json.loads(device_file.read_text(encoding="utf-8"))
+            except (json.JSONDecodeError, OSError):
+                pass
+
+        # Update or create file with metadata
+        data = existing_data or {
+            "device_type": "doser",
+            "device_id": device_id,
+            "last_updated": _now_iso(),
+        }
+        
+        # Update metadata
+        data["metadata"] = metadata
+        data["last_updated"] = _now_iso()
 
         tmp_file = device_file.with_suffix(".tmp")
         tmp_file.write_text(json.dumps(data, indent=2, sort_keys=True), encoding="utf-8")
@@ -651,6 +711,9 @@ class DoserStorage:
                             head.label = metadata.headNames[head.index]
 
             self.upsert_device(existing_device)
+        else:
+            # Device doesn't exist yet - persist metadata to disk independently
+            self._write_metadata_file(metadata.id, metadata.model_dump())
 
         return metadata
 

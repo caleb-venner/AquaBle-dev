@@ -218,14 +218,8 @@ class CommandExecutor:
             if brightness_arg is None:
                 raise ValueError("Either 'brightness' or 'channels' must be provided")
 
-            # Convert weekdays to LightWeekday enums if they're strings
+            # Weekdays are already converted to LightWeekday enums by the validator
             weekdays_arg = args.get("weekdays")
-            if weekdays_arg and isinstance(weekdays_arg, list):
-                from .commands.encoder import LightWeekday
-
-                weekdays_arg = [
-                    LightWeekday(day) if isinstance(day, str) else day for day in weekdays_arg
-                ]
 
             status = await self.ble_service.add_light_auto_setting(
                 address,
@@ -242,13 +236,14 @@ class CommandExecutor:
             return cached_status_to_dict(self.ble_service, status)
 
         elif action == "set_schedule":
+            # Weekdays are already converted to PumpWeekday enums by the validator
             status = await self.ble_service.set_doser_schedule(
                 address,
                 head_index=args["head_index"],
                 volume_tenths_ml=args["volume_tenths_ml"],
                 hour=args["hour"],
                 minute=args["minute"],
-                weekdays=args.get("weekdays"),  # Now passes List[PumpWeekday]
+                weekdays=args.get("weekdays"),  # List[PumpWeekday] from validator
                 confirm=args.get("confirm", True),
                 wait_seconds=args.get("wait_seconds", BLE_DOSER_SCHEDULE_WAIT),
             )

@@ -182,13 +182,62 @@ class DoserScheduleArgs(BaseModel):
             raise ValueError(f"Head index must be 0-3 for 4-head doser devices, got {v}")
         return v
 
-    @field_validator("weekdays")
+    @field_validator("weekdays", mode="before")
     @classmethod
-    def validate_weekdays(cls, v: Optional[list[PumpWeekday]]) -> Optional[list[PumpWeekday]]:
-        """Validate weekday selections."""
+    def validate_weekdays(cls, v):
+        """Validate weekday selections and convert strings/integers to PumpWeekday enums.
+        
+        Accepts:
+        - Lowercase weekday strings ('monday', 'tuesday', etc.)
+        - Integer enum values (64, 32, 16, 8, 4, 2, 1, 127)
+        - PumpWeekday enum instances
+        """
         if v is not None:
             if not v:
                 raise ValueError("Weekdays list cannot be empty")
+
+            # Map lowercase strings to PumpWeekday enums
+            string_to_enum = {
+                'monday': PumpWeekday.monday,
+                'tuesday': PumpWeekday.tuesday,
+                'wednesday': PumpWeekday.wednesday,
+                'thursday': PumpWeekday.thursday,
+                'friday': PumpWeekday.friday,
+                'saturday': PumpWeekday.saturday,
+                'sunday': PumpWeekday.sunday,
+                'everyday': PumpWeekday.everyday
+            }
+
+            # Convert to PumpWeekday enum instances
+            converted = []
+            for day in v:
+                if isinstance(day, str):
+                    # Convert lowercase string to enum
+                    day_lower = day.lower()
+                    if day_lower not in string_to_enum:
+                        raise ValueError(
+                            f"Invalid weekday string: '{day}'. "
+                            f"Expected one of: {', '.join(string_to_enum.keys())}"
+                        )
+                    converted.append(string_to_enum[day_lower])
+                elif isinstance(day, int):
+                    # Convert integer to enum
+                    try:
+                        converted.append(PumpWeekday(day))
+                    except ValueError:
+                        raise ValueError(
+                            f"Invalid weekday value: {day}. "
+                            f"Expected one of: 64, 32, 16, 8, 4, 2, 1, or 127"
+                        )
+                elif isinstance(day, PumpWeekday):
+                    converted.append(day)
+                else:
+                    raise ValueError(
+                        f"Invalid weekday type: {type(day)}. "
+                        f"Expected str, int, or PumpWeekday"
+                    )
+
+            v = converted
 
             # Check for invalid combinations
             if PumpWeekday.everyday in v and len(v) > 1:
@@ -249,13 +298,52 @@ class LightAutoSettingArgs(BaseModel):
                 raise ValueError(f"Sunset ({v}) must be after sunrise ({sunrise})")
         return v
 
-    @field_validator("weekdays")
+    @field_validator("weekdays", mode="before")
     @classmethod
-    def validate_weekdays(cls, v: Optional[list[LightWeekday]]) -> Optional[list[LightWeekday]]:
-        """Validate weekday selections."""
+    def validate_weekdays(cls, v: Optional[list]) -> Optional[list[LightWeekday]]:
+        """Validate weekday selections and convert strings to LightWeekday enums.
+        
+        Accepts:
+        - Lowercase weekday strings ('monday', 'tuesday', etc.)
+        - LightWeekday enum instances
+        """
         if v is not None:
             if not v:
                 raise ValueError("Weekdays list cannot be empty")
+
+            # Map lowercase strings to LightWeekday enums
+            string_to_enum = {
+                'monday': LightWeekday.monday,
+                'tuesday': LightWeekday.tuesday,
+                'wednesday': LightWeekday.wednesday,
+                'thursday': LightWeekday.thursday,
+                'friday': LightWeekday.friday,
+                'saturday': LightWeekday.saturday,
+                'sunday': LightWeekday.sunday,
+                'everyday': LightWeekday.everyday
+            }
+
+            # Convert to LightWeekday enum instances
+            converted = []
+            for day in v:
+                if isinstance(day, str):
+                    # Convert lowercase string to enum
+                    day_lower = day.lower()
+                    if day_lower not in string_to_enum:
+                        raise ValueError(
+                            f"Invalid weekday string: '{day}'. "
+                            f"Expected one of: {', '.join(string_to_enum.keys())}"
+                        )
+                    converted.append(string_to_enum[day_lower])
+                elif isinstance(day, LightWeekday):
+                    converted.append(day)
+                else:
+                    raise ValueError(
+                        f"Invalid weekday type: {type(day)}. "
+                        f"Expected str or LightWeekday"
+                    )
+
+            v = converted
 
             # Check for invalid combinations
             if LightWeekday.everyday in v and len(v) > 1:

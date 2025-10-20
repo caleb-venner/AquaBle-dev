@@ -126,7 +126,7 @@ function renderHeadSelector(device: DoserDevice): string {
       label: headName,
       active: false,
       schedule: { mode: 'single' as const, dailyDoseMl: 10.0, startTime: '09:00' },
-      recurrence: { days: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] },
+      recurrence: { days: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] },
       missedDoseCompensation: false,
       calibration: { mlPerSecond: 1.0, lastCalibratedAt: new Date().toISOString() }
     });
@@ -219,7 +219,7 @@ function selectDoseHead(headIndex: number): void {
     label: `Head ${headIndex}`,
     active: true,
     schedule: { mode: 'single' as const, dailyDoseMl: 10.0, startTime: '09:00' },
-    recurrence: { days: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] },
+    recurrence: { days: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] },
     missedDoseCompensation: false,
     calibration: { mlPerSecond: 1.0, lastCalibratedAt: new Date().toISOString() }
   };
@@ -383,10 +383,18 @@ function renderLightAutoModeTab(device: LightDevice): string {
       <div class="form-group">
         <label>Active Days:</label>
         <div class="weekday-selector">
-          ${['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => `
+          ${[
+            { name: 'monday', label: 'Mon' },
+            { name: 'tuesday', label: 'Tue' },
+            { name: 'wednesday', label: 'Wed' },
+            { name: 'thursday', label: 'Thu' },
+            { name: 'friday', label: 'Fri' },
+            { name: 'saturday', label: 'Sat' },
+            { name: 'sunday', label: 'Sun' }
+          ].map(day => `
             <label class="weekday-option">
-              <input type="checkbox" value="${day}" checked id="weekday-auto-${day}">
-              <span class="weekday-label">${day}</span>
+              <input type="checkbox" value="${day.name}" checked id="weekday-auto-${day.name}">
+              <span class="weekday-label">${day.label}</span>
             </label>
           `).join('')}
         </div>
@@ -433,7 +441,7 @@ function renderLightAutoModeTab(device: LightDevice): string {
  */
 export function renderHeadCommandInterface(headIndex: number, head: any, deviceId: string): string {
   const schedule = head.schedule || { mode: 'single', dailyDoseMl: 10.0, startTime: '09:00' };
-  const recurrence = head.recurrence || { days: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] };
+  const recurrence = head.recurrence || { days: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] };
 
   return `
     <div class="head-command-interface">
@@ -466,12 +474,20 @@ export function renderHeadCommandInterface(headIndex: number, head: any, deviceI
         <div class="form-group">
           <label>Active Days:</label>
           <div class="weekday-selector">
-            ${['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => `
+            ${[
+              { name: 'monday', label: 'Mon' },
+              { name: 'tuesday', label: 'Tue' },
+              { name: 'wednesday', label: 'Wed' },
+              { name: 'thursday', label: 'Thu' },
+              { name: 'friday', label: 'Fri' },
+              { name: 'saturday', label: 'Sat' },
+              { name: 'sunday', label: 'Sun' }
+            ].map(day => `
               <label class="weekday-option">
-                <input type="checkbox" value="${day}"
-                       ${recurrence.days.includes(day) ? 'checked' : ''}
-                       id="weekday-${headIndex}-${day}">
-                <span class="weekday-label">${day}</span>
+                <input type="checkbox" value="${day.name}"
+                       ${recurrence.days.includes(day.name) ? 'checked' : ''}
+                       id="weekday-${headIndex}-${day.name}">
+                <span class="weekday-label">${day.label}</span>
               </label>
             `).join('')}
           </div>
@@ -652,9 +668,9 @@ async function sendLightAutoModeCommand(address: string): Promise<void> {
     const channelElements = document.querySelectorAll<HTMLInputElement>('[id^="auto-channel-"]');
     const channelValues = Array.from(channelElements).map(el => parseInt(el.value, 10));
 
-    // Get active days from checkboxes
+    // Get active days from checkboxes (already in lowercase full name format)
     const dayCheckboxes = document.querySelectorAll<HTMLInputElement>('[id^="weekday-auto-"]');
-    const activeDays = Array.from(dayCheckboxes)
+    const weekdays = Array.from(dayCheckboxes)
       .filter(cb => cb.checked)
       .map(cb => cb.value);
 
@@ -665,7 +681,7 @@ async function sendLightAutoModeCommand(address: string): Promise<void> {
       sunsetTime,
       rampTime,
       channelValues,
-      activeDays
+      weekdays
     });
 
     // Validation
@@ -679,23 +695,10 @@ async function sendLightAutoModeCommand(address: string): Promise<void> {
       return;
     }
 
-    if (activeDays.length === 0) {
+    if (weekdays.length === 0) {
       alert('Please select at least one active day');
       return;
     }
-
-    // Map frontend day names to backend LightWeekday enum values
-    const dayMapping: { [key: string]: string } = {
-      'Mon': 'monday',
-      'Tue': 'tuesday',
-      'Wed': 'wednesday',
-      'Thu': 'thursday',
-      'Fri': 'friday',
-      'Sat': 'saturday',
-      'Sun': 'sunday'
-    };
-
-    const mappedDays = activeDays.map(day => dayMapping[day]).filter(Boolean);
 
     // Build channel brightness dict (assuming Red, Green, Blue, White order)
     const channelNames = ['red', 'green', 'blue', 'white'];
@@ -714,7 +717,7 @@ async function sendLightAutoModeCommand(address: string): Promise<void> {
         sunset: sunsetTime,
         channels: channels,
         ramp_up_minutes: rampTime,
-        weekdays: mappedDays,
+        weekdays: weekdays,
         ...(scheduleLabel && { label: scheduleLabel })  // Include label only if provided
       },
       timeout: 20.0
@@ -798,22 +801,9 @@ async function sendDoserScheduleCommand(address: string, headIndex: number): Pro
     const hour = parseInt(hourStr, 10);
     const minute = parseInt(minuteStr, 10);
 
-    // Get selected weekdays
+    // Get selected weekdays (already in lowercase full name format)
     const weekdayCheckboxes = document.querySelectorAll(`input[id^="weekday-${headIndex}-"]:checked`);
-    const weekdayNames = Array.from(weekdayCheckboxes).map(cb => (cb as HTMLInputElement).value);
-
-    // Map day abbreviations to PumpWeekday enum integer values
-    const dayToEnumValue: { [key: string]: number } = {
-      'Mon': 64,  // monday
-      'Tue': 32,  // tuesday
-      'Wed': 16,  // wednesday
-      'Thu': 8,   // thursday
-      'Fri': 4,   // friday
-      'Sat': 2,   // saturday
-      'Sun': 1    // sunday
-    };
-
-    const weekdays = weekdayNames.map(day => dayToEnumValue[day]).filter(val => val !== undefined);
+    const weekdays = Array.from(weekdayCheckboxes).map(cb => (cb as HTMLInputElement).value);
 
     // Convert dose amount to tenths of ml (backend expects integer)
     const volumeTenthsMl = Math.round(doseAmount * 10);

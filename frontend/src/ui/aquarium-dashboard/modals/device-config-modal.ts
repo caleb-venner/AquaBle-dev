@@ -31,26 +31,20 @@ export async function showDeviceConfigModal(address: string, deviceType: 'doser'
     return;
   }
 
-  // Load metadata
+  // Load metadata (try to fetch regardless of whether config exists)
   let metadata: DeviceMetadata | null = null;
   try {
     if (deviceType === 'doser') {
-      const doserConfig = state.doserConfigs.find(d => d.id === address);
-      if (doserConfig) {
-        // Fetch metadata from API
-        const response = await fetch(`/api/configurations/dosers/${address}/metadata`);
-        if (response.ok) {
-          metadata = await response.json();
-        }
+      // Fetch metadata from API - device may not have a full config yet
+      const response = await fetch(`/api/configurations/dosers/${address}/metadata`);
+      if (response.ok) {
+        metadata = await response.json();
       }
     } else if (deviceType === 'light') {
-      const lightConfig = state.lightConfigs.find(l => l.id === address);
-      if (lightConfig) {
-        // Fetch metadata from API
-        const response = await fetch(`/api/configurations/lights/${address}/metadata`);
-        if (response.ok) {
-          metadata = await response.json();
-        }
+      // Fetch metadata from API - device may not have a full config yet
+      const response = await fetch(`/api/configurations/lights/${address}/metadata`);
+      if (response.ok) {
+        metadata = await response.json();
       }
     }
   } catch (error) {
@@ -217,7 +211,10 @@ async function handleSaveConfig(
       message: 'Settings saved successfully'
     });
 
-    // Refresh dashboard data
+    // Refresh dashboard data (invalidate cache first to get fresh metadata)
+    const { invalidateMetadataCache } = await import('../services/cache-service');
+    invalidateMetadataCache();
+    
     const { loadAllDashboardData } = await import('../services/data-service');
     await loadAllDashboardData();
 

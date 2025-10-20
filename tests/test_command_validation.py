@@ -64,7 +64,7 @@ class TestDoserScheduleArgsValidation:
 
     def test_weekday_validation(self):
         """Test weekday validation."""
-        # Valid weekdays
+        # Valid weekdays using enums
         args = DoserScheduleArgs(
             head_index=0,
             volume_tenths_ml=100,
@@ -76,7 +76,47 @@ class TestDoserScheduleArgsValidation:
         )
         assert len(args.weekdays) == 2
 
-        # Valid everyday
+        # Valid weekdays using strings (new feature)
+        args = DoserScheduleArgs(
+            head_index=0,
+            volume_tenths_ml=100,
+            hour=12,
+            minute=0,
+            weekdays=['monday', 'tuesday', 'friday'],
+            confirm=True,
+            wait_seconds=2.0,
+        )
+        assert len(args.weekdays) == 3
+        assert args.weekdays[0] == PumpWeekday.monday
+        assert args.weekdays[1] == PumpWeekday.tuesday
+        assert args.weekdays[2] == PumpWeekday.friday
+
+        # Valid weekdays using integers
+        args = DoserScheduleArgs(
+            head_index=0,
+            volume_tenths_ml=100,
+            hour=12,
+            minute=0,
+            weekdays=[64, 32, 4],  # monday, tuesday, friday
+            confirm=True,
+            wait_seconds=2.0,
+        )
+        assert len(args.weekdays) == 3
+        assert args.weekdays[0] == PumpWeekday.monday
+
+        # Valid everyday using string
+        args = DoserScheduleArgs(
+            head_index=0,
+            volume_tenths_ml=100,
+            hour=12,
+            minute=0,
+            weekdays=['everyday'],
+            confirm=True,
+            wait_seconds=2.0,
+        )
+        assert args.weekdays == [PumpWeekday.everyday]
+
+        # Valid everyday using enum
         args = DoserScheduleArgs(
             head_index=0,
             volume_tenths_ml=100,
@@ -87,6 +127,18 @@ class TestDoserScheduleArgsValidation:
             wait_seconds=2.0,
         )
         assert args.weekdays == [PumpWeekday.everyday]
+
+        # Invalid weekday string
+        with pytest.raises(ValidationError, match="Invalid weekday string"):
+            DoserScheduleArgs(
+                head_index=0,
+                volume_tenths_ml=100,
+                hour=12,
+                minute=0,
+                weekdays=['mondey'],  # Typo
+                confirm=True,
+                wait_seconds=2.0,
+            )
 
         # Empty weekdays should fail
         with pytest.raises(ValidationError, match="Weekdays list cannot be empty"):
@@ -287,7 +339,7 @@ class TestLightAutoSettingArgsValidation:
 
     def test_weekday_validation(self):
         """Test weekday validation for light auto settings."""
-        # Valid weekdays
+        # Valid weekdays using enums
         args = LightAutoSettingArgs(
             sunrise="06:30",
             sunset="18:00",
@@ -298,7 +350,31 @@ class TestLightAutoSettingArgsValidation:
         assert args.weekdays is not None
         assert len(args.weekdays) == 2
 
-        # Valid everyday
+        # Valid weekdays using strings (new feature)
+        args = LightAutoSettingArgs(
+            sunrise="06:30",
+            sunset="18:00",
+            brightness=50,
+            ramp_up_minutes=0,
+            weekdays=['monday', 'wednesday', 'friday'],
+        )
+        assert args.weekdays is not None
+        assert len(args.weekdays) == 3
+        assert args.weekdays[0] == LightWeekday.monday
+        assert args.weekdays[1] == LightWeekday.wednesday
+        assert args.weekdays[2] == LightWeekday.friday
+
+        # Valid everyday using string
+        args = LightAutoSettingArgs(
+            sunrise="06:30",
+            sunset="18:00",
+            brightness=50,
+            ramp_up_minutes=0,
+            weekdays=['everyday'],
+        )
+        assert args.weekdays == [LightWeekday.everyday]
+
+        # Valid everyday using enum
         args = LightAutoSettingArgs(
             sunrise="06:30",
             sunset="18:00",
@@ -307,6 +383,16 @@ class TestLightAutoSettingArgsValidation:
             weekdays=[LightWeekday.everyday],
         )
         assert args.weekdays == [LightWeekday.everyday]
+
+        # Invalid weekday string
+        with pytest.raises(ValidationError, match="Invalid weekday string"):
+            LightAutoSettingArgs(
+                sunrise="06:30",
+                sunset="18:00",
+                brightness=50,
+                ramp_up_minutes=0,
+                weekdays=['munday'],  # Typo
+            )
 
         # Empty weekdays should fail
         with pytest.raises(ValidationError, match="Weekdays list cannot be empty"):
