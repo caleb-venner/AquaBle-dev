@@ -6,9 +6,12 @@
 - Onboarding process: Load in doser settings from payload decoding. Easier than redoing schedules.
 - Need to decide when/what triggers a payload status request from devies
 - refactor create_light_config_from_command;  "brightness", "multi_channel_brightness", to one function.
+- Test, Decode, Implement full dosing pump mode functionality:
+  . Daily, Timer, 24hr, Custom, (Disabled)
+- Investigate: manual (single) dose; make-up dose flag; enable? flag; further status request command encoding.
 
 ## Nice to have
 
 - Allow users to reverse integrate hassio plugs/switches etc. Can control them from aquable scenes.
   i.e., control co2 solenoid.
-  
+- 'Scenes'; Saved (inactive) device settings; better/more descriptive error handling
