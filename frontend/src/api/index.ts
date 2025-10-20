@@ -14,28 +14,45 @@ export {
 export {
   getDeviceStatus,
   getLiveStatus,
-  refreshDeviceStatus
+  connectDevice,
+  disconnectDevice,
+  refreshDeviceStatus,
+  scanDevices,
 } from "./devices";
 
 // Configuration management
 export {
+  // Doser configuration functions
   getDoserConfigurations,
   getDoserConfiguration,
   updateDoserConfiguration,
   deleteDoserConfiguration,
+  // Light configuration functions
   getLightConfigurations,
   getLightConfiguration,
   updateLightConfiguration,
   deleteLightConfiguration,
+  // Configuration summary
   getConfigurationSummary,
+  // Helper functions
   formatMacAddress,
   getShortDeviceName,
   isValidTimeFormat,
   sortAutoSettings,
   validateDoserConfig,
   validateLightProfile,
+  // System configuration
+  getSystemTimezone,
+  // Metadata functions
+  updateDoserMetadata,
+  getDoserMetadata,
+  listDoserMetadata,
+  updateLightMetadata,
+  getLightMetadata,
+  listLightMetadata,
 } from "./configurations";
 
+// Configuration types
 export type {
   DoserHead,
   DoserDevice,
@@ -44,4 +61,7 @@ export type {
   LightProfile,
   LightDevice,
   ConfigurationSummary,
+  SystemTimezone,
+  DeviceMetadata,
+  LightMetadata,
 } from "./configurations";

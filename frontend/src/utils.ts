@@ -1,3 +1,6 @@
+import type { StatusResponse, CachedStatus, DoserParsed } from './types/backend-models';
+import type { DeviceEntry } from './types/ui-models';
+
 export const WEEKDAY_NAMES = [
   "Sunday",
   "Monday",
@@ -190,4 +193,29 @@ export function getDeviceChannelNames(deviceAddress: string, getDashboardState: 
 
   // Default fallback
   return ['Channel 1', 'Channel 2', 'Channel 3', 'Channel 4'];
+}
+
+// ========================================
+// TYPE CONVERSION UTILITIES
+// ========================================
+
+/** Convert StatusResponse to DeviceEntry array */
+export function statusResponseToEntries(data: StatusResponse): DeviceEntry[] {
+  return Object.entries(data).map(([address, status]) => ({
+    address,
+    status,
+  }));
+}
+
+/** Convert debug statuses to DeviceEntry array */
+export function debugStatusesToEntries(statuses: (CachedStatus & { address: string })[]): DeviceEntry[] {
+  return statuses.map((status) => ({
+    address: status.address,
+    status,
+  }));
+}
+
+/** Convert lifetime totals from tenths of mL to mL */
+export function getLifetimeTotalsInMl(parsed: DoserParsed): number[] {
+  return parsed.lifetime_totals_tenths_ml.map(tenths => tenths / 10);
 }

@@ -39,10 +39,3 @@ export async function getCommand(
     `api/devices/${encodeURIComponent(address)}/commands/${encodeURIComponent(commandId)}`
   );
 }
-
-/**
- * Get light configuration for a device
- */
-export async function getLightConfiguration(address: string) {
-  return fetchJson(`api/configurations/lights/${encodeURIComponent(address)}`);
-}
