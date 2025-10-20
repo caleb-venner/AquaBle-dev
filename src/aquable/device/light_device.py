@@ -7,7 +7,7 @@ from typing import ClassVar, Optional
 from bleak.backends.characteristic import BleakGATTCharacteristic
 
 from ..commands import encoder as commands
-from ..light_status import ParsedLightStatus, parse_light_payload
+from ..light_status import LightStatus, parse_light_payload
 from .base_device import BaseDevice
 
 
@@ -16,7 +16,7 @@ class LightDevice(BaseDevice):
 
     device_kind: ClassVar[str] = "light"
     status_serializer: ClassVar[str | None] = "serialize_light_status"
-    _last_status: Optional[ParsedLightStatus] = None
+    _last_status: Optional[LightStatus] = None
 
     async def request_status(self) -> None:
         """Trigger a status report from the light via the UART handshake."""
@@ -41,12 +41,12 @@ class LightDevice(BaseDevice):
                     # Keep raw_payload available in the parsed-like structure
                     # as a fallback so other parts of the code can still
                     # access `raw_payload` even when parsing fails.
-                    parsed = ParsedLightStatus(
+                    parsed = LightStatus(
                         message_id=None,
                         response_mode=None,
                         weekday=None,
-                        current_hour=None,
-                        current_minute=None,
+                        hour=None,
+                        minute=None,
                         keyframes=[],
                         time_markers=[],
                         tail=b"",
@@ -62,7 +62,7 @@ class LightDevice(BaseDevice):
         self._logger.debug("%s: Notification received: %s", self.name, payload.hex())
 
     @property
-    def last_status(self) -> Optional[ParsedLightStatus]:
+    def last_status(self) -> Optional[LightStatus]:
         """Return the most recent status payload captured from the light."""
         return self._last_status
 

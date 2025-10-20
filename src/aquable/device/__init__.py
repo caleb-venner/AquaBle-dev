@@ -7,7 +7,7 @@ from typing import Type
 from bleak import BleakScanner
 
 from ..errors import DeviceNotFoundError
-from ..light_status import ParsedLightStatus
+from ..light_status import LightStatus
 from .a2 import AII
 from .base_device import BaseDevice
 from .c2 import CII
@@ -66,7 +66,7 @@ __all__ = [
     "UniversalWRGB",
     "BaseDevice",
     "LightDevice",
-    "ParsedLightStatus",
+    "LightStatus",
     "CODE2MODEL",
     "get_device_from_address",
     "get_model_class_from_name",

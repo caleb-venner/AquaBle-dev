@@ -9,7 +9,7 @@ from dataclasses import asdict
 from typing import Any, Dict
 
 from .doser_status import DoserStatus
-from .light_status import ParsedLightStatus
+from .light_status import LightStatus
 
 
 def serialize_doser_status(status: DoserStatus) -> Dict[str, Any]:
@@ -36,7 +36,7 @@ def serialize_doser_status(status: DoserStatus) -> Dict[str, Any]:
     return data
 
 
-def serialize_light_status(status: ParsedLightStatus) -> Dict[str, Any]:
+def serialize_light_status(status: LightStatus) -> Dict[str, Any]:
     """Convert a light status snapshot to a serializable dictionary.
 
     Notes:
@@ -47,8 +47,8 @@ def serialize_light_status(status: ParsedLightStatus) -> Dict[str, Any]:
         "message_id": status.message_id,
         "response_mode": status.response_mode,
         "weekday": status.weekday,
-        "current_hour": status.current_hour,
-        "current_minute": status.current_minute,
+        "hour": status.hour,
+        "minute": status.minute,
         # Include both the raw value (0..255) and a pre-computed percentage so
         # the frontend doesn't need to perform the conversion. Keep the
         # original fields for backward compatibility.

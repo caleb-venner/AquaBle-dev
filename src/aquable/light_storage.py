@@ -7,14 +7,14 @@ expects them.
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
-from typing import Dict, Iterable, Literal, Mapping
+from typing import Literal, Mapping
 from uuid import uuid4
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from .storage_utils import ensure_unique_values, filter_device_json_files
+from .base_device_storage import BaseDeviceStorage
+from .storage_utils import ensure_unique_values
 from .time_utils import now_iso as _now_iso
 
 Weekday = Literal["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
@@ -73,12 +73,6 @@ class ManualProfile(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    """Manual mode profile specifying fixed channel levels."""
-
-    def __init__(self, **data):
-        """Initialize a manual profile."""
-        super().__init__(**data)
-
 
 class CustomPoint(BaseModel):
     """A timed level point within a custom profile."""
@@ -87,8 +81,6 @@ class CustomPoint(BaseModel):
     levels: dict[str, int]
 
     model_config = ConfigDict(extra="forbid")
-
-    """A single point in a custom profile (time + levels)."""
 
 
 class CustomProfile(BaseModel):
@@ -99,8 +91,6 @@ class CustomProfile(BaseModel):
     points: list[CustomPoint]
 
     model_config = ConfigDict(extra="forbid")
-
-    """Custom time-based profile with interpolation between points."""
 
     @model_validator(mode="after")
     def validate_points(self) -> "CustomProfile":
@@ -132,8 +122,6 @@ class AutoProgram(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    """An auto program that defines sunrise/sunset transitions for days."""
-
     @model_validator(mode="after")
     def validate_program(self) -> "AutoProgram":
         """Validate auto program fields (days, times, ramp)."""
@@ -157,8 +145,6 @@ class AutoProfile(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    """Auto profile containing multiple auto programs."""
-
     @model_validator(mode="after")
     def validate_programs(self) -> "AutoProfile":
         """Validate the collection of auto programs for limits and uniqueness."""
@@ -180,10 +166,6 @@ class LightProfileRevision(BaseModel):
     savedBy: str | None = None
 
     model_config = ConfigDict(extra="forbid")
-
-    def __init__(self, **data):
-        """Initialize a profile revision."""
-        super().__init__(**data)
 
 
 class _ProfileWrapper(BaseModel):
@@ -282,20 +264,6 @@ class LightDevice(BaseModel):
         return self.get_configuration(self.activeConfigurationId)
 
 
-class LightDeviceCollection(BaseModel):
-    """A collection container for persisted light devices."""
-
-    devices: list[LightDevice] = Field(default_factory=list)
-
-    model_config = ConfigDict(extra="forbid")
-
-    @model_validator(mode="after")
-    def validate_unique_ids(self) -> "LightDeviceCollection":
-        """Ensure all devices within a collection have unique ids."""
-        ensure_unique_values([device.id for device in self.devices], "device id")
-        return self
-
-
 def _validate_levels_for_channels(
     levels: Mapping[str, int], channel_map: Mapping[str, ChannelDef]
 ) -> None:
@@ -343,208 +311,22 @@ def _validate_profile_for_channels(
         raise ValueError(f"Unsupported profile mode: {profile.mode}")
 
 
-class LightStorage:
+class LightStorage(BaseDeviceStorage[LightDevice]):
     """A lightweight JSON-backed store for light device profiles.
 
-    Utilises unified device storage.
+    Utilises unified device storage and inherits common operations from BaseDeviceStorage.
     """
 
-    def __init__(self, storage_dir: Path | str, metadata_dict: Dict[str, dict]):
-        """Initialize storage with unified directory structure.
+    @property
+    def device_type(self) -> str:
+        """Return the device type string."""
+        return "light"
 
-        Args:
-            storage_dir: Directory containing individual device files
-        """
-        self._storage_dir = Path(storage_dir)
-        self._storage_dir.mkdir(parents=True, exist_ok=True)
-        self._metadata_dict = metadata_dict
-
-        # Load metadata from all device files (including metadata-only files)
-        self._load_all_metadata_from_disk()
-
-    def _get_device_file(self, device_id: str) -> Path:
-        """Get the file path for a specific device.
-
-        Args:
-            device_id: Device identifier (MAC address)
-
-        Returns:
-            Path to the device's configuration file
-        """
-        safe_id = device_id.replace(":", "_")
-        return self._storage_dir / f"{safe_id}.json"
-
-    def _load_all_metadata_from_disk(self) -> None:
-        """Load metadata from all device files (including metadata-only files).
-        
-        This ensures that metadata for newly discovered devices without
-        configurations is loaded from disk on startup.
-        """
-        try:
-            for device_file in self._storage_dir.glob("*.json"):
-                try:
-                    raw = device_file.read_text(encoding="utf-8").strip()
-                    if not raw:
-                        continue
-
-                    data = json.loads(raw)
-
-                    # Load metadata if present
-                    if "metadata" in data and data["metadata"]:
-                        device_id = data.get("device_id")
-                        if device_id:
-                            self._metadata_dict[device_id] = data["metadata"]
-                except (json.JSONDecodeError, OSError):
-                    # Skip files that can't be read
-                    pass
-        except (OSError, ValueError):
-            # Directory might not exist or other issues - that's ok
-            pass
-
-    def _write_metadata_file(self, device_id: str, metadata: dict) -> None:
-        """Write metadata-only file for a device (for devices without configurations).
-        
-        This preserves existing device files but ensures metadata is persisted.
-        """
-        device_file = self._get_device_file(device_id)
-        device_file.parent.mkdir(parents=True, exist_ok=True)
-
-        # Read existing file if it exists to preserve device_data and last_status
-        existing_data = {}
-        if device_file.exists():
-            try:
-                existing_data = json.loads(device_file.read_text(encoding="utf-8"))
-            except (json.JSONDecodeError, OSError):
-                pass
-
-        # Update or create file with metadata
-        data = existing_data or {
-            "device_type": "light",
-            "device_id": device_id,
-            "last_updated": _now_iso(),
-        }
-        
-        # Update metadata
-        data["metadata"] = metadata
-        data["last_updated"] = _now_iso()
-
-        tmp_file = device_file.with_suffix(".tmp")
-        tmp_file.write_text(json.dumps(data, indent=2, sort_keys=True), encoding="utf-8")
-        tmp_file.replace(device_file)
-
-    def _read_device(self, device_id: str) -> LightDevice | None:
-        """Read a device configuration from its individual file (unified format)."""
-        device_file = self._get_device_file(device_id)
-        if not device_file.exists():
-            return None
-
-        try:
-            raw = device_file.read_text(encoding="utf-8").strip()
-            if not raw:
-                return None
-
-            data = json.loads(raw)
-
-            # Validate device type for safety
-            if data.get("device_type") != "light":
-                return None
-
-            # Extract the device data (configuration)
-            device_data = data.get("device_data")
-
-            # If device_data is None, this is a newly discovered device without config
-            if device_data is None:
-                return None
-
-            # Load metadata into shared dict if present
-            if "metadata" in data and data["metadata"]:
-                self._metadata_dict[device_id] = data["metadata"]
-
-            return LightDevice.model_validate(device_data)
-        except (json.JSONDecodeError, ValueError) as exc:
-            # Log error but don't crash
-            import logging
-
-            logging.getLogger(__name__).error(f"Could not parse light device {device_id}: {exc}")
-            return None
-
-    def _write_device(self, device: LightDevice) -> None:
-        """Write a device configuration to its individual file (unified format).
-
-        Preserves existing last_status if present in the file.
-        """
-        device_file = self._get_device_file(device.id)
-
-        # Read existing file to preserve last_status
-        existing_last_status = None
-        if device_file.exists():
-            try:
-                existing_data = json.loads(device_file.read_text(encoding="utf-8"))
-                existing_last_status = existing_data.get("last_status")
-            except (json.JSONDecodeError, OSError):
-                # If we can't read the file, just proceed without last_status
-                pass
-
-        # Build unified device file
-        data = {
-            "device_type": "light",
-            "device_id": device.id,
-            "last_updated": _now_iso(),
-            "device_data": device.model_dump(mode="json"),
-        }
-
-        # Add metadata if present
-        if device.id in self._metadata_dict:
-            data["metadata"] = self._metadata_dict[device.id]
-
-        # Preserve last_status if it existed
-        if existing_last_status:
-            data["last_status"] = existing_last_status
-
-        tmp_path = device_file.with_suffix(".tmp")
-        tmp_path.write_text(json.dumps(data, indent=2, sort_keys=True), encoding="utf-8")
-        tmp_path.replace(device_file)
-
-    def list_devices(self) -> list[LightDevice]:
-        """Return all persisted light devices."""
-        devices = []
-        # Get all .json files except .metadata.json files
-        device_files = filter_device_json_files(self._storage_dir)
-        for device_file in device_files:
-            device = self._read_device(device_file.stem.replace("_", ":"))
-            if device:
-                devices.append(device)
-        return devices
-
-    def get_device(self, device_id: str) -> LightDevice | None:
-        """Return a light device by id or None if not found."""
-        return self._read_device(device_id)
-
-    def upsert_device(self, device: LightDevice | dict) -> LightDevice:
-        """Insert or update a device and persist it."""
-        model = self._validate_device(device)
-        self._write_device(model)
-        return model
-
-    def upsert_many(self, devices: Iterable[LightDevice | dict]) -> list[LightDevice]:
-        """Insert or update multiple devices."""
-        models = []
-        for device in devices:
-            model = self._validate_device(device)
-            self._write_device(model)
-            models.append(model)
-        return models
-
-    def delete_device(self, device_id: str) -> bool:
-        """Remove a device by id, returning True if removed."""
-        device_file = self._get_device_file(device_id)
-        if device_file.exists():
-            try:
-                device_file.unlink()
-                return True
-            except OSError:
-                return False
-        return False
+    def _validate_device(self, device: LightDevice | dict) -> LightDevice:
+        """Validate or coerce an input into a LightDevice model."""
+        if isinstance(device, LightDevice):
+            return device
+        return LightDevice.model_validate(device)
 
     def list_configurations(self, device_id: str) -> list[LightConfiguration]:
         """List configurations for the given device id."""
@@ -601,7 +383,7 @@ class LightStorage:
         configuration.updatedAt = timestamp
         if set_active or device.activeConfigurationId is None:
             device.activeConfigurationId = configuration.id
-        self._write_device(device)
+        self.upsert_device(device)
         return configuration
 
     def add_revision(
@@ -637,7 +419,7 @@ class LightStorage:
         device.updatedAt = timestamp
         if set_active:
             device.activeConfigurationId = configuration.id
-        self._write_device(device)
+        self.upsert_device(device)
         return revision
 
     def set_active_configuration(self, device_id: str, configuration_id: str) -> LightConfiguration:
@@ -646,13 +428,8 @@ class LightStorage:
         configuration = device.get_configuration(configuration_id)
         device.activeConfigurationId = configuration.id
         device.updatedAt = _now_iso()
-        self._write_device(device)
+        self.upsert_device(device)
         return configuration
-
-    def _validate_device(self, device: LightDevice | dict) -> LightDevice:
-        if isinstance(device, LightDevice):
-            return device
-        return LightDevice.model_validate(device)
 
     def _validate_profile(
         self, profile: ManualProfile | CustomProfile | AutoProfile | dict
@@ -660,12 +437,6 @@ class LightStorage:
         if isinstance(profile, (ManualProfile, CustomProfile, AutoProfile)):
             return profile
         return _ProfileWrapper.model_validate({"profile": profile}).profile
-
-    def _require_device(self, device_id: str) -> LightDevice:
-        device = self.get_device(device_id)
-        if device is None:
-            raise KeyError(device_id)
-        return device
 
     def _get_metadata_file(self, device_id: str) -> Path:
         """Get the file path for a device's metadata.
@@ -739,7 +510,6 @@ __all__ = [
     "InterpolationKind",
     "LightConfiguration",
     "LightDevice",
-    "LightDeviceCollection",
     "LightMetadata",
     "LightProfileRevision",
     "LightStorage",

@@ -227,32 +227,64 @@ def create_doser_config_from_status(
 def update_doser_schedule_config(device: DoserDevice, args: Dict[str, Any]) -> DoserDevice:
     """Update a doser device configuration based on set_schedule command args.
 
-    This function now uses atomic updates to ensure configuration consistency.
-    Either all changes succeed or none do, preventing partial state corruption.
-
     Args:
         device: The DoserDevice to update
         args: Command arguments from set_schedule command
 
     Returns:
-        Updated DoserDevice (new instance)
+        Updated DoserDevice (same instance, modified in place)
     """
-    from .atomic_config import atomic_update_doser_schedule
-
     head_index = args["head_index"]
     volume_tenths_ml = args["volume_tenths_ml"]
     hour = args["hour"]
     minute = args["minute"]
     weekdays = args.get("weekdays")
 
-    return atomic_update_doser_schedule(
-        device=device,
-        head_index=head_index,
-        volume_tenths_ml=volume_tenths_ml,
-        hour=hour,
-        minute=minute,
-        weekdays=weekdays,
+    # Get active configuration
+    config = device.get_active_configuration()
+    latest = config.latest_revision()
+
+    # Find the head to update
+    target_head = None
+    for head in latest.heads:
+        if head.index == head_index:
+            target_head = head
+            break
+
+    if target_head is None:
+        raise ValueError(f"Head {head_index} not found in device {device.id} configuration")
+
+    # Update the head schedule
+    target_head.active = True
+    target_head.schedule = SingleSchedule(
+        mode="single",
+        dailyDoseMl=volume_tenths_ml / 10.0,
+        startTime=f"{hour:02d}:{minute:02d}",
     )
+
+    # Update weekdays if provided
+    if weekdays:
+        weekday_names = []
+        for weekday in weekdays:
+            if hasattr(weekday, "name"):
+                # Convert enum names to lowercase full weekday strings
+                weekday_names.append(weekday.name.lower())
+            else:
+                # Already a string, ensure it's lowercase
+                weekday_names.append(str(weekday).lower())
+        target_head.recurrence.days = weekday_names
+
+    # Update timestamps
+    timestamp = _now_iso()
+    config.updatedAt = timestamp
+    device.updatedAt = timestamp
+
+    logger.info(
+        f"Updated head {head_index} schedule: "
+        f"{volume_tenths_ml / 10.0}ml at {hour:02d}:{minute:02d}"
+    )
+
+    return device
 
 
 def update_doser_head_stats(
@@ -517,55 +549,29 @@ def add_light_auto_program(
         # Use single brightness value for all channels
         levels = {ch.key: brightness for ch in device.channels}
 
-    # Create new auto program - use full lowercase weekday names
-    default_weekdays = [
-        "monday",
-        "tuesday",
-        "wednesday",
-        "thursday",
-        "friday",
-        "saturday",
-        "sunday",
-    ]
-    if weekdays:
-        program_days = [day.lower() for day in weekdays]
-    else:
-        program_days = default_weekdays
+    # Create new auto program - use full lowercase weekday name
+    if weekdays is None:
+        weekdays = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
 
-    new_program = AutoProgram(
+    program = AutoProgram(
         id=str(uuid4()),
-        label=label if label else f"Auto {sunrise}-{sunset}",
+        label=label or f"Auto {sunrise}-{sunset}",
         enabled=True,
-        days=program_days,  # type: ignore[arg-type]
+        days=cast(list["Weekday"], weekdays),
         sunrise=sunrise,
         sunset=sunset,
         rampMinutes=ramp_up_minutes,
         levels=levels,
     )
 
-    # Determine the profile to use
+    # Update profile to auto mode or add to existing auto programs
     if isinstance(active_profile.profile, AutoProfile):
-        # Add to existing auto profile
-        existing_programs = active_profile.profile.programs.copy()
-        existing_programs.append(new_program)
-        new_profile = AutoProfile(mode="auto", programs=existing_programs)
+        active_profile.profile.programs.append(program)
     else:
-        # Convert to auto profile with the new program
-        new_profile = AutoProfile(mode="auto", programs=[new_program])
+        # Convert to auto profile
+        active_profile.profile = AutoProfile(mode="auto", programs=[program])
 
-    # Create a new revision with the updated profile
     timestamp = _now_iso()
-    next_revision = active_profile.revision + 1
-    new_revision = LightProfileRevision(
-        revision=next_revision,
-        savedAt=timestamp,
-        profile=new_profile,
-        note=f"Added auto program {sunrise}-{sunset}",
-        savedBy="system",
-    )
-
-    # Add the new revision to the configuration
-    active_config.revisions.append(new_revision)
     active_config.updatedAt = timestamp
     device.updatedAt = timestamp
 
@@ -574,54 +580,43 @@ def add_light_auto_program(
     return device
 
 
-def create_doser_config_from_command(address: str, command_args: Dict[str, Any]) -> DoserDevice:
-    """Create a doser configuration from the actual command being sent.
+def create_doser_config_from_command(address: str, args: Dict[str, Any]) -> DoserDevice:
+    """Create a new DoserDevice configuration from a set_schedule command.
 
     Args:
-        address: Device MAC address
-        command_args: Arguments from the schedule command
+        address: The device MAC address
+        args: Command arguments from set_schedule command
 
     Returns:
-        DoserDevice with configuration based on the command
+        New DoserDevice with configuration from command
     """
-    device_name = f"Doser {address[-8:]}"
     timestamp = _now_iso()
+    device_name = f"Doser {address[-8:]}"
 
-    # Create heads array with only the commanded head active
+    # Extract command parameters
+    head_index = args["head_index"]
+    volume_tenths_ml = args["volume_tenths_ml"]
+    hour = args["hour"]
+    minute = args["minute"]
+    weekdays = args.get("weekdays")
+
+    # Create default heads (all inactive except the one being configured)
     heads = []
     for idx in range(1, 5):
-        if idx == command_args["head_index"]:
-            # Create the actual scheduled head from command
-            weekdays = command_args.get("weekdays")
+        if idx == head_index + 1:  # head_index is 0-based in command, 1-based in storage
+            # This is the head being configured
+            weekday_names = []
             if weekdays:
-                # Convert weekday names to full lowercase format
-                weekday_strings = [
-                    day.value if hasattr(day, "value") else str(day).lower() for day in weekdays
-                ]
+                for weekday in weekdays:
+                    if hasattr(weekday, "name"):
+                        # Convert enum names to lowercase full weekday strings
+                        weekday_names.append(weekday.name.lower())
+                    else:
+                        # Already a string, ensure it's lowercase
+                        weekday_names.append(str(weekday).lower())
             else:
-                weekday_strings = [
-                    "monday",
-                    "tuesday",
-                    "wednesday",
-                    "thursday",
-                    "friday",
-                    "saturday",
-                    "sunday",
-                ]
-
-            # Convert volume from tenths to ml
-            volume_ml = command_args["volume_tenths_ml"] / 10.0
-            start_time = f"{command_args['hour']:02d}:{command_args['minute']:02d}"
-
-            # Convert PumpWeekday enums to strings for Recurrence
-            weekdays = command_args.get("weekdays")
-            if weekdays:
-                # weekdays is List[PumpWeekday] - convert to full lowercase format
-                weekday_strings = [
-                    day.value if hasattr(day, "value") else str(day).lower() for day in weekdays
-                ]
-            else:
-                weekday_strings = [
+                # Default to all days if not specified
+                weekday_names = [
                     "monday",
                     "tuesday",
                     "wednesday",
@@ -635,14 +630,18 @@ def create_doser_config_from_command(address: str, command_args: Dict[str, Any])
                 index=idx,  # type: ignore[arg-type]
                 label=f"Head {idx}",
                 active=True,
-                schedule=SingleSchedule(mode="single", dailyDoseMl=volume_ml, startTime=start_time),
-                recurrence=Recurrence(days=weekday_strings),  # type: ignore[arg-type]
+                schedule=SingleSchedule(
+                    mode="single",
+                    dailyDoseMl=volume_tenths_ml / 10.0,
+                    startTime=f"{hour:02d}:{minute:02d}",
+                ),
+                recurrence=Recurrence(days=cast(list[Weekday], weekday_names)),
                 missedDoseCompensation=False,
                 calibration=Calibration(mlPerSecond=0.1, lastCalibratedAt=timestamp),
                 stats=DoserHeadStats(dosesToday=0, mlDispensedToday=0.0),
             )
         else:
-            # Inactive head
+            # Inactive head with default settings
             head = DoserHead(
                 index=idx,  # type: ignore[arg-type]
                 label=f"Head {idx}",
@@ -670,15 +669,15 @@ def create_doser_config_from_command(address: str, command_args: Dict[str, Any])
         revision=1,
         savedAt=timestamp,
         heads=heads,
-        note=f"Created from schedule command for head {command_args['head_index']}",
-        savedBy="user-command",
+        note=f"Created from set_schedule command for head {head_index + 1}",
+        savedBy="system",
     )
 
-    # Create configuration
+    # Create default configuration
     configuration = DeviceConfiguration(
-        id="schedule-config",
-        name="Schedule Configuration",
-        description="Configuration created from schedule command",
+        id="default",
+        name="Default Configuration",
+        description=f"Auto-generated from set_schedule command",
         createdAt=timestamp,
         updatedAt=timestamp,
         revisions=[revision],
@@ -689,26 +688,30 @@ def create_doser_config_from_command(address: str, command_args: Dict[str, Any])
         id=address,
         name=device_name,
         configurations=[configuration],
-        activeConfigurationId="schedule-config",
+        activeConfigurationId="default",
         createdAt=timestamp,
         updatedAt=timestamp,
+    )
+
+    logger.info(
+        f"Created new doser config for {address} from schedule command, head {head_index + 1}"
     )
 
     return device
 
 
 def create_light_config_from_command(
-    address: str, command_type: str, command_args: Dict[str, Any]
+    address: str, command_type: str, args: Dict[str, Any]
 ) -> LightDevice:
-    """Create a light configuration from the actual command being sent.
+    """Create a new LightDevice configuration from a command.
 
     Args:
-        address: Device MAC address
-        command_type: Type of command ("brightness" or "auto_program")
-        command_args: Arguments from the command
+        address: The device MAC address
+        command_type: Type of command ("brightness", "multi_channel_brightness", "auto_program")
+        args: Command arguments
 
     Returns:
-        LightDevice with configuration based on the command
+        New LightDevice with configuration from command
     """
     from .light_storage import (
         AutoProfile,
@@ -720,68 +723,88 @@ def create_light_config_from_command(
         ManualProfile,
     )
 
-    device_name = f"Light {address[-8:]}"
     timestamp = _now_iso()
+    device_name = f"Light {address[-8:]}"
 
-    # Default channels (will be updated when device is connected)
-    channels = [
+    # Create default channel definitions
+    # Use standard RGBW channel layout
+    channel_defs = [
         ChannelDef(key="red", label="Red", min=0, max=100, step=1),
         ChannelDef(key="green", label="Green", min=0, max=100, step=1),
         ChannelDef(key="blue", label="Blue", min=0, max=100, step=1),
         ChannelDef(key="white", label="White", min=0, max=100, step=1),
     ]
 
+    # Create profile based on command type
     if command_type == "brightness":
-        # Create manual profile from brightness command
-        profile = ManualProfile(
-            mode="manual",
-            levels={
-                "red": command_args["brightness"],
-                "green": command_args["brightness"],
-                "blue": command_args["brightness"],
-                "white": command_args["brightness"],
-            },
-        )
-        config_name = "Manual Brightness"
-        description = f"Manual brightness set to {command_args['brightness']}%"
-        note = f"Created from brightness command: {command_args['brightness']}%"
+        # Single channel brightness command
+        brightness = args.get("brightness", 50)
+        color = args.get("color", 0)
+
+        # Determine which channel to set
+        if color < len(channel_defs):
+            channel_key = channel_defs[color].key
+        else:
+            channel_key = "white"
+
+        # Create manual profile with the brightness set for the specified channel
+        levels = {ch.key: (brightness if ch.key == channel_key else 0) for ch in channel_defs}
+
+        profile = ManualProfile(mode="manual", levels=levels)
+        note = f"Created from brightness command ({channel_key}={brightness})"
 
     elif command_type == "multi_channel_brightness":
-        # Create manual profile from multi-channel brightness command
-        brightness_channels = command_args.get("channels", [50, 50, 50, 50])
-        if isinstance(brightness_channels, (list, tuple)):
-            # Assume order is [red, green, blue, white]
-            channel_names = ["red", "green", "blue", "white"]
-            levels = {
-                name: (brightness_channels[i] if i < len(brightness_channels) else 50)
-                for i, name in enumerate(channel_names)
-            }
-        else:
-            # Fallback to default
-            levels = {"red": 50, "green": 50, "blue": 50, "white": 50}
+        # Multi-channel brightness command
+        channels = args.get("channels", [])
+        if not channels:
+            channels = [0, 0, 0, 0]
 
-        profile = ManualProfile(
-            mode="manual",
-            levels=levels,
-        )
-        config_name = "Manual Multi-Channel"
-        description = (
-            f"Multi-channel brightness: R={levels['red']} G={levels['green']} "
-            f"B={levels['blue']} W={levels['white']}"
-        )
-        note = "Created from multi-channel brightness command"
+        # Map channels to RGBW keys
+        channel_keys = ["red", "green", "blue", "white"]
+        levels = {}
+        for i, brightness in enumerate(channels):
+            if i < len(channel_keys):
+                levels[channel_keys[i]] = int(brightness)
+
+        # Fill in any missing channels with 0
+        for ch in channel_defs:
+            if ch.key not in levels:
+                levels[ch.key] = 0
+
+        profile = ManualProfile(mode="manual", levels=levels)
+        note = f"Created from multi-channel brightness command"
 
     elif command_type == "auto_program":
-        # Create auto profile from auto program command
-        weekdays = command_args.get("weekdays")
-        if weekdays:
-            # Handle both LightWeekday enum instances and plain strings
-            # Convert to full lowercase format
-            weekday_strings = [
-                day.value if hasattr(day, "value") else str(day).lower() for day in weekdays
-            ]
+        # Auto program command
+        sunrise = args["sunrise"]
+        sunset = args["sunset"]
+        brightness_arg = args.get("brightness") or args.get("channels")
+        ramp_up_minutes = args.get("ramp_up_minutes", 0)
+        weekdays = args.get("weekdays")
+        label = args.get("label")
+
+        # Create levels for all channels
+        if isinstance(brightness_arg, dict):
+            levels = {ch.key: brightness_arg.get(ch.key, 100) for ch in channel_defs}
+        elif isinstance(brightness_arg, (list, tuple)):
+            # Multi-channel brightness values
+            channel_keys = ["red", "green", "blue", "white"]
+            levels = {}
+            for i, brightness in enumerate(brightness_arg):
+                if i < len(channel_keys):
+                    levels[channel_keys[i]] = int(brightness)
+            # Fill in missing channels
+            for ch in channel_defs:
+                if ch.key not in levels:
+                    levels[ch.key] = 0
         else:
-            weekday_strings = [
+            # Single brightness value for all channels
+            brightness_val = int(brightness_arg) if brightness_arg is not None else 100
+            levels = {ch.key: brightness_val for ch in channel_defs}
+
+        # Create auto program
+        if weekdays is None:
+            weekdays = [
                 "monday",
                 "tuesday",
                 "wednesday",
@@ -790,92 +813,60 @@ def create_light_config_from_command(
                 "saturday",
                 "sunday",
             ]
-
-        # Handle brightness - could be single value or per-channel dict
-        brightness_data = command_args.get("brightness") or command_args.get("channels")
-        if isinstance(brightness_data, dict):
-            # Per-channel brightness from frontend
-            levels = {
-                "red": brightness_data.get("red", 100),
-                "green": brightness_data.get("green", 100),
-                "blue": brightness_data.get("blue", 100),
-                "white": brightness_data.get("white", 100),
-            }
         else:
-            # Legacy single brightness value
-            brightness_value = brightness_data if brightness_data is not None else 100
-            levels = {
-                "red": brightness_value,
-                "green": brightness_value,
-                "blue": brightness_value,
-                "white": brightness_value,
-            }
+            # Convert weekday enums to strings if needed
+            weekdays = [
+                (day.value.lower() if hasattr(day, "value") else str(day).lower())
+                for day in weekdays
+            ]
 
-        auto_program = AutoProgram(
+        program = AutoProgram(
             id=str(uuid4()),
-            label="Auto Program",
+            label=label or f"Auto {sunrise}-{sunset}",
             enabled=True,
-            days=weekday_strings,  # type: ignore[arg-type]
-            sunrise=command_args["sunrise"],
-            sunset=command_args["sunset"],
-            rampMinutes=command_args.get("ramp_up_minutes", 0),
+            days=cast(list["Weekday"], weekdays),
+            sunrise=sunrise,
+            sunset=sunset,
+            rampMinutes=ramp_up_minutes,
             levels=levels,
         )
 
-        profile = AutoProfile(mode="auto", programs=[auto_program])
-        config_name = "Auto Program"
-        description = f"Auto program {command_args['sunrise']}-{command_args['sunset']}"
-        note = (
-            f"Created from auto program command: "
-            f"{command_args['sunrise']}-{command_args['sunset']}"
-        )
+        profile = AutoProfile(mode="auto", programs=[program])
+        note = f"Created from auto program command ({sunrise}-{sunset})"
 
     else:
         raise ValueError(f"Unsupported command type: {command_type}")
 
-    # Create initial revision
+    # Create profile revision
     revision = LightProfileRevision(
         revision=1,
         savedAt=timestamp,
         profile=profile,
         note=note,
-        savedBy="user-command",
+        savedBy="system",
     )
 
     # Create configuration
     configuration = LightConfiguration(
-        id="command-config",
-        name=config_name,
-        description=description,
+        id="default",
+        name="Default Configuration",
+        description=f"Auto-generated from {command_type} command",
+        revisions=[revision],
         createdAt=timestamp,
         updatedAt=timestamp,
-        revisions=[revision],
     )
 
     # Create device
     device = LightDevice(
         id=address,
         name=device_name,
-        channels=channels,
+        channels=channel_defs,
         configurations=[configuration],
-        activeConfigurationId="command-config",
+        activeConfigurationId="default",
         createdAt=timestamp,
         updatedAt=timestamp,
     )
 
+    logger.info(f"Created new light config for {address} from {command_type} command")
+
     return device
-
-
-__all__ = [
-    "create_default_doser_config",
-    "create_doser_config_from_status",
-    "create_doser_config_from_command",
-    "update_doser_schedule_config",
-    "update_doser_head_stats",
-    "create_default_light_profile",
-    "create_light_config_from_command",
-    "update_light_manual_profile",
-    "update_light_brightness",
-    "update_light_multi_channel_brightness",
-    "add_light_auto_program",
-]

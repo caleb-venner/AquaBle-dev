@@ -18,8 +18,7 @@ from typing import Any, Dict, Literal
 
 from pydantic import BaseModel, ConfigDict
 
-from .doser_storage import DeviceMetadata as DoserMetadata
-from .doser_storage import DoserDevice
+from .doser_storage import DoserDevice, DoserMetadata
 from .light_storage import LightDevice, LightMetadata
 from .time_utils import now_iso
 

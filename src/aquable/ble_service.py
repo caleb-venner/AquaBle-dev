@@ -159,11 +159,9 @@ class BLEService:
         CONFIG_DIR.mkdir(parents=True, exist_ok=True)
 
         # Initialize unified device storage
-        from .global_settings import GlobalSettings
         from .unified_device_storage import UnifiedDeviceStorage
 
         self._unified_storage = UnifiedDeviceStorage(DEVICE_CONFIG_PATH)
-        self._global_settings = GlobalSettings(CONFIG_DIR)
         logger.info("Unified device storage initialized: %s", DEVICE_CONFIG_PATH)
 
         # Pre-populate metadata from unified storage before creating storage instances
@@ -203,15 +201,8 @@ class BLEService:
         # Initialize timezone configuration
         from .time_utils import get_system_timezone
 
-        # Try to load from global settings first
-        saved_timezone = self._global_settings.get_display_timezone()
-        if saved_timezone:
-            self._display_timezone = saved_timezone
-            logger.info("Display timezone loaded: %s", self._display_timezone)
-        else:
-            self._display_timezone = get_system_timezone()
-            self._global_settings.set_display_timezone(self._display_timezone)
-            logger.info("Display timezone initialized: %s", self._display_timezone)
+        self._display_timezone = get_system_timezone()
+        logger.info("Display timezone: %s", self._display_timezone)
 
     def current_device_address(self, device_type: str) -> Optional[str]:
         """Return the current primary address for a device type, if known."""
@@ -257,29 +248,6 @@ class BLEService:
         if isinstance(kind, str) and kind:
             return kind.lower()
         return None
-
-    def get_display_timezone(self) -> str:
-        """Get the current display timezone."""
-        return self._display_timezone
-
-    def set_display_timezone(self, timezone: str) -> None:
-        """Set the display timezone for UI time formatting.
-
-        Args:
-            timezone: IANA timezone identifier (e.g., "America/New_York")
-                      Must be a valid IANA timezone - no abbreviations allowed.
-
-        Raises:
-            ValueError: If timezone is invalid
-        """
-        from .time_utils import _is_valid_timezone
-
-        if not _is_valid_timezone(timezone):
-            raise ValueError(f"Invalid IANA timezone identifier: {timezone}")
-
-        self._display_timezone = timezone
-        self._global_settings.set_display_timezone(timezone)
-        logger.info("Display timezone updated to: %s", timezone)
 
     async def connect_device(self, address: str, device_type: Optional[str] = None) -> CachedStatus:
         """Connect to a device by address and fetch its status.

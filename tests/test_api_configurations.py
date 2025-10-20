@@ -54,8 +54,19 @@ def temp_config_dir(monkeypatch):
 
 
 @pytest.fixture
-def client():
-    """Create a test client for the FastAPI application."""
+def client(temp_config_dir):
+    """Create a test client for the FastAPI application.
+
+    Note: Must depend on temp_config_dir to ensure service is properly
+    initialized with the temporary storage paths before creating the client.
+    """
+    from aquable.service import service as global_service
+
+    # Ensure the global service instance is available in app.state
+    # This is normally done by the lifespan context manager, but TestClient
+    # may not always trigger it properly
+    app.state.service = global_service
+
     return TestClient(app)
 
 

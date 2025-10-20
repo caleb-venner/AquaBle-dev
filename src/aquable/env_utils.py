@@ -1,4 +1,4 @@
-"""Environment variable utilities without backwards compatibility."""
+"""Environment variable utilities."""
 
 import logging
 import os

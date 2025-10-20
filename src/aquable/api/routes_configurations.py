@@ -4,42 +4,55 @@ API routes for device configuration management.
 These endpoints provide CRUD operations for saved device configurations,
 allowing the frontend to view, edit, and manage device configurations
 independently of active device connections.
+
+Exception Handling Pattern:
+- OSError/IOError: File system errors (500 status)
+- ValueError: Validation errors from Pydantic models (422 status for user input, 500 for storage)
+- KeyError: Missing device/configuration (404 status)
+- Avoid broad 'except Exception' - catch specific exceptions for better debugging
 """
 
 import logging
 from typing import List
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 
 from ..ble_service import DEVICE_CONFIG_PATH
-from ..doser_storage import DeviceMetadata, DoserDevice, DoserStorage
+from ..doser_storage import DoserDevice, DoserMetadata, DoserStorage
 from ..light_storage import LightDevice, LightMetadata, LightStorage
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/configurations", tags=["configurations"])
 
 
-# Dependency injection for storage instances
-_doser_storage_cache = None
-_light_storage_cache = None
+def get_doser_storage(request: Request) -> DoserStorage:
+    """Get DoserStorage instance from the app state.
+
+    This dependency function accesses the BLEService from the FastAPI app
+    state, eliminating circular dependencies and the service locator pattern.
+
+    Args:
+        request: FastAPI request object containing app state
+
+    Returns:
+        DoserStorage instance from the service
+    """
+    return request.app.state.service._doser_storage
 
 
-def get_doser_storage() -> DoserStorage:
-    """Get DoserStorage instance."""
-    global _doser_storage_cache
-    if _doser_storage_cache is None:
-        from ..service import get_service
-        _doser_storage_cache = get_service()._doser_storage
-    return _doser_storage_cache
+def get_light_storage(request: Request) -> LightStorage:
+    """Get LightStorage instance from the app state.
 
+    This dependency function accesses the BLEService from the FastAPI app
+    state, eliminating circular dependencies and the service locator pattern.
 
-def get_light_storage() -> LightStorage:
-    """Get LightStorage instance."""
-    global _light_storage_cache
-    if _light_storage_cache is None:
-        from ..service import get_service
-        _light_storage_cache = get_service()._light_storage
-    return _light_storage_cache
+    Args:
+        request: FastAPI request object containing app state
+
+    Returns:
+        LightStorage instance from the service
+    """
+    return request.app.state.service._light_storage
 
 
 # ============================================================================
@@ -62,13 +75,16 @@ async def list_doser_configurations(
         devices = storage.list_devices()
         logger.info(f"Retrieved {len(devices)} doser configurations")
         return devices
-    except Exception as e:
-        logger.error(f"Error listing doser configurations: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to list configurations: {str(e)}")
+    except (OSError, IOError) as e:
+        logger.error(f"File I/O error listing doser configurations: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Storage error: {str(e)}")
+    except ValueError as e:
+        logger.error(f"Validation error listing doser configurations: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Configuration validation error: {str(e)}")
 
 
-@router.get("/dosers/metadata", response_model=List[DeviceMetadata])
-async def list_doser_metadata():
+@router.get("/dosers/metadata", response_model=List[DoserMetadata])
+async def list_doser_metadata(request: Request):
     """
     Get metadata for all dosers (both full devices and metadata-only).
 
@@ -77,16 +93,15 @@ async def list_doser_metadata():
     configurations.
     """
     try:
-        from ..service import get_service
-        service = get_service()
+        service = request.app.state.service
         all_devices = service._unified_storage.list_all_devices()
-        
+
         metadata_list = []
         for device in all_devices:
             if device.device_type == "doser" and device.metadata:
-                # Convert unified metadata to DeviceMetadata
+                # Convert unified metadata to DoserMetadata
                 metadata_dict = device.metadata.model_dump()
-                metadata = DeviceMetadata(
+                metadata = DoserMetadata(
                     id=metadata_dict.get("id", device.device_id),
                     name=metadata_dict.get("name"),
                     headNames=metadata_dict.get("headNames"),
@@ -95,12 +110,15 @@ async def list_doser_metadata():
                     updatedAt=metadata_dict.get("updatedAt"),
                 )
                 metadata_list.append(metadata)
-        
+
         logger.info(f"Retrieved {len(metadata_list)} doser metadata entries")
         return metadata_list
-    except Exception as e:
-        logger.error(f"Error listing doser metadata: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to list metadata: {str(e)}")
+    except (OSError, IOError) as e:
+        logger.error(f"File I/O error listing doser metadata: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Storage error: {str(e)}")
+    except ValueError as e:
+        logger.error(f"Validation error listing doser metadata: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Metadata validation error: {str(e)}")
 
 
 @router.get("/dosers/{address}", response_model=DoserDevice)
@@ -156,9 +174,12 @@ async def update_doser_configuration(
         storage.upsert_device(device)
         logger.info(f"Updated configuration for doser {address}")
         return device
-    except Exception as e:
-        logger.error(f"Error updating doser configuration: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to update configuration: {str(e)}")
+    except (OSError, IOError) as e:
+        logger.error(f"File I/O error updating doser configuration: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Storage error: {str(e)}")
+    except ValueError as e:
+        logger.error(f"Validation error updating doser configuration: {e}", exc_info=True)
+        raise HTTPException(status_code=422, detail=f"Invalid configuration: {str(e)}")
 
 
 @router.delete("/dosers/{address}", status_code=204)
@@ -187,9 +208,9 @@ async def delete_doser_configuration(
         storage.delete_device(address)
         logger.info(f"Deleted configuration for doser {address}")
         return None
-    except Exception as e:
-        logger.error(f"Error deleting doser configuration: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to delete configuration: {str(e)}")
+    except (OSError, IOError) as e:
+        logger.error(f"File I/O error deleting doser configuration: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Storage error: {str(e)}")
 
 
 # ============================================================================
@@ -197,7 +218,7 @@ async def delete_doser_configuration(
 # ============================================================================
 
 
-@router.get("/dosers/{address}/metadata", response_model=DeviceMetadata)
+@router.get("/dosers/{address}/metadata", response_model=DoserMetadata)
 async def get_doser_metadata(
     address: str,
     storage: DoserStorage = Depends(get_doser_storage),
@@ -213,17 +234,17 @@ async def get_doser_metadata(
         metadata = storage.get_device_metadata(address)
         if metadata is None:
             # Return empty metadata for devices without existing metadata
-            metadata = DeviceMetadata(id=address)
+            metadata = DoserMetadata(id=address)
         return metadata
     except Exception as e:
         logger.error(f"Error retrieving doser metadata: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to retrieve metadata: {str(e)}")
 
 
-@router.put("/dosers/{address}/metadata", response_model=DeviceMetadata)
+@router.put("/dosers/{address}/metadata", response_model=DoserMetadata)
 async def update_doser_metadata(
     address: str,
-    metadata: DeviceMetadata,
+    metadata: DoserMetadata,
     storage: DoserStorage = Depends(get_doser_storage),
 ):
     """
@@ -274,7 +295,7 @@ async def list_light_configurations(
 
 
 @router.get("/lights/metadata", response_model=List[LightMetadata])
-async def list_light_metadata():
+async def list_light_metadata(request: Request):
     """
     Get metadata for all lights.
 
@@ -285,10 +306,9 @@ async def list_light_metadata():
         List of light metadata
     """
     try:
-        from ..service import get_service
-        service = get_service()
+        service = request.app.state.service
         all_devices = service._unified_storage.list_all_devices()
-        
+
         metadata_list = []
         for device in all_devices:
             if device.device_type == "light" and device.metadata:
@@ -299,7 +319,7 @@ async def list_light_metadata():
                     name=metadata_dict.get("name"),
                 )
                 metadata_list.append(metadata)
-        
+
         logger.info(f"Retrieved {len(metadata_list)} light metadata entries")
         return metadata_list
     except Exception as e:
@@ -479,63 +499,6 @@ async def get_system_timezone() -> dict:
     except Exception as e:
         logger.error(f"Error getting system timezone: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to get timezone: {str(e)}")
-
-
-@router.get("/display/timezone")
-async def get_display_timezone(request) -> dict:
-    """Get the current display timezone setting.
-
-    Returns the configured display timezone used for formatting times
-    in the UI. This is always a valid IANA timezone identifier.
-
-    Returns:
-        dict: Contains display timezone information
-    """
-    try:
-        service = request.app.state.service
-        timezone = service.get_display_timezone()
-
-        return {
-            "display_timezone": timezone,
-            "format": "IANA identifier (e.g., America/New_York, UTC)",
-        }
-    except Exception as e:
-        logger.error(f"Error getting display timezone: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to get display timezone: {str(e)}")
-
-
-@router.put("/display/timezone")
-async def set_display_timezone(timezone_data: dict, request) -> dict:
-    """Set the display timezone for UI time formatting.
-
-    Args:
-        timezone_data: Dict containing 'timezone' key with IANA timezone identifier
-                      (e.g., "America/New_York", "Europe/London", "UTC")
-
-    Returns:
-        dict: Confirmation of the updated timezone
-    """
-    try:
-        timezone = timezone_data.get("timezone")
-        if not timezone:
-            raise HTTPException(status_code=400, detail="Missing required 'timezone' field")
-
-        service = request.app.state.service
-        service.set_display_timezone(timezone)
-
-        # Save the updated state
-        await service._save_state()
-
-        return {
-            "display_timezone": timezone,
-            "status": "updated",
-            "message": "Display timezone configured successfully",
-        }
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
-        logger.error(f"Error setting display timezone: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to set display timezone: {str(e)}")
 
 
 @router.put("/lights/{address}/metadata", response_model=LightMetadata)

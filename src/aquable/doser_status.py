@@ -66,7 +66,7 @@ class DoserStatus:
     # Lifetime totals in tenths of mL for each head (4 heads max)
     lifetime_totals_tenths_ml: list[int]
     # Preserve the original raw payload bytes so callers can access the
-    # underlying frame when necessary (keeps parity with ParsedLightStatus).
+    # underlying frame when necessary (keeps parity with LightStatus).
     raw_payload: bytes = b""
 
     def lifetime_totals_ml(self) -> list[float]:

@@ -84,9 +84,9 @@ clean:
 	@echo "   • Device connection state and cache"
 	@echo "   • Saved device configurations (dosers, lights)"
 	@echo "   • Command history and runtime data"
-	@if [ -d "$$HOME/.aquable" ]; then \
-		echo "📁 Removing $$HOME/.aquable directory..."; \
-		rm -rf "$$HOME/.aquable"; \
+	@if [ -d "$$HOME/.aqua-ble" ]; then \
+		echo "📁 Removing $$HOME/.aqua-ble directory..."; \
+		rm -rf "$$HOME/.aqua-ble"; \
 		echo "✅ Cleaned: All device state, configurations, and cache data removed"; \
 	else \
 		echo "✨ Already clean: No $$HOME/.aquable directory found"; \

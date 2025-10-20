@@ -34,28 +34,35 @@ class CommandExecutor:
             self._device_locks[address] = asyncio.Lock()
         return self._device_locks[address]
 
-    def validate_command_args(self, action: str, args: Optional[Dict[str, Any]]) -> None:
-        """Validate command arguments against schema."""
+    def validate_command_args(self, action: str, args: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+        """Validate command arguments against schema and return normalized args.
+        
+        Returns the normalized args dict with enums and other types properly converted,
+        or None if no args are needed.
+        """
         schema_class = COMMAND_ARG_SCHEMAS.get(action)
         if schema_class is None:
             # Action requires no arguments
             if args is not None and args:
                 raise CommandValidationError(f"Action '{action}' does not accept arguments")
-            return
+            return None
 
         if args is None:
             raise CommandValidationError(f"Action '{action}' requires arguments")
 
         try:
-            schema_class(**args)
+            validated_model = schema_class(**args)
+            # Return the validated model as a dict to ensure enums are properly converted
+            return validated_model.model_dump()
         except ValidationError as exc:
             raise CommandValidationError(f"Invalid arguments for '{action}': {exc}") from exc
 
     async def execute_command(self, address: str, request: CommandRequest) -> CommandRecord:
         """Execute a command synchronously and return the record."""
-        # Validate command arguments
+        # Validate command arguments and get normalized args
+        normalized_args = request.args
         try:
-            self.validate_command_args(request.action, request.args)
+            normalized_args = self.validate_command_args(request.action, request.args)
         except CommandValidationError as exc:
             record = CommandRecord(
                 address=address,
@@ -68,11 +75,11 @@ class CommandExecutor:
             record.mark_failed(str(exc), ErrorCode.VALIDATION_ERROR)
             return record
 
-        # Create command record
+        # Create command record with normalized args
         record = CommandRecord(
             address=address,
             action=request.action,
-            args=request.args,
+            args=normalized_args,
             timeout=request.timeout or COMMAND_TIMEOUT_DEFAULT,
         )
         if request.id is not None:
@@ -88,7 +95,7 @@ class CommandExecutor:
                 # Execute with timeout
                 try:
                     result = await asyncio.wait_for(
-                        self._execute_action(address, request.action, request.args or {}),
+                        self._execute_action(address, request.action, normalized_args or {}),
                         timeout=record.timeout,
                     )
                     record.mark_success(result)

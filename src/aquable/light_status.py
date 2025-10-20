@@ -20,14 +20,14 @@ class LightKeyframe:
 
 
 @dataclass(slots=True)
-class ParsedLightStatus:
+class LightStatus:
     """Decoded view of a WRGB status notification."""
 
     message_id: Optional[Tuple[int, int]]
     response_mode: Optional[int]
     weekday: Optional[int]
-    current_hour: Optional[int]
-    current_minute: Optional[int]
+    hour: Optional[int]
+    minute: Optional[int]
     keyframes: list[LightKeyframe]
     time_markers: list[Tuple[int, int]]
     tail: bytes
@@ -57,14 +57,14 @@ def _split_body(
     return message_id, response_mode, weekday, hour, minute, body
 
 
-def parse_light_payload(payload: bytes) -> ParsedLightStatus:
+def parse_light_payload(payload: bytes) -> LightStatus:
     """Decode a WRGB status payload into keyframes and markers."""
     (
         message_id,
         response_mode,
         weekday,
-        current_hour,
-        current_minute,
+        hour,
+        minute,
         body,
     ) = _split_body(payload)
 
@@ -77,11 +77,11 @@ def parse_light_payload(payload: bytes) -> ParsedLightStatus:
     # sees only hour/minute/value triples.
     if (
         weekday is not None
-        and current_hour is not None
-        and current_minute is not None
+        and hour is not None
+        and minute is not None
         and len(body_bytes) >= 3
     ):
-        pattern = bytes((weekday, current_hour, current_minute))
+        pattern = bytes((weekday, hour, minute))
         idx = body_bytes.find(pattern)
         # allow the repeated header to appear a little further into the body for
         # some firmware variants
@@ -125,12 +125,12 @@ def parse_light_payload(payload: bytes) -> ParsedLightStatus:
         last_time = total_minutes
         i += 3
 
-    return ParsedLightStatus(
+    return LightStatus(
         message_id=message_id,
         response_mode=response_mode,
         weekday=weekday,
-        current_hour=current_hour,
-        current_minute=current_minute,
+        hour=hour,
+        minute=minute,
         keyframes=keyframes,
         time_markers=time_markers,
         tail=tail,
