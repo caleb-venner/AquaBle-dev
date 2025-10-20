@@ -346,7 +346,7 @@ def create_head_select_command(
     msg_id: tuple[int, int],
     head_index: int,
     *,
-    flag1: int = 0x00,
+    flag1: int = 0x00, # So this might be set catchup dosing
     flag2: int = 0x01,
 ) -> bytearray:
     """Select the dosing head that will be modified next (mode 0x20)."""
@@ -453,7 +453,7 @@ def create_head_schedule_command(
     hour: int,
     minute: int,
     *,
-    reserve1: int = 0x00,
+    reserve1: int = 0x00, # So this might be set catchup dosing
     reserve2: int = 0x00,
 ) -> bytearray:
     """Create the mode 0x15 command that sets the daily schedule time."""

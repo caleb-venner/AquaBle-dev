@@ -4,7 +4,7 @@
  */
 
 import { deviceStore } from "../../../stores/deviceStore";
-import { updateDoserMetadata, updateLightMetadata } from "../../../api/configurations";
+import { updateDoserMetadata, updateLightMetadata, getDoserMetadata, getLightMetadata } from "../../../api/configurations";
 
 type DeviceMetadata = {
   id: string;
@@ -34,17 +34,9 @@ export async function showDeviceConfigModal(address: string, deviceType: 'doser'
   let metadata: DeviceMetadata | null = null;
   try {
     if (deviceType === 'doser') {
-      // Fetch metadata from API - device may not have a full config yet
-      const response = await fetch(`/api/configurations/dosers/${address}/metadata`);
-      if (response.ok) {
-        metadata = await response.json();
-      }
+      metadata = await getDoserMetadata(address);
     } else if (deviceType === 'light') {
-      // Fetch metadata from API - device may not have a full config yet
-      const response = await fetch(`/api/configurations/lights/${address}/metadata`);
-      if (response.ok) {
-        metadata = await response.json();
-      }
+      metadata = await getLightMetadata(address);
     }
   } catch (error) {
     console.error('Failed to load metadata:', error);

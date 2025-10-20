@@ -98,7 +98,7 @@ const storeInitializer: StateCreator<DeviceStore> = (set, get) => ({
   commandQueue: [],
   isProcessingCommands: false,
   ui: {
-    currentView: "dashboard",
+    currentView: "overview",
     globalError: null,
     notifications: [],
   },

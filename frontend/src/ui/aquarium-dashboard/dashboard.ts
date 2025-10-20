@@ -132,7 +132,6 @@ export function initializeDashboardHandlers(): void {
 
   (window as any).toggleDeviceConnection = async (address: string) => {
     const { connectDevice, disconnectDevice } = await import("../../api/devices");
-    const { useActions } = await import("../../stores/deviceStore");
     const { refreshDeviceStatusOnly } = await import('./services/data-service');
 
     // Find and update the connect button
@@ -159,7 +158,7 @@ export function initializeDashboardHandlers(): void {
         const { refreshDashboard } = await import('./render');
         refreshDashboard();
 
-        useActions().addNotification({
+        deviceStore.getState().actions.addNotification({
           type: 'success',
           message: `Successfully disconnected from device`
         });
@@ -175,7 +174,7 @@ export function initializeDashboardHandlers(): void {
         const connectedStatus = await connectDevice(address);
         
         // Immediately update the Zustand store with the connected status
-        useActions().updateDevice(address, connectedStatus);
+        deviceStore.getState().actions.updateDevice(address, connectedStatus);
         
         // Also refresh all device statuses to get updated "connected" states for other devices
         await refreshDeviceStatusOnly();
@@ -184,7 +183,7 @@ export function initializeDashboardHandlers(): void {
         const { refreshDashboard } = await import('./render');
         refreshDashboard();
 
-        useActions().addNotification({
+        deviceStore.getState().actions.addNotification({
           type: 'success',
           message: `Successfully connected to device`
         });
@@ -196,7 +195,7 @@ export function initializeDashboardHandlers(): void {
         }
       }
     } catch (error) {
-      useActions().addNotification({
+      deviceStore.getState().actions.addNotification({
         type: 'error',
         message: `Failed to ${connectButton?.textContent?.includes('Disconnect') ? 'disconnect' : 'connect'} to device: ${error instanceof Error ? error.message : 'Unknown error'}`
       });

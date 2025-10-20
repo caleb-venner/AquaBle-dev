@@ -16,14 +16,45 @@ export function setupStateSubscriptions(): void {
   
   let previousDeviceCount = 0;
   let previousNotificationCount = 0;
+  let previousDeviceStates: Map<string, boolean> = new Map(); // Track connection state per device
 
   // Subscribe to device changes to refresh dashboard
   const unsubscribeDevices = deviceStore.subscribe(
     (state) => {
       const currentDeviceCount = state.devices.size;
-      if (currentDeviceCount !== previousDeviceCount) {
+      
+      // Check if device count changed
+      const deviceCountChanged = currentDeviceCount !== previousDeviceCount;
+      
+      // Check if any device's connection status changed
+      let deviceStatusChanged = false;
+      state.devices.forEach((device, address) => {
+        const currentConnected = device.status?.connected || false;
+        const previousConnected = previousDeviceStates.get(address);
+        
+        if (previousConnected !== currentConnected) {
+          deviceStatusChanged = true;
+          previousDeviceStates.set(address, currentConnected);
+          console.log(`📱 Device ${address} connection changed to: ${currentConnected}`);
+        }
+      });
+      
+      // Also check for removed devices
+      previousDeviceStates.forEach((_, address) => {
+        if (!state.devices.has(address)) {
+          deviceStatusChanged = true;
+          previousDeviceStates.delete(address);
+        }
+      });
+      
+      if (deviceCountChanged) {
         console.log(`📱 Device count changed: ${currentDeviceCount} devices`);
         previousDeviceCount = currentDeviceCount;
+        refreshDashboard();
+      }
+      
+      if (deviceStatusChanged) {
+        console.log(`📱 Device status changed, refreshing dashboard`);
         refreshDashboard();
       }
     }
