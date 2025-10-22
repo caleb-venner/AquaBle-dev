@@ -164,7 +164,8 @@ async def health_check():
         }
 
 
-# Back-compat constants and helpers for tests
+# Re-export SPA constants for use in route handlers and tests.
+# Tests import these from service.py so they must be defined here.
 SPA_UNAVAILABLE_MESSAGE = getattr(spa, "SPA_UNAVAILABLE_MESSAGE")
 SPA_DIST_AVAILABLE = getattr(spa, "SPA_DIST_AVAILABLE")
 FRONTEND_DIST = getattr(spa, "FRONTEND_DIST")

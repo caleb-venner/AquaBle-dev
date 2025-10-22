@@ -36,8 +36,7 @@ def test_client(monkeypatch: pytest.MonkeyPatch):
     """Provide a TestClient with lifespan while disabling BLE side-effects."""
     # Prevent automatic reconnects and device discovery
     service._auto_reconnect = False  # type: ignore[attr-defined]
-    monkeypatch.setattr(service, "_attempt_reconnect", AsyncMock())
-    monkeypatch.setattr(service, "_load_state", AsyncMock())
+    # Note: _attempt_reconnect and _load_state methods no longer exist in the refactored BLEService
     with TestClient(app) as client:
         yield client
 
@@ -48,7 +47,10 @@ def test_api_debug_live_status_returns_payload(
     """Expose live payloads via the debug endpoint without persistence (HTTP)."""
     statuses = [_cached("doser"), _cached("light")]
     mocked = AsyncMock(return_value=(statuses, ["pump offline"]))
-    monkeypatch.setattr(service, "get_live_statuses", mocked)
+    # Patch the service instance that the app uses (from app.state.service)
+    # Note: The test_client fixture uses the app with lifespan, which sets app.state.service
+    # We need to patch that instance, which is the same as the module-level service
+    monkeypatch.setattr(app.state.service, "get_live_statuses", mocked)
     resp = test_client.post("/api/debug/live-status")
     assert resp.status_code == 200
     data = resp.json()

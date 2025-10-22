@@ -6,6 +6,7 @@ import asyncio
 import logging
 from datetime import time
 from typing import Any, Dict, Optional
+from uuid import uuid4
 
 from bleak_retry_connector import BleakConnectionError, BleakNotFoundError
 from fastapi import HTTPException
@@ -27,6 +28,17 @@ class CommandExecutor:
         """Execute commands on devices through BLE service."""
         self.ble_service = ble_service
         self._device_locks: Dict[str, asyncio.Lock] = {}
+
+    def _get_device_channels(self, address: str) -> Optional[list[Dict[str, Any]]]:
+        """Get channel info for a device from cached status.
+        
+        Used for auto_setting to create channel levels dict.
+        """
+        snapshot = self.ble_service.get_status_snapshot()
+        cached_status = snapshot.get(address)
+        if cached_status and cached_status.channels:
+            return cached_status.channels
+        return None
 
     def _get_device_lock(self, address: str) -> asyncio.Lock:
         """Get or create a lock for device operations."""
@@ -174,26 +186,7 @@ class CommandExecutor:
                 color=args.get("color", 0),
             )
 
-            # Update and persist light configuration
-            await self._save_light_brightness_config(address, args)
-
-            return cached_status_to_dict(self.ble_service, status)
-
-        elif action == "set_multi_channel_brightness":
-            # Handle manual multi-channel brightness setting in one payload
-            channels = args.get("channels", [])
-            if not channels:
-                raise ValueError("channels argument required for multi-channel brightness")
-
-            if not isinstance(channels, (list, tuple)) or len(channels) > 4:
-                raise ValueError("channels must be a list/tuple of 1-4 brightness values")
-
-            # Convert to tuple of ints
-            brightness_tuple = tuple(int(x) for x in channels)
-
-            status = await self.ble_service.set_multi_channel_brightness(address, brightness_tuple)
-
-            # Update and persist light configuration
+            # Save manual brightness to persistent config
             await self._save_light_brightness_config(address, args)
 
             return cached_status_to_dict(self.ble_service, status)
@@ -305,94 +298,6 @@ class CommandExecutor:
                 exc_info=True,
             )
 
-    async def _save_light_brightness_config(self, address: str, args: Dict[str, Any]) -> None:
-        """Save light brightness configuration after successful command.
-
-        Args:
-            address: Device MAC address
-            args: Command arguments from set_brightness
-            or multi-channel brightness commands
-        """
-        if not self.ble_service._auto_save_config:
-            logger.debug("Auto-save config disabled, skipping")
-            return
-
-        try:
-            # Check if this is a multi-channel command (has 'channels' key)
-            if "channels" in args:
-                # Handle multi-channel brightness command
-                channels = args["channels"]
-                if not isinstance(channels, (list, tuple)):
-                    logger.warning(f"Invalid channels format for {address}: {channels}")
-                    return
-
-                from .config_helpers import update_light_multi_channel_brightness
-
-                device = self.ble_service._light_storage.get_device(address)
-                if device:
-                    # Update the existing configuration
-                    device = update_light_multi_channel_brightness(device, list(channels))
-                    self.ble_service._light_storage.upsert_device(device)
-                    logger.info(
-                        f"Saved multi-channel light configuration for {address}, "
-                        f"channels={list(channels)}"
-                    )
-                else:
-                    # Create new configuration from the actual command being sent
-                    from .config_helpers import create_light_config_from_command
-
-                    logger.info(
-                        f"Creating new profile for light {address} "
-                        f"from multi-channel brightness command"
-                    )
-                    # Pass command_type to handle channels properly
-                    device = create_light_config_from_command(
-                        address, "multi_channel_brightness", args
-                    )
-                    self.ble_service._light_storage.upsert_device(device)
-                    logger.info(
-                        f"Created and saved new light profile for {address}, "
-                        f"multi-channel brightness"
-                    )
-                return
-
-            # Handle single-channel brightness command
-            if "brightness" not in args:
-                logger.warning(f"No brightness data found in args for {address}: {args}")
-                return
-
-            from .config_helpers import update_light_brightness
-
-            device = self.ble_service._light_storage.get_device(address)
-            if device:
-                # Update the existing configuration
-                device = update_light_brightness(
-                    device,
-                    brightness=args["brightness"],
-                    color=args.get("color", 0),
-                )
-                self.ble_service._light_storage.upsert_device(device)
-                logger.info(
-                    f"Saved light configuration for {address}, " f"brightness={args['brightness']}"
-                )
-            else:
-                # Create new configuration from the actual command being sent
-                from .config_helpers import create_light_config_from_command
-
-                logger.info(f"Creating new profile for light {address} " f"from brightness command")
-                device = create_light_config_from_command(address, "brightness", args)
-                self.ble_service._light_storage.upsert_device(device)
-                logger.info(
-                    f"Created and saved new light profile for {address}, "
-                    f"brightness={args['brightness']}"
-                )
-        except Exception as exc:
-            # Don't fail the command if config save fails
-            logger.error(
-                f"Failed to save light configuration for {address}: {exc}",
-                exc_info=True,
-            )
-
     async def _save_light_auto_setting_config(self, address: str, args: Dict[str, Any]) -> None:
         """Save light auto setting configuration after successful command.
 
@@ -405,55 +310,141 @@ class CommandExecutor:
             return
 
         try:
-            from .config_helpers import add_light_auto_program
+            from .config_helpers import create_light_config_from_command, add_light_auto_program
 
-            # Handle either single brightness or per-channel brightness
-            brightness_arg = args.get("brightness") or args.get("channels")
+            brightness_arg = args.get("brightness")
             if brightness_arg is None:
-                raise ValueError("Either 'brightness' or 'channels' must be provided")
+                raise ValueError("'brightness' must be provided")
 
             device = self.ble_service._light_storage.get_device(address)
-            if device:
-                # Convert weekdays to full lowercase strings
-                weekdays = args.get("weekdays")
-                if weekdays:
-                    # Handle both enum objects and plain strings, convert to lowercase
-                    weekdays = [
-                        (day.value.lower() if hasattr(day, "value") else str(day).lower())
-                        for day in weekdays
-                    ]
-
-                # Update the existing configuration
-                device = add_light_auto_program(
-                    device,
-                    sunrise=args["sunrise"],
-                    sunset=args["sunset"],
-                    brightness=brightness_arg,
-                    ramp_up_minutes=args.get("ramp_up_minutes", 0),
-                    weekdays=weekdays,
-                    label=args.get("label"),
-                )
+            
+            if not device:
+                # Create new configuration
+                channels_info = self._get_device_channels(address)
+                if not channels_info:
+                    logger.warning(
+                        f"Cannot create config for {address}: device channels not cached. "
+                        f"Command executed but no config saved."
+                    )
+                    return
+                
+                device = create_light_config_from_command(address, "auto_program", args, channels_info)
                 self.ble_service._light_storage.upsert_device(device)
                 logger.info(
-                    f"Saved light auto program for {address}, "
-                    f"{args['sunrise']}-{args['sunset']}"
+                    f"Created and saved new light profile for {address} "
+                    f"from auto program command {args['sunrise']}-{args['sunset']}"
                 )
+                return
+            
+            # Convert brightness to levels dict for all channels
+            channels_info = self._get_device_channels(address)
+            if not channels_info:
+                logger.warning(f"Could not save auto program for {address}: device channels not cached")
+                return
+            
+            # Build channel dict with brightness value for all channels
+            sorted_channels = sorted(channels_info, key=lambda ch: ch.get("index", 0))
+            channel_keys = [ch["name"].lower() for ch in sorted_channels]
+            brightness_val = int(brightness_arg) if isinstance(brightness_arg, int) else 50
+            levels = {key: brightness_val for key in channel_keys}
+            
+            # Normalize weekdays
+            weekdays = args.get("weekdays")
+            if weekdays is None:
+                weekdays = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
             else:
-                # Create new configuration from the actual command being sent
-                from .config_helpers import create_light_config_from_command
-
-                logger.info(
-                    f"Creating new profile for light {address} " f"from auto program command"
-                )
-                device = create_light_config_from_command(address, "auto_program", args)
-                self.ble_service._light_storage.upsert_device(device)
-                logger.info(
-                    f"Created and saved new light profile for {address}, "
-                    f"{args['sunrise']}-{args['sunset']}"
-                )
+                weekdays = [
+                    (day.value.lower() if hasattr(day, "value") else str(day).lower())
+                    for day in weekdays
+                ]
+            
+            # Update the existing configuration
+            device = add_light_auto_program(
+                device,
+                program_id=str(uuid4()),
+                label=args.get("label") or f"Auto {args['sunrise']}-{args['sunset']}",
+                enabled=True,
+                sunrise=args["sunrise"],
+                sunset=args["sunset"],
+                levels=levels,
+                ramp_minutes=args.get("ramp_up_minutes", 0),
+                weekdays=weekdays,
+            )
+            self.ble_service._light_storage.upsert_device(device)
+            logger.info(
+                f"Saved light auto program for {address}, "
+                f"{args['sunrise']}-{args['sunset']}"
+            )
         except Exception as exc:
-            # Don't fail the command if config save fails
             logger.error(
                 f"Failed to save light auto program for {address}: {exc}",
+                exc_info=True,
+            )
+
+    async def _save_light_brightness_config(self, address: str, args: Dict[str, Any]) -> None:
+        """Save manual brightness configuration after successful set_brightness command.
+
+        Args:
+            address: Device MAC address
+            args: Command arguments from set_brightness (brightness, color)
+        """
+        if not self.ble_service._auto_save_config:
+            logger.debug("Auto-save config disabled, skipping")
+            return
+
+        try:
+            from .config_helpers import update_light_manual_profile, create_light_config_from_command
+
+            brightness = args.get("brightness", 0)
+            color_index = args.get("color", 0)
+
+            device = self.ble_service._light_storage.get_device(address)
+
+            if not device:
+                # Create new configuration with manual profile from this command
+                channels_info = self._get_device_channels(address)
+                if not channels_info:
+                    logger.warning(
+                        f"Cannot create config for {address}: device channels not cached. "
+                        f"Command executed but no config saved."
+                    )
+                    return
+
+                device = create_light_config_from_command(
+                    address, "brightness", args, channels_info
+                )
+                self.ble_service._light_storage.upsert_device(device)
+                logger.info(f"Created and saved new light config for {address} from brightness command")
+                return
+
+            # Build levels dict from single brightness + color index
+            channels_info = self._get_device_channels(address)
+            if not channels_info:
+                logger.warning(
+                    f"Could not save brightness for {address}: device channels not cached"
+                )
+                return
+
+            sorted_channels = sorted(channels_info, key=lambda ch: ch.get("index", 0))
+            channel_keys = [ch["name"].lower() for ch in sorted_channels]
+
+            # Set brightness for specified color, 0 for others
+            levels = {}
+            for i, key in enumerate(channel_keys):
+                if i == color_index:
+                    levels[key] = int(brightness)
+                else:
+                    levels[key] = 0
+
+            # Update the existing configuration
+            device = update_light_manual_profile(device, levels)
+            self.ble_service._light_storage.upsert_device(device)
+            logger.info(
+                f"Saved manual brightness for {address}: "
+                f"channel {color_index} = {brightness}%"
+            )
+        except Exception as exc:
+            logger.error(
+                f"Failed to save brightness config for {address}: {exc}",
                 exc_info=True,
             )

@@ -11,7 +11,7 @@ from aquable.ble_service import BLEService, CachedStatus
 from aquable.command_executor import CommandExecutor
 from aquable.commands.encoder import LightWeekday, PumpWeekday
 from aquable.commands_model import CommandRequest
-from aquable.config_helpers import create_default_doser_config, create_default_light_profile
+from conftest import create_default_doser_config, create_default_light_profile
 
 # All test coroutines will be treated as marked.
 pytestmark = pytest.mark.asyncio
@@ -116,6 +116,14 @@ async def test_execute_add_light_auto_setting_success(
     device_profile = create_default_light_profile(address)
     ble_service._light_storage.upsert_device(device_profile)
 
+    # Mock _get_device_channels to return RGBW channels
+    command_executor._get_device_channels = lambda address: [
+        {"name": "white", "index": 0},
+        {"name": "red", "index": 1},
+        {"name": "green", "index": 2},
+        {"name": "blue", "index": 3},
+    ]
+
     # Mock the BLE command method
     mock_status = CachedStatus(
         address=address,
@@ -177,3 +185,84 @@ async def test_execute_add_light_auto_setting_success(
     assert program.rampMinutes == 15
     # Check weekdays conversion from enum to string
     assert set(program.days) == {"saturday", "sunday"}
+
+
+async def test_execute_set_brightness_saves_config(
+    command_executor: CommandExecutor, ble_service: BLEService, tmp_path: Path
+):
+    """Verify set_brightness command saves manual profile to light device config."""
+    address = "11:22:33:44:55:66"
+    device_profile = create_default_light_profile(address)
+    ble_service._light_storage.upsert_device(device_profile)
+
+    # Mock _get_device_channels to return RGBW channels
+    command_executor._get_device_channels = lambda address: [
+        {"name": "white", "index": 0},
+        {"name": "red", "index": 1},
+        {"name": "green", "index": 2},
+        {"name": "blue", "index": 3},
+    ]
+
+    # Mock the BLE command method
+    mock_status = CachedStatus(
+        address=address,
+        device_type="light",
+        raw_payload=None,
+        parsed={},
+        updated_at=0,
+    )
+    ble_service.set_light_brightness = AsyncMock(return_value=mock_status)
+
+    # Get initial revision count
+    initial_device = ble_service._light_storage.get_device(address)
+    assert initial_device is not None
+    initial_config = initial_device.get_active_configuration()
+    initial_revision_count = len(initial_config.revisions)
+
+    # Define the command request - set red channel to 75%
+    request = CommandRequest(
+        action="set_brightness",
+        args={
+            "brightness": 75,
+            "color": 1,  # Red channel
+        },
+    )
+
+    # Execute the command
+    record = await command_executor.execute_command(address, request)
+
+    # --- Assertions ---
+    # 1. Check command record status
+    assert record.status == "success"
+    assert record.error is None
+
+    # 2. Verify the BLE service method was called correctly
+    ble_service.set_light_brightness.assert_awaited_once()
+    call_args = ble_service.set_light_brightness.call_args
+    assert call_args[0][0] == address
+    assert call_args[1]["brightness"] == 75
+    assert call_args[1]["color"] == 1
+
+    # 3. Verify the configuration was saved with new manual profile revision
+    saved_profile = ble_service._light_storage.get_device(address)
+    assert saved_profile is not None
+    active_config = saved_profile.get_active_configuration()
+    profile_revision = active_config.latest_revision()
+
+    # Should have a new revision
+    assert len(active_config.revisions) == initial_revision_count + 1
+
+    # New revision should be a ManualProfile
+    from aquable.light_storage import ManualProfile
+
+    assert isinstance(profile_revision.profile, ManualProfile)
+
+    manual_profile = profile_revision.profile
+    # Red channel (index 1) should be 75, others should be 0
+    assert manual_profile.levels["white"] == 0
+    assert manual_profile.levels["red"] == 75
+    assert manual_profile.levels["green"] == 0
+    assert manual_profile.levels["blue"] == 0
+    assert profile_revision.note == "Manual brightness adjustment"
+    assert profile_revision.savedBy == "user"
+

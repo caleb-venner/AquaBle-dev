@@ -12,8 +12,8 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from aquable.config_helpers import create_default_doser_config, create_default_light_profile
 from aquable.service import app
+from conftest import create_default_doser_config, create_default_light_profile
 
 
 @pytest.fixture

@@ -625,7 +625,7 @@ async function sendLightManualModeCommand(address: string): Promise<void> {
     const channelElements = document.querySelectorAll<HTMLInputElement>('[id^="manual-channel-"]');
     const channelValues = Array.from(channelElements).map(el => parseInt(el.value, 10));
 
-    console.log('Sending manual mode command:', { address, channelValues });
+    console.log('Sending manual mode commands:', { address, channelValues });
 
     // Validate channel values
     if (channelValues.some(v => isNaN(v) || v < 0 || v > 100)) {
@@ -633,27 +633,35 @@ async function sendLightManualModeCommand(address: string): Promise<void> {
       return;
     }
 
-    // Send command to set multi-channel brightness (switches to manual mode)
-    const request: CommandRequest = {
-      action: 'set_multi_channel_brightness',
-      args: {
-        channels: channelValues
-      },
-      timeout: 15.0
-    };
+    // Send individual set_brightness commands for each channel (switches to manual mode)
+    let lastResult = null;
+    for (let colorIndex = 0; colorIndex < channelValues.length; colorIndex++) {
+      const request: CommandRequest = {
+        action: 'set_brightness',
+        args: {
+          brightness: channelValues[colorIndex],
+          color: colorIndex
+        },
+        timeout: 15.0
+      };
 
-    const result = await executeCommand(address, request);
+      console.log(`Sending brightness command for channel ${colorIndex}:`, request);
+      lastResult = await executeCommand(address, request);
 
-    if (result.status === 'success') {
+      if (lastResult.status === 'failed') {
+        alert(`Channel ${colorIndex} command failed: ${lastResult.error || 'Unknown error'}`);
+        return;
+      }
+    }
+
+    if (lastResult?.status === 'success') {
       alert('Manual brightness set successfully! Device switched to manual mode.');
-    } else if (result.status === 'failed') {
-      alert(`Command failed: ${result.error || 'Unknown error'}`);
     } else {
-      alert(`Command status: ${result.status}`);
+      alert(`Final command status: ${lastResult?.status || 'unknown'}`);
     }
 
   } catch (error) {
-    console.error('Failed to send manual mode command:', error);
+    console.error('Failed to send manual mode commands:', error);
     alert(`Failed to send command: ${error instanceof Error ? error.message : String(error)}`);
   }
 }

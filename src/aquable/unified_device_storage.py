@@ -32,7 +32,7 @@ class DeviceStatus(BaseModel):
     raw_payload: str | None = None
     parsed: Dict[str, Any] | None = None
     updated_at: float
-    channels: list[Dict[str, Any]] | None = None  # Only for light devices
+    channels: Dict[str, int] | None = None  # Only for light devices (color name -> channel index)
 
     model_config = ConfigDict(extra="forbid", protected_namespaces=())
 

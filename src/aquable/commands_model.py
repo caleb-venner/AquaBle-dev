@@ -118,7 +118,11 @@ class CommandRecord:
 
 # Supported command actions and their argument schemas
 class LightBrightnessArgs(BaseModel):
-    """Arguments for set_brightness command."""
+    """Arguments for set_brightness command.
+    
+    Normalizes to list format internally: [brightness] represents single channel,
+    expanded to [0, 0, brightness, 0] for specific color index during processing.
+    """
 
     brightness: int = Field(..., ge=0, le=100)
     color: int = Field(..., description="Channel/color index")
@@ -134,26 +138,6 @@ class LightBrightnessArgs(BaseModel):
         """
         if v < 0:
             raise ValueError(f"Color index must be non-negative, got {v}")
-        return v
-
-
-class LightMultiChannelBrightnessArgs(BaseModel):
-    """Arguments for set_manual_multi_channel_brightness command."""
-
-    channels: list[int] = Field(
-        ...,
-        min_length=1,
-        max_length=4,
-        description="List of brightness values (0-100) for each channel",
-    )
-
-    @field_validator("channels")
-    @classmethod
-    def validate_brightness_values(cls, v: list[int]) -> list[int]:
-        """Validate brightness values are within valid range."""
-        for i, brightness in enumerate(v):
-            if not (0 <= brightness <= 100):
-                raise ValueError(f"Channel {i} brightness must be 0-100, got {brightness}")
         return v
 
 
@@ -400,8 +384,6 @@ class LightAutoSettingArgs(BaseModel):
 # Command argument validation mapping
 COMMAND_ARG_SCHEMAS = {
     "set_brightness": LightBrightnessArgs,
-    "set_multi_channel_brightness": LightMultiChannelBrightnessArgs,
-    "set_manual_multi_channel_brightness": LightMultiChannelBrightnessArgs,  # compat
     "set_schedule": DoserScheduleArgs,
     "add_auto_setting": LightAutoSettingArgs,
     # Actions without arguments

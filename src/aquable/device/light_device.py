@@ -92,17 +92,6 @@ class LightDevice(BaseDevice):
         for c, b in enumerate(brightness):
             await self.set_color_brightness(c, b)
 
-    async def set_multi_channel_brightness(self, brightness: tuple[int, ...]) -> None:
-        """Set multi-channel brightness by sending individual commands per channel."""
-        # Send individual commands for each channel (red=0, green=1, blue=2, white=3)
-        for channel_index, brightness_value in enumerate(brightness):
-            if channel_index > 3:  # Max 4 channels supported
-                break
-            cmd = commands.create_manual_setting_command(
-                self.get_next_msg_id(), channel_index, brightness_value
-            )
-            await self._send_command(cmd, 3)
-
     async def turn_on(self) -> None:
         """Turn on light."""
         for color_name in self._colors:

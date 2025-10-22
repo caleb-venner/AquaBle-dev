@@ -1,10 +1,42 @@
 """Tests for Home Assistant Ingress functionality."""
 
 import os
-from unittest.mock import patch
+from unittest.mock import patch, PropertyMock, MagicMock
 
 import pytest
 from fastapi.testclient import TestClient
+from starlette.datastructures import Address
+
+
+def make_test_client_with_ip(app, client_ip: str, monkeypatch=None):
+    """Create a TestClient and patch Request.client.host to return the desired IP.
+    
+    This patches the middleware dispatch to check our custom client IP instead of the real one.
+    """
+    from unittest.mock import PropertyMock
+    
+    client = TestClient(app)
+    
+    # Find the IngressIPRestrictionMiddleware and patch its dispatch method
+    for middleware in app.user_middleware:
+        if "IngressIPRestrictionMiddleware" in str(middleware.cls):
+            original_dispatch = middleware.cls.dispatch
+            
+            async def patched_dispatch(self, request, call_next):
+                # Patch request.client.host to return our desired IP
+                if monkeypatch:
+                    monkeypatch.setattr(type(request.client), "host", PropertyMock(return_value=client_ip))
+                else:
+                    # For compatibility without monkeypatch, just call original
+                    # This won't work correctly but at least won't error
+                    pass
+                return await original_dispatch(self, request, call_next)
+            
+            if monkeypatch:
+                monkeypatch.setattr(middleware.cls, "dispatch", patched_dispatch)
+            break
+    
+    return client
 
 
 @pytest.fixture
@@ -44,9 +76,10 @@ def app_without_ingress():
 class TestIngressIPRestriction:
     """Test IP restriction middleware for Ingress mode."""
     
-    def test_ingress_allows_gateway_ip(self, app_with_ingress):
+    def test_ingress_allows_gateway_ip(self, app_with_ingress, monkeypatch):
         """Test that Ingress gateway IP is allowed."""
-        client = TestClient(app_with_ingress)
+        # Create client that presents as Ingress gateway IP
+        client = make_test_client_with_ip(app_with_ingress, "172.30.32.2", monkeypatch)
         
         # Simulate request from Ingress gateway
         response = client.get(
@@ -56,11 +89,11 @@ class TestIngressIPRestriction:
         
         assert response.status_code == 200
     
-    def test_ingress_allows_localhost(self, app_with_ingress):
+    def test_ingress_allows_localhost(self, app_with_ingress, monkeypatch):
         """Test that localhost is allowed for health checks."""
-        client = TestClient(app_with_ingress)
+        # Create client that presents as localhost
+        client = make_test_client_with_ip(app_with_ingress, "127.0.0.1", monkeypatch)
         
-        # TestClient uses 127.0.0.1 by default
         response = client.get("/api/health")
         
         assert response.status_code == 200
@@ -87,9 +120,10 @@ class TestIngressIPRestriction:
 class TestIngressPathHeader:
     """Test X-Ingress-Path header handling."""
     
-    def test_ingress_path_captured(self, app_with_ingress):
+    def test_ingress_path_captured(self, app_with_ingress, monkeypatch):
         """Test that X-Ingress-Path header is captured."""
-        client = TestClient(app_with_ingress)
+        # Create client that presents as localhost to pass IP restriction
+        client = make_test_client_with_ip(app_with_ingress, "127.0.0.1", monkeypatch)
         
         response = client.get(
             "/api/health",
@@ -174,9 +208,10 @@ class TestIngressMiddlewareOrder:
 class TestIngressCompatibility:
     """Test backward compatibility with direct access."""
     
-    def test_health_endpoint_works_in_both_modes(self, app_with_ingress, app_without_ingress):
+    def test_health_endpoint_works_in_both_modes(self, app_with_ingress, app_without_ingress, monkeypatch):
         """Test that health endpoint works in both Ingress and standalone modes."""
-        client_ingress = TestClient(app_with_ingress)
+        # Create Ingress client that presents as localhost to pass IP restriction
+        client_ingress = make_test_client_with_ip(app_with_ingress, "127.0.0.1", monkeypatch)
         client_standalone = TestClient(app_without_ingress)
         
         response_ingress = client_ingress.get("/api/health")

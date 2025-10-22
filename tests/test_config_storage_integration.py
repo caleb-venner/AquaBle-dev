@@ -44,7 +44,7 @@ def test_doser_storage_initialized_on_service_creation(mock_ble_service):
 
 def test_config_helpers_create_default():
     """Test creating default doser configuration."""
-    from aquable.config_helpers import create_default_doser_config
+    from conftest import create_default_doser_config
 
     address = "11:22:33:44:55:66"
     device = create_default_doser_config(address, name="Test Doser")
@@ -68,7 +68,8 @@ def test_config_helpers_create_default():
 
 def test_config_helpers_update_schedule():
     """Test updating schedule in configuration."""
-    from aquable.config_helpers import create_default_doser_config, update_doser_schedule_config
+    from aquable.config_helpers import update_doser_schedule_config
+    from conftest import create_default_doser_config
 
     device = create_default_doser_config("AA:BB:CC:DD:EE:FF")
 

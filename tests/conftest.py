@@ -46,3 +46,172 @@ def cleanup_test_device_files():
                     print(f"Cleaned up test device file: {test_file}")
                 except Exception as e:
                     print(f"Failed to cleanup {test_file}: {e}")
+
+
+# ========== Test Fixtures for Device Configurations ==========
+# These functions create default configurations for testing purposes only.
+# They are NOT used in production code.
+
+
+def create_default_doser_config(address: str, name: str | None = None):
+    """Create a default configuration for a new doser device (TEST FIXTURE).
+
+    Args:
+        address: The device MAC address
+        name: Optional friendly name for the device
+
+    Returns:
+        A DoserDevice with default configuration for 4 heads
+    """
+    from aquable.doser_storage import (
+        Calibration,
+        ConfigurationRevision,
+        DeviceConfiguration,
+        DoserDevice,
+        DoserHead,
+        DoserHeadStats,
+        Recurrence,
+        SingleSchedule,
+    )
+    from aquable.time_utils import now_iso as _now_iso
+
+    device_name = name or f"Doser {address[-8:]}"
+    timestamp = _now_iso()
+
+    # Create default heads (all inactive by default)
+    default_heads = []
+    for idx in range(1, 5):
+        head = DoserHead(
+            index=idx,  # type: ignore[arg-type]
+            label=f"Head {idx}",
+            active=False,
+            schedule=SingleSchedule(mode="single", dailyDoseMl=10.0, startTime="09:00"),
+            recurrence=Recurrence(
+                days=[
+                    "monday",
+                    "tuesday",
+                    "wednesday",
+                    "thursday",
+                    "friday",
+                    "saturday",
+                    "sunday",
+                ]
+            ),
+            missedDoseCompensation=False,
+            calibration=Calibration(mlPerSecond=0.1, lastCalibratedAt=timestamp),
+            stats=DoserHeadStats(dosesToday=0, mlDispensedToday=0.0),
+        )
+        default_heads.append(head)
+
+    # Create initial revision
+    revision = ConfigurationRevision(
+        revision=1,
+        savedAt=timestamp,
+        heads=default_heads,
+        note="Initial configuration",
+        savedBy="system",
+    )
+
+    # Create default configuration
+    configuration = DeviceConfiguration(
+        id="default",
+        name="Default Configuration",
+        description="Auto-generated default configuration",
+        createdAt=timestamp,
+        updatedAt=timestamp,
+        revisions=[revision],
+    )
+
+    # Create device
+    device = DoserDevice(
+        id=address,
+        name=device_name,
+        configurations=[configuration],
+        activeConfigurationId="default",
+        createdAt=timestamp,
+        updatedAt=timestamp,
+    )
+
+    return device
+
+
+def create_default_light_profile(
+    address: str,
+    name: str | None = None,
+    channels: list[dict] | None = None,
+):
+    """Create a default profile for a new light device (TEST FIXTURE).
+
+    Args:
+        address: The device MAC address
+        name: Optional friendly name for the device
+        channels: Optional list of channel definitions from device
+
+    Returns:
+        A LightDevice with default manual profile
+    """
+    from aquable.light_storage import (
+        ChannelDef,
+        LightConfiguration,
+        LightDevice,
+        LightProfileRevision,
+        ManualProfile,
+    )
+    from aquable.time_utils import now_iso as _now_iso
+
+    device_name = name or f"Light {address[-8:]}"
+    timestamp = _now_iso()
+
+    # Create default channel definitions if not provided
+    if not channels:
+        channel_defs = [
+            ChannelDef(key="white", label="White", min=0, max=100, step=1),
+            ChannelDef(key="red", label="Red", min=0, max=100, step=1),
+            ChannelDef(key="green", label="Green", min=0, max=100, step=1),
+            ChannelDef(key="blue", label="Blue", min=0, max=100, step=1),
+        ]
+    else:
+        channel_defs = [
+            ChannelDef(
+                key=ch.get("name", f"channel{ch.get('index', 0)}").lower(),
+                label=ch.get("name", f"Channel {ch.get('index', 0)}"),
+                min=0,
+                max=100,
+                step=1,
+            )
+            for ch in channels
+        ]
+
+    # Create default manual profile (all channels at 50%)
+    default_levels = {ch.key: 50 for ch in channel_defs}
+
+    # Create a profile revision with the manual profile
+    revision = LightProfileRevision(
+        revision=1,
+        savedAt=timestamp,
+        profile=ManualProfile(mode="manual", levels=default_levels),
+        note="Auto-generated default configuration",
+    )
+
+    # Create a configuration containing the revision
+    default_config = LightConfiguration(
+        id="default",
+        name="Default Configuration",
+        description="Auto-generated default configuration",
+        revisions=[revision],
+        createdAt=timestamp,
+        updatedAt=timestamp,
+    )
+
+    # Create device
+    device = LightDevice(
+        id=address,
+        name=device_name,
+        channels=channel_defs,
+        configurations=[default_config],
+        activeConfigurationId="default",
+        createdAt=timestamp,
+        updatedAt=timestamp,
+    )
+
+    return device

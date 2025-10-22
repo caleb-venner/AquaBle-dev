@@ -11,23 +11,18 @@ from typing import List, Sequence
 
 
 def filter_device_json_files(storage_dir: Path) -> List[Path]:
-    """Filter JSON files in storage directory, excluding .metadata.json files.
-
-    This utility function provides consistent filtering logic for both doser and light
-    storage classes to avoid code duplication.
+    """Get all JSON files in storage directory.
 
     Args:
         storage_dir: Directory containing device JSON files
 
     Returns:
-        List of Path objects for device configuration files (excluding metadata files)
+        List of Path objects for device configuration files
     """
     if not storage_dir.exists():
         return []
 
-    # Get all .json files except .metadata.json files
-    all_json_files = list(storage_dir.glob("*.json"))
-    return [f for f in all_json_files if not f.name.endswith(".metadata.json")]
+    return list(storage_dir.glob("*.json"))
 
 
 def ensure_unique_values(values: Sequence[str], field_name: str) -> None:
