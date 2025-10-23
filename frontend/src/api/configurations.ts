@@ -130,7 +130,7 @@ export async function updateLightConfiguration(
  * Delete a light profile
  */
 export async function deleteLightConfiguration(address: string): Promise<void> {
-  deleteLightConfiguration(address);
+  await deleteJson(`/api/configurations/lights/${encodeURIComponent(address)}`);
 }
 
 // ============================================================================
@@ -236,14 +236,14 @@ export interface LightMetadata {
  * Update doser metadata (name only, no schedules)
  */
 export async function updateDoserMetadata(address: string, metadata: DeviceMetadata): Promise<DeviceMetadata> {
-  return putJson<DeviceMetadata>(`/api/configurations/dosers/${address}/metadata`, metadata);
+  return putJson<DeviceMetadata>(`/api/configurations/dosers/${encodeURIComponent(address)}/metadata`, metadata);
 }
 
 /**
  * Get doser metadata by address
  */
 export async function getDoserMetadata(address: string): Promise<DeviceMetadata | null> {
-  return fetchJson<DeviceMetadata | null>(`/api/configurations/dosers/${address}/metadata`);
+  return fetchJson<DeviceMetadata | null>(`/api/configurations/dosers/${encodeURIComponent(address)}/metadata`);
 }
 
 /**
@@ -257,14 +257,14 @@ export async function listDoserMetadata(): Promise<DeviceMetadata[]> {
  * Update light metadata (name only, no schedules)
  */
 export async function updateLightMetadata(address: string, metadata: LightMetadata): Promise<LightMetadata> {
-  return putJson<LightMetadata>(`/api/configurations/lights/${address}/metadata`, metadata);
+  return putJson<LightMetadata>(`/api/configurations/lights/${encodeURIComponent(address)}/metadata`, metadata);
 }
 
 /**
  * Get light metadata by address
  */
 export async function getLightMetadata(address: string): Promise<LightMetadata | null> {
-  return fetchJson<LightMetadata | null>(`/api/configurations/lights/${address}/metadata`);
+  return fetchJson<LightMetadata | null>(`/api/configurations/lights/${encodeURIComponent(address)}/metadata`);
 }
 
 /**
