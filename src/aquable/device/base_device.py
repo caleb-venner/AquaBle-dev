@@ -358,7 +358,7 @@ class BaseDevice(ABC):
                 self._ble_device,
                 self.name,
                 self._disconnected,
-                max_attempts=2,
+                max_attempts=3,
                 use_services_cache=True,
                 ble_device_callback=lambda: self._ble_device,
             )
@@ -387,6 +387,9 @@ class BaseDevice(ABC):
                 )
             else:
                 raise CharacteristicMissingError("Read characteristic not resolved")
+
+            # Allow device to stabilize after connection
+            await asyncio.sleep(0.5)
 
     def _reset_disconnect_timer(self) -> None:
         """Reset disconnect timer."""

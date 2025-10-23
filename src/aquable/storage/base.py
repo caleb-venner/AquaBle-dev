@@ -142,6 +142,9 @@ class BaseDeviceStorage(ABC, Generic[TDevice]):
             # Load metadata into shared dict if present
             if "metadata" in data and data["metadata"]:
                 self._metadata_dict[device_id] = data["metadata"]
+                # Merge metadata into device_data for model validation
+                if device_data is not None:
+                    device_data = {**device_data, **data["metadata"]}
 
             # If device_data is None, this is a metadata-only file
             if device_data is None:

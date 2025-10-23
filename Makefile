@@ -87,9 +87,11 @@ clean:
 	@if [ -d "$$HOME/.aqua-ble" ]; then \
 		echo "📁 Removing $$HOME/.aqua-ble directory..."; \
 		rm -rf "$$HOME/.aqua-ble"; \
+		rm -rf "$$HOME/.aquable-test"; \
 		echo "✅ Cleaned: All device state, configurations, and cache data removed"; \
 	else \
-		echo "✨ Already clean: No $$HOME/.aquable directory found"; \
+		echo "✨ Already clean: No $$HOME/.aqua-ble directory found"; \
+		rm -rf "$$HOME/.aquable-test"; \
 	fi
 
 # Convenience target: clean then dev

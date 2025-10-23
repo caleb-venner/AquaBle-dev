@@ -146,55 +146,6 @@ export function renderParsedRaw(parsed: Record<string, unknown> | null): string 
   }
 }
 
-/**
- * Get the configured name for a device, falling back to model name
- * Note: This function requires dashboard state access
- */
-export function getDeviceDisplayName(deviceAddress: string, getDashboardState: () => any): string {
-  const state = getDashboardState();
-  const device = state.deviceStatus?.[deviceAddress];
-
-  if (!device) return 'Unknown Device';
-
-  // First, check if there's a configured name in metadata
-  if (device.device_type === "doser") {
-    const metadata = state.doserMetadata.find((m: any) => m.id === deviceAddress);
-    if (metadata?.name) return metadata.name;
-  } else if (device.device_type === "light") {
-    const metadata = state.lightMetadata.find((m: any) => m.id === deviceAddress);
-    if (metadata?.name) return metadata.name;
-  }
-
-  // Fall back to model name or generic name
-  return device.model_name || "Unknown Device";
-}
-
-/**
- * Get channel names for a device based on its model
- * Note: This function requires dashboard state access
- */
-export function getDeviceChannelNames(deviceAddress: string, getDashboardState: () => any): string[] {
-  const state = getDashboardState();
-  const device = state.deviceStatus?.[deviceAddress];
-
-  if (!device) return ['Channel 1', 'Channel 2', 'Channel 3', 'Channel 4'];
-
-  const modelName = device.model_name?.toLowerCase() || '';
-
-  // WRGB devices have Red, Green, Blue, White channels
-  if (modelName.includes('wrgb')) {
-    return ['Red', 'Green', 'Blue', 'White'];
-  }
-
-  // RGB devices
-  if (modelName.includes('rgb')) {
-    return ['Red', 'Green', 'Blue', 'Channel 4'];
-  }
-
-  // Default fallback
-  return ['Channel 1', 'Channel 2', 'Channel 3', 'Channel 4'];
-}
-
 // ========================================
 // TYPE CONVERSION UTILITIES
 // ========================================

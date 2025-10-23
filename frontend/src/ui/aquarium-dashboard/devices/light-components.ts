@@ -3,7 +3,7 @@
  */
 
 import { deviceStore } from "../../../stores/deviceStore";
-import { getWeekdayName, formatDateTime, getDeviceChannelNames } from "../../../utils";
+import { getWeekdayName, formatDateTime } from "../../../utils";
 import { getCurrentScheduleInfo, AutoProgram, getAllSchedulesInOrder, SequentialSchedule } from "../../../utils/schedule-utils";
 import type { CachedStatus } from "../../../types/models";
 

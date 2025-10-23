@@ -438,18 +438,6 @@ class LightStorage(BaseDeviceStorage[LightDevice]):
             return profile
         return _ProfileWrapper.model_validate({"profile": profile}).profile
 
-    def _get_metadata_file(self, device_id: str) -> Path:
-        """Get the file path for a device's metadata.
-
-        Args:
-            device_id: Device identifier (MAC address)
-
-        Returns:
-            Path to the device's metadata file
-        """
-        safe_id = device_id.replace(":", "_")
-        return self._storage_dir / f"{safe_id}.metadata.json"
-
     def upsert_light_metadata(self, metadata: LightMetadata | dict) -> LightMetadata:
         """Insert or update light metadata."""
         if isinstance(metadata, dict):

@@ -52,11 +52,6 @@ export function setupStateSubscriptions(): void {
         previousDeviceCount = currentDeviceCount;
         refreshDashboard();
       }
-      
-      if (deviceStatusChanged) {
-        console.log(`📱 Device status changed, refreshing dashboard`);
-        refreshDashboard();
-      }
     }
   );
 

@@ -1,6 +1,8 @@
 // Backend API Model Interfaces
 // These types match the Python backend models and API responses
 
+import type { DeviceMetadata, LightMetadata } from '../api/configurations';
+
 // ========================================
 // COMMAND MODELS
 // ========================================
@@ -99,6 +101,7 @@ export interface CachedStatus {
   model_name: string | null;
   connected: boolean;
   channels: LightChannel[] | null;
+  metadata?: DeviceMetadata | LightMetadata | null;
 }
 
 // ========================================

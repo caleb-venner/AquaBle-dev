@@ -4,6 +4,9 @@
 
 ### Urgent
 
+- Should update config API endpoints to be inline with others. [here](src/aquable/api/routes_configurations.py). Would require refactor --> called, then handle device type.
+- Data types getting convoluted. Status, settings, config, file, memory. Especially doser.
+- Seems to de a disconnect for saving metadata when deployed in hassio; check config paths.
 - Correctly pass light status payload; need to refine time-check logic. Placeholders inserted.
   [Lines 202 -> 336](src/aquable/storage/models.py#L204)
 - Correct doser lifetime status payload; currently not correctly integration to device state.
@@ -15,6 +18,7 @@
 - Add placeholder text on device cards that have no settings saved.
 - Metadata device name not loading on light device card.
 - Need to decide when/what triggers a payload status request from devies
+- Doser Heads not displayed correctly when in dark mode
 
 ### Soon
 

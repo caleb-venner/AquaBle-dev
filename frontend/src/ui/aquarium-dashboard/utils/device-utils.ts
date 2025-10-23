@@ -9,9 +9,23 @@ import { deviceStore } from "../../../stores/deviceStore";
  */
 export function getDoserHeadName(deviceAddress: string, headIndex: number): string | null {
   const state = deviceStore.getState();
-  const configs = Array.from(state.configurations.dosers.values());
-  const config = configs.find(c => c.id === deviceAddress);
-  return config?.name || null; // Note: headNames mapping not available in current config structure
+  
+  // Convert 0-based index to 1-based for metadata lookup
+  const metadataIndex = headIndex + 1;
+  
+  // First try configurations
+  const config = state.configurations.dosers.get(deviceAddress);
+  if (config?.headNames && metadataIndex in config.headNames) {
+    return config.headNames[metadataIndex];
+  }
+  
+  // Then try device status metadata
+  const device = state.devices.get(deviceAddress);
+  if (device?.status?.metadata && 'headNames' in device.status.metadata && device.status.metadata.headNames) {
+    return device.status.metadata.headNames[metadataIndex] || null;
+  }
+  
+  return null;
 }
 
 /**

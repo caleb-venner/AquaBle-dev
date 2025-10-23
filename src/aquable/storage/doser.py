@@ -251,6 +251,7 @@ class DoserDevice(BaseModel):
 
     id: str
     name: str | None = None
+    headNames: dict[int, str] | None = None  # Map of head index to name
     configurations: list[DeviceConfiguration]
     activeConfigurationId: str | None = None
     createdAt: str | None = None

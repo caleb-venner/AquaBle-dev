@@ -4,6 +4,7 @@ type Weekday = 'monday'|'tuesday'|'wednesday'|'thursday'|'friday'|'saturday'|'su
 export interface DoserDevice {
   id: string;
   name?: string;
+  headNames?: { [key: number]: string }; // Custom names for heads
   heads: DoserHead[];              // length ≤ 4
   createdAt?: string;              // ISO
   updatedAt?: string;              // ISO

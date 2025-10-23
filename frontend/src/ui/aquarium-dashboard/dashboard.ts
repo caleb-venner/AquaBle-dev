@@ -112,21 +112,45 @@ export function initializeDashboardHandlers(): void {
   (window as any).openDeviceSettings = async (address: string, deviceType: string) => {
     if (deviceType === 'doser') {
       const { showDoserDeviceSettingsModal } = await import('./modals/device-modals');
-      const doserDevice = {
-        id: address,
-        name: undefined,
-        heads: [] // Will be populated by the modal
-      };
-      showDoserDeviceSettingsModal(doserDevice);
+      const { getDoserConfiguration } = await import('../../api/configurations');
+      
+      try {
+        // Load actual saved configuration data
+        const doserDevice = await getDoserConfiguration(address);
+        showDoserDeviceSettingsModal(doserDevice);
+      } catch (error) {
+        console.error('Failed to load doser configuration:', error);
+        // Fallback to empty device if configuration doesn't exist
+        const doserDevice = {
+          id: address,
+          name: undefined,
+          heads: [],
+          configurations: [],
+          activeConfigurationId: undefined
+        };
+        showDoserDeviceSettingsModal(doserDevice);
+      }
     } else if (deviceType === 'light') {
       const { showLightDeviceSettingsModal } = await import('./modals/device-modals');
-      const lightDevice = {
-        id: address,
-        name: undefined,
-        channels: [], // Will be populated by the modal
-        profile: { mode: 'manual' as const, levels: {} }
-      };
-      showLightDeviceSettingsModal(lightDevice);
+      const { getLightConfiguration } = await import('../../api/configurations');
+      
+      try {
+        // Load actual saved configuration data
+        const lightDevice = await getLightConfiguration(address);
+        showLightDeviceSettingsModal(lightDevice);
+      } catch (error) {
+        console.error('Failed to load light configuration:', error);
+        // Fallback to empty device if configuration doesn't exist
+        const lightDevice = {
+          id: address,
+          name: undefined,
+          channels: [],
+          configurations: [],
+          activeConfigurationId: undefined,
+          profile: { mode: 'manual' as const, levels: {} }
+        };
+        showLightDeviceSettingsModal(lightDevice);
+      }
     }
   };
 

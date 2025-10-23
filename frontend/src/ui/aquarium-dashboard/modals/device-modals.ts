@@ -1,17 +1,76 @@
 /**
  * Modal components for device configuration - Visual rendering only
+ * 
+ * This module provides modal UI components for doser and light device settings.
+ * It uses Zustand store for state management and renders HTML strings for modal content.
+ * 
+ * Key patterns:
+ * - Device data is retrieved from deviceStore.getState() instead of DOM storage
+ * - Channel names come from device configurations in the store
+ * - Modal functions are attached to window object for onclick handlers (necessary pattern for string-based HTML)
+ * - Types are properly defined for TypeScript safety
  */
 
-import type { DoserDevice, LightDevice } from "../../../types/models";
+import type { DoserDevice as UIDoserDevice, LightDevice as UILightDevice } from "../../../types/models";
+import type { DoserDevice as APIDoserDevice, LightDevice as APILightDevice, DoserHead } from "../../../api/configurations";
 import { executeCommand } from "../../../api/commands";
 import type { CommandRequest } from "../../../types/models";
-import { getDeviceChannelNames } from "../../../utils";
 import { deviceStore } from "../../../stores/deviceStore";
 
 /**
- * Show the doser device settings modal - for commands and schedules (visual only)
+ * Internal types for modal rendering
  */
-export function showDoserDeviceSettingsModal(device: DoserDevice): void {
+interface DoserSchedule {
+  mode: 'single' | 'every_hour' | 'custom_periods' | 'timer' | string;
+  dailyDoseMl?: number;
+  startTime?: string;
+}
+
+interface DoserRecurrence {
+  days: string[];
+}
+
+interface DoserHeadData {
+  index: number;
+  label: string;
+  active: boolean;
+  schedule: DoserSchedule;
+  recurrence: DoserRecurrence;
+  missedDoseCompensation?: boolean;
+  calibration?: { mlPerSecond: number; lastCalibratedAt: string };
+}
+
+interface DoserConfiguration {
+  id: string;
+  name: string;
+  revisions: Array<{
+    revision: number;
+    savedAt: string;
+    heads: DoserHeadData[];
+  }>;
+}
+
+/**
+ * Get channel names for a light device from its configuration
+ * Falls back to default channel names if configuration not available
+ */
+function getLightChannelNames(deviceId: string): string[] {
+  const zustandState = deviceStore.getState();
+  const lightConfig = zustandState.configurations.lights.get(deviceId);
+  
+  if (lightConfig && lightConfig.channels && lightConfig.channels.length > 0) {
+    return lightConfig.channels.map(ch => ch.label || ch.key);
+  }
+  
+  // Default fallback
+  return ['Channel 1', 'Channel 2', 'Channel 3', 'Channel 4'];
+}
+
+/**
+ * Show the doser device settings modal - for commands and schedules (visual only)
+ * Uses API DoserDevice type which includes configurations array
+ */
+export function showDoserDeviceSettingsModal(device: APIDoserDevice): void {
   const modal = document.createElement('div');
   modal.className = 'modal-overlay';
 
@@ -29,9 +88,6 @@ export function showDoserDeviceSettingsModal(device: DoserDevice): void {
 
   document.body.appendChild(modal);
 
-  // Make selectDoseHead globally available for onclick handlers
-  (window as any).selectDoseHead = selectDoseHead;
-
   // Close on background click
   modal.addEventListener('click', (e) => {
     if (e.target === modal) {
@@ -42,8 +98,9 @@ export function showDoserDeviceSettingsModal(device: DoserDevice): void {
 
 /**
  * Show the light device settings modal - for commands and controls (visual only)
+ * Uses API LightDevice type which includes configurations array
  */
-export function showLightDeviceSettingsModal(device: LightDevice): void {
+export function showLightDeviceSettingsModal(device: APILightDevice): void {
   const modal = document.createElement('div');
   modal.className = 'modal-overlay';
 
@@ -61,12 +118,6 @@ export function showLightDeviceSettingsModal(device: LightDevice): void {
 
   document.body.appendChild(modal);
 
-  // Store device object on modal element for tab switching
-  const modalContent = modal.querySelector('.modal-content') as any;
-  if (modalContent) {
-    modalContent._deviceData = device;
-  }
-
   // Close on background click
   modal.addEventListener('click', (e) => {
     if (e.target === modal) {
@@ -78,7 +129,7 @@ export function showLightDeviceSettingsModal(device: LightDevice): void {
 /**
  * Render the doser device settings interface (visual only)
  */
-function renderDoserDeviceSettingsInterface(device: DoserDevice): string {
+function renderDoserDeviceSettingsInterface(device: APIDoserDevice): string {
   return `
     <div class="doser-config-interface">
       <!-- Head Selector Section -->
@@ -114,22 +165,43 @@ function renderDoserDeviceSettingsInterface(device: DoserDevice): string {
 /**
  * Render the 4-head visual selector as individual cards
  */
-function renderHeadSelector(device: DoserDevice): string {
+function renderHeadSelector(device: APIDoserDevice): string {
+  // Extract heads from active configuration if available
+  let configuredHeads: DoserHeadData[] = [];
+  
+  if (device.configurations && device.configurations.length > 0) {
+    const activeConfig = device.configurations.find(c => c.id === device.activeConfigurationId) || device.configurations[0];
+    
+    if (activeConfig && activeConfig.revisions && activeConfig.revisions.length > 0) {
+      const latestRevision = activeConfig.revisions[activeConfig.revisions.length - 1];
+      
+      if (latestRevision.heads) {
+        configuredHeads = latestRevision.heads as DoserHeadData[];
+      }
+    }
+  }
+
   // Ensure we have all 4 heads
   const allHeads = [];
   for (let i = 1; i <= 4; i++) {
-    const existingHead = device.heads?.find((h) => h.index === i);
-    const headName = `Head ${i}`;
+    const existingHead = configuredHeads.find((h) => h.index === i);
+    const headName = device.headNames?.[i] || `Head ${i}`;
 
-    allHeads.push(existingHead || {
-      index: i as 1|2|3|4,
-      label: headName,
-      active: false,
-      schedule: { mode: 'single' as const, dailyDoseMl: 10.0, startTime: '09:00' },
-      recurrence: { days: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] },
-      missedDoseCompensation: false,
-      calibration: { mlPerSecond: 1.0, lastCalibratedAt: new Date().toISOString() }
-    });
+    if (existingHead) {
+      // Update the label with custom name
+      existingHead.label = headName;
+      allHeads.push(existingHead);
+    } else {
+      allHeads.push({
+        index: i as 1|2|3|4,
+        label: headName,
+        active: false,
+        schedule: { mode: 'single' as const, dailyDoseMl: 10.0, startTime: '09:00' },
+        recurrence: { days: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] },
+        missedDoseCompensation: false,
+        calibration: { mlPerSecond: 1.0, lastCalibratedAt: new Date().toISOString() }
+      });
+    }
   }
 
   return `
@@ -142,7 +214,7 @@ function renderHeadSelector(device: DoserDevice): string {
 /**
  * Render a single dose head card
  */
-function renderDoseHeadCard(head: any): string {
+function renderDoseHeadCard(head: DoserHeadData): string {
   const headName = head.label || `Head ${head.index}`;
   const statusText = head.active ? 'Active' : 'Disabled';
   const statusColor = head.active ? 'var(--success)' : 'var(--gray-400)';
@@ -209,27 +281,59 @@ function selectDoseHead(headIndex: number): void {
   const commandInterface = modal.querySelector('#command-interface') as HTMLElement;
   if (!commandInterface) return;
 
-  // Get the device data from the modal
+  // Get the device ID from the modal
   const deviceId = modal.getAttribute('data-device-id');
   if (!deviceId) return;
 
-  // For now, create a mock head object - in a real implementation this would come from the device data
-  const mockHead = {
-    index: headIndex,
-    label: `Head ${headIndex}`,
-    active: true,
-    schedule: { mode: 'single' as const, dailyDoseMl: 10.0, startTime: '09:00' },
-    recurrence: { days: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] },
-    missedDoseCompensation: false,
-    calibration: { mlPerSecond: 1.0, lastCalibratedAt: new Date().toISOString() }
-  };
+  // Retrieve device data from Zustand store instead of DOM
+  const zustandState = deviceStore.getState();
+  const device = zustandState.configurations.dosers.get(deviceId);
+  if (!device) {
+    console.error('No device configuration found in store for:', deviceId);
+    return;
+  }
+
+  // Extract head data from the active configuration
+  let headData: DoserHeadData | null = null;
+  
+  if (device.configurations && device.configurations.length > 0) {
+    const activeConfig = device.configurations.find(c => c.id === device.activeConfigurationId) || device.configurations[0];
+    
+    if (activeConfig && activeConfig.revisions && activeConfig.revisions.length > 0) {
+      const latestRevision = activeConfig.revisions[activeConfig.revisions.length - 1];
+      
+      if (latestRevision.heads) {
+        headData = (latestRevision.heads as DoserHeadData[]).find(h => h.index === headIndex) || null;
+      }
+    }
+  }
+
+  // Fallback to default values if no saved configuration exists
+  if (!headData) {
+    const customName = device.headNames?.[headIndex] || `Head ${headIndex}`;
+    headData = {
+      index: headIndex,
+      label: customName,
+      active: false,
+      schedule: { mode: 'single' as const, dailyDoseMl: 10.0, startTime: '09:00' },
+      recurrence: { days: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] },
+      missedDoseCompensation: false,
+      calibration: { mlPerSecond: 1.0, lastCalibratedAt: new Date().toISOString() }
+    };
+  } else {
+    // Ensure label uses custom name if available
+    const customName = device.headNames?.[headIndex];
+    if (customName) {
+      headData.label = customName;
+    }
+  }
 
   // Update the command interface
-  commandInterface.innerHTML = renderHeadCommandInterface(headIndex, mockHead, deviceId);
+  commandInterface.innerHTML = renderHeadCommandInterface(headIndex, headData, deviceId);
 
   // Update card selection states
   const cards = modal.querySelectorAll('.dose-head-card');
-  cards.forEach((card, index) => {
+  cards.forEach((card: Element, index: number) => {
     if (index === headIndex - 1) {
       card.classList.add('selected');
     } else {
@@ -241,7 +345,7 @@ function selectDoseHead(headIndex: number): void {
 /**
  * Render the light device settings interface with tabs for Manual/Auto modes
  */
-function renderLightDeviceSettingsInterface(device: LightDevice): string {
+function renderLightDeviceSettingsInterface(device: APILightDevice): string {
   return `
     <div class="light-config-interface">
       <!-- Tab Navigation -->
@@ -265,11 +369,9 @@ function renderLightDeviceSettingsInterface(device: LightDevice): string {
 /**
  * Render Manual Mode tab content
  */
-function renderLightManualModeTab(device: LightDevice): string {
+function renderLightManualModeTab(device: APILightDevice): string {
   // Get channel names from device configuration
-  const zustandState = deviceStore.getState();
-  const lightConfig = zustandState.configurations.lights.get(device.id);
-  const channelNames = lightConfig?.channels?.map((ch: any) => ch.label) || ['Channel 1', 'Channel 2', 'Channel 3', 'Channel 4'];
+  const channelNames = getLightChannelNames(device.id);
 
   return `
     <div class="settings-section">
@@ -307,11 +409,9 @@ function renderLightManualModeTab(device: LightDevice): string {
 /**
  * Render Auto Mode tab content
  */
-function renderLightAutoModeTab(device: LightDevice): string {
+function renderLightAutoModeTab(device: APILightDevice): string {
   // Get channel names from device configuration
-  const zustandState = deviceStore.getState();
-  const lightConfig = zustandState.configurations.lights.get(device.id);
-  const channelNames = lightConfig?.channels?.map((ch: any) => ch.label) || ['Channel 1', 'Channel 2', 'Channel 3', 'Channel 4'];
+  const channelNames = getLightChannelNames(device.id);
   const channelCount = channelNames.length;
 
   // Determine grid layout based on channel count
@@ -443,7 +543,7 @@ function renderLightAutoModeTab(device: LightDevice): string {
 /**
  * Render the command interface for a selected head (visual only)
  */
-export function renderHeadCommandInterface(headIndex: number, head: any, deviceId: string): string {
+export function renderHeadCommandInterface(headIndex: number, head: DoserHeadData, deviceId: string): string {
   const schedule = head.schedule || { mode: 'single', dailyDoseMl: 10.0, startTime: '09:00' };
   const recurrence = head.recurrence || { days: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] };
 
@@ -511,7 +611,7 @@ export function renderHeadCommandInterface(headIndex: number, head: any, deviceI
 /**
  * Render schedule details based on mode (visual only)
  */
-function renderScheduleDetails(headIndex: number, schedule: any): string {
+function renderScheduleDetails(headIndex: number, schedule: DoserSchedule): string {
   switch (schedule.mode) {
     case 'single':
       return `
@@ -593,16 +693,24 @@ function switchLightSettingsTab(mode: 'manual' | 'auto'): void {
     activeTab.classList.add('active');
   }
 
-  // Get device data from modal element (stored when modal was created)
-  const modal = document.querySelector('.modal-content.light-settings-modal') as any;
+  // Get device ID from modal element
+  const modal = document.querySelector('.modal-content.light-settings-modal') as HTMLElement;
   if (!modal) {
     console.error('Modal element not found');
     return;
   }
 
-  const device = modal._deviceData;
+  const deviceId = modal.getAttribute('data-device-id');
+  if (!deviceId) {
+    console.error('Device ID not found on modal element');
+    return;
+  }
+
+  // Retrieve device data from Zustand store
+  const zustandState = deviceStore.getState();
+  const device = zustandState.configurations.lights.get(deviceId);
   if (!device) {
-    console.error('Device data not found on modal element');
+    console.error('No device configuration found in store for:', deviceId);
     return;
   }
 
@@ -849,11 +957,26 @@ async function sendDoserScheduleCommand(address: string, headIndex: number): Pro
 }
 
 // Attach global functions for UI interactions
-(window as any).selectDoseHead = selectDoseHead;
-(window as any).switchLightSettingsTab = switchLightSettingsTab;
-(window as any).sendLightManualModeCommand = sendLightManualModeCommand;
-(window as any).sendLightAutoModeCommand = sendLightAutoModeCommand;
-(window as any).sendLightResetAutoModeCommand = sendLightResetAutoModeCommand;
-(window as any).sendDoserScheduleCommand = sendDoserScheduleCommand;
-(window as any).showDoserDeviceSettingsModal = showDoserDeviceSettingsModal;
-(window as any).showLightDeviceSettingsModal = showLightDeviceSettingsModal;
+// These are necessary because modal HTML uses onclick handlers
+// TypeScript-friendly window augmentation
+declare global {
+  interface Window {
+    selectDoseHead: typeof selectDoseHead;
+    switchLightSettingsTab: typeof switchLightSettingsTab;
+    sendLightManualModeCommand: typeof sendLightManualModeCommand;
+    sendLightAutoModeCommand: typeof sendLightAutoModeCommand;
+    sendLightResetAutoModeCommand: typeof sendLightResetAutoModeCommand;
+    sendDoserScheduleCommand: typeof sendDoserScheduleCommand;
+    showDoserDeviceSettingsModal: typeof showDoserDeviceSettingsModal;
+    showLightDeviceSettingsModal: typeof showLightDeviceSettingsModal;
+  }
+}
+
+window.selectDoseHead = selectDoseHead;
+window.switchLightSettingsTab = switchLightSettingsTab;
+window.sendLightManualModeCommand = sendLightManualModeCommand;
+window.sendLightAutoModeCommand = sendLightAutoModeCommand;
+window.sendLightResetAutoModeCommand = sendLightResetAutoModeCommand;
+window.sendDoserScheduleCommand = sendDoserScheduleCommand;
+window.showDoserDeviceSettingsModal = showDoserDeviceSettingsModal;
+window.showLightDeviceSettingsModal = showLightDeviceSettingsModal;

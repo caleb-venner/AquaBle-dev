@@ -3,7 +3,7 @@
  */
 
 import { deviceStore } from "../../../stores/deviceStore";
-import { getDeviceDisplayName, getTimeAgo } from "../../../utils";
+import { getTimeAgo } from "../../../utils";
 /* import { renderConnectionStatus } from "../utils/connection-utils"; */
 import { renderLightCardStatus/* , renderChannelLevels */ } from "./light-components";
 import { renderDoserCardStatus } from "./doser-components";
@@ -42,10 +42,10 @@ function renderDeviceTile(device: CachedStatus & { address: string }): string {
   let deviceName = 'Unknown Device';
   if (device.device_type === "doser") {
     const config = zustandState.configurations.dosers.get(device.address);
-    deviceName = config?.name || device.model_name || 'Unknown Device';
+    deviceName = config?.name || device.metadata?.name || device.model_name || 'Unknown Device';
   } else if (device.device_type === "light") {
     const config = zustandState.configurations.lights.get(device.address);
-    deviceName = config?.name || device.model_name || 'Unknown Device';
+    deviceName = config?.name || device.metadata?.name || device.model_name || 'Unknown Device';
   }
   
   const timeAgo = getTimeAgo(device.updated_at);

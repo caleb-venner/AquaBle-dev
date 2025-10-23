@@ -209,6 +209,10 @@ async function handleSaveConfig(
     const { loadAllDashboardData } = await import('../services/data-service');
     await loadAllDashboardData();
 
+    // Refresh the UI to show updated names
+    const { refreshDashboard } = await import('../render');
+    refreshDashboard();
+
     // Close modal
     modal.remove();
   } catch (error) {

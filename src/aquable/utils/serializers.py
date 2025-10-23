@@ -72,6 +72,13 @@ def cached_status_to_dict(service, status) -> Dict[str, Any]:
     """Transform a cached status into the API response structure."""
     connected = service.current_device_address(status.device_type) == status.address
 
+    # Get metadata if available
+    metadata = None
+    if status.device_type == "doser":
+        metadata = service._doser_storage.get_device_metadata(status.address)
+    elif status.device_type == "light":
+        metadata = service._light_storage.get_light_metadata(status.address)
+
     return {
         "address": status.address,
         "device_type": status.device_type,
@@ -81,4 +88,5 @@ def cached_status_to_dict(service, status) -> Dict[str, Any]:
         "model_name": status.model_name,
         "connected": connected,
         "channels": status.channels,
+        "metadata": metadata.model_dump() if metadata else None,
     }

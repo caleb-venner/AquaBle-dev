@@ -19,6 +19,7 @@ export interface DoserHead {
 export interface DoserDevice {
   id: string;
   name?: string;
+  headNames?: Record<number, string>; // Map of head index to name
   configurations: any[]; // Complex configuration structure
   activeConfigurationId?: string;
   createdAt?: string;
