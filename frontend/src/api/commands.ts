@@ -13,7 +13,7 @@ export async function executeCommand(
   address: string,
   request: CommandRequest
 ): Promise<CommandRecord> {
-  return postJson<CommandRecord>(`api/devices/${encodeURIComponent(address)}/commands`, request);
+  return postJson<CommandRecord>(`/api/devices/${encodeURIComponent(address)}/commands`, request);
 }
 
 /**
@@ -24,7 +24,7 @@ export async function getCommandHistory(
   limit = 20
 ): Promise<CommandRecord[]> {
   return fetchJson<CommandRecord[]>(
-    `api/devices/${encodeURIComponent(address)}/commands?limit=${limit}`
+    `/api/devices/${encodeURIComponent(address)}/commands?limit=${limit}`
   );
 }
 
@@ -36,6 +36,6 @@ export async function getCommand(
   commandId: string
 ): Promise<CommandRecord> {
   return fetchJson<CommandRecord>(
-    `api/devices/${encodeURIComponent(address)}/commands/${encodeURIComponent(commandId)}`
+    `/api/devices/${encodeURIComponent(address)}/commands/${encodeURIComponent(commandId)}`
   );
 }
