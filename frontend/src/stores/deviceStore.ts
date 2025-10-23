@@ -423,7 +423,7 @@ const storeInitializer: StateCreator<DeviceStore> = (set, get) => ({
     refreshDevices: async () => {
       try {
         const { fetchJson } = await import("../api/http");
-        const data = await fetchJson<{ [address: string]: CachedStatus }>("/api/status");
+        const data = await fetchJson<{ [address: string]: CachedStatus }>("api/status");
         const devices = Object.values(data) as CachedStatus[];
         get().actions.setDevices(devices);
         get().actions.setGlobalError(null);
@@ -436,7 +436,7 @@ const storeInitializer: StateCreator<DeviceStore> = (set, get) => ({
         try {
           get().actions.setDeviceLoading(address, true);
           const { postJson } = await import("../api/http");
-          await postJson(`/api/devices/${encodeURIComponent(address)}/status`, {});
+          await postJson(`api/devices/${encodeURIComponent(address)}/status`, {});
 
           // Refresh all devices to get updated status
           await get().actions.refreshDevices();
@@ -450,7 +450,7 @@ const storeInitializer: StateCreator<DeviceStore> = (set, get) => ({
       connectToDevice: async (address) => {
         try {
           const { postJson } = await import("../api/http");
-          await postJson(`/api/devices/${encodeURIComponent(address)}/connect`, {});
+          await postJson(`api/devices/${encodeURIComponent(address)}/connect`, {});
           get().actions.addNotification({
             type: "success",
             message: `Connected to device ${address}`,
