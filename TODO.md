@@ -4,7 +4,7 @@
 
 ### Urgent
 
-- Should update config API endpoints to be inline with others. [here](src/aquable/api/routes_configurations.py). Would require refactor --> called, then handle device type.
+- Should update config API endpoints to be inline with others. [located here](src/aquable/api/routes_configurations.py). Would require refactor --> called, then handle device type.
 - Data types getting convoluted. Status, settings, config, file, memory. Especially doser.
 - Seems to de a disconnect for saving metadata when deployed in hassio; check config paths.
 - Correctly pass light status payload; need to refine time-check logic. Placeholders inserted.

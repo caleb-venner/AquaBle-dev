@@ -423,7 +423,7 @@ const storeInitializer: StateCreator<DeviceStore> = (set, get) => ({
     refreshDevices: async () => {
       try {
         const { fetchJson } = await import("../api/http");
-        const data = await fetchJson<{ [address: string]: CachedStatus }>("api/status");
+        const data = await fetchJson<{ [address: string]: CachedStatus }>("/api/status");
         const devices = Object.values(data) as CachedStatus[];
         get().actions.setDevices(devices);
         get().actions.setGlobalError(null);
