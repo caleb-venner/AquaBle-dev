@@ -11,6 +11,7 @@
   [Lines 202 -> 336](src/aquable/storage/models.py#L204)
 - Correct doser lifetime status payload; currently not correctly integration to device state.
 - Implement remaining doser payload decode. (0x22 (today's dose))
+- Doser connection/discovery iffy when deployed via hassio. Requires 1 or more addon restarts.
 
 ### UI
 

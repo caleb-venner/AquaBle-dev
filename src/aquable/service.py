@@ -12,6 +12,7 @@ import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 
@@ -132,10 +133,21 @@ app = FastAPI(title="Aquarium BLE Service", lifespan=lifespan)
 # The SUPERVISOR_TOKEN environment variable is set by Home Assistant for all add-ons
 INGRESS_ENABLED = bool(os.getenv("SUPERVISOR_TOKEN"))
 if INGRESS_ENABLED:
-    # Add path middleware first to capture X-Ingress-Path header
-    app.add_middleware(IngressPathMiddleware)
-    # Then add IP restriction to enforce security
+    # Add IP restriction first (outermost layer of protection)
     app.add_middleware(IngressIPRestrictionMiddleware, ingress_enabled=True)
+    # Then add path middleware to capture X-Ingress-Path header
+    app.add_middleware(IngressPathMiddleware)
+
+# Configure CORS to allow cross-origin requests from the frontend
+# This is essential for browser-based APIs that use PUT/DELETE/POST
+# CORS middleware should be added after other middlewares (it's innermost)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allow all origins for Ingress compatibility
+    allow_credentials=True,
+    allow_methods=["*"],  # Allow all HTTP methods (GET, POST, PUT, DELETE, OPTIONS, etc.)
+    allow_headers=["*"],  # Allow all headers
+)
 
 
 # Health check endpoint for container monitoring
