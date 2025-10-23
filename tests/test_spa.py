@@ -46,7 +46,7 @@ def test_root_serves_spa_when_dist_present(monkeypatch: pytest.MonkeyPatch, tmp_
     index_file.write_text("<html><body>spa</body></html>", encoding="utf-8")
     monkeypatch.setattr("aquable.service.SPA_DIST_AVAILABLE", True)
     monkeypatch.setattr("aquable.service.FRONTEND_DIST", tmp_path)
-    
+
     mock_request = _make_mock_request()
     response = asyncio.run(serve_spa(mock_request))
     assert response.status_code == 200

@@ -4,11 +4,11 @@ DEV SERVER PROXY USAGE:
     The dev server proxy is for LOCAL DEVELOPMENT ONLY. It allows developers
     to run the Vite dev server (npm run dev) and have the backend proxy requests
     to it for hot module reloading.
-    
+
     In production (Home Assistant add-on), only built static assets are served.
     The add-on build process creates the frontend/dist directory, and the proxy
     logic is never used.
-    
+
     Environment variable:
         AQUA_BLE_FRONTEND_DEV: URL of dev server (e.g., "http://localhost:5173")
                                Set to "0" to explicitly disable proxy
@@ -29,8 +29,7 @@ from fastapi.staticfiles import StaticFiles
 PACKAGE_ROOT = Path(__file__).resolve().parent
 DEFAULT_FRONTEND_DIST = PACKAGE_ROOT.parent.parent / "frontend" / "dist"
 FRONTEND_DIST = Path(
-    os.getenv("AQUA_BLE_FRONTEND_DIST", str(DEFAULT_FRONTEND_DIST))
-    or str(DEFAULT_FRONTEND_DIST)
+    os.getenv("AQUA_BLE_FRONTEND_DIST", str(DEFAULT_FRONTEND_DIST)) or str(DEFAULT_FRONTEND_DIST)
 )
 SPA_DIST_AVAILABLE = FRONTEND_DIST.exists()
 

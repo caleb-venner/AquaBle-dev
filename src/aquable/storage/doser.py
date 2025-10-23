@@ -13,9 +13,9 @@ from uuid import uuid4
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from .base_device_storage import BaseDeviceStorage
-from .storage_utils import ensure_unique_values
-from .time_utils import now_iso as _now_iso
+from ..utils.time import now_iso as _now_iso
+from .base import BaseDeviceStorage
+from .utils import ensure_unique_values
 
 logger = logging.getLogger(__name__)
 

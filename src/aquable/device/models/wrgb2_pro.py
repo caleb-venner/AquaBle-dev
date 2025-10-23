@@ -1,6 +1,6 @@
 """WRGB II Pro device Model."""
 
-from .light_device import LightDevice
+from ..light import LightDevice
 
 
 class WRGBIIPro(LightDevice):

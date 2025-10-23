@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from aquable.light_storage import LightStorage
+from aquable.storage import LightStorage
 
 
 @pytest.fixture

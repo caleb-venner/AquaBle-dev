@@ -6,8 +6,8 @@ from typing import Any, Dict, List
 
 from fastapi import APIRouter, HTTPException, Request
 
-from ..command_executor import CommandExecutor
 from ..commands_model import CommandRecord, CommandRequest
+from ..config import CommandExecutor
 from ..errors import ErrorCode
 
 router = APIRouter(prefix="/api", tags=["commands"])

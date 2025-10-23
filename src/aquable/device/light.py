@@ -7,7 +7,7 @@ from typing import ClassVar, Optional
 from bleak.backends.characteristic import BleakGATTCharacteristic
 
 from ..commands import encoder as commands
-from ..light_status import LightStatus, parse_light_payload
+from ..storage.models import LightStatus, parse_light_payload
 from .base_device import BaseDevice
 
 

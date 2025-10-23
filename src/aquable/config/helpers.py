@@ -10,32 +10,32 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict, cast
 from uuid import uuid4
-from .time_utils import now_iso as _now_iso
-from .doser_storage import (
+
+from ..storage import (
+    AutoProfile,
+    AutoProgram,
     Calibration,
+    ChannelDef,
     ConfigurationRevision,
     DeviceConfiguration,
     DoserDevice,
     DoserHead,
     DoserHeadStats,
-    Recurrence,
-    SingleSchedule,
-    Weekday,
-)
-from .light_storage import (
-    AutoProfile,
-    AutoProgram,
-    ChannelDef,
+    DoserWeekday,
     LightConfiguration,
     LightDevice,
     LightProfileRevision,
+    LightWeekday,
     ManualProfile,
+    Recurrence,
+    SingleSchedule,
 )
-
+from ..utils import now_iso as _now_iso
 
 logger = logging.getLogger(__name__)
 
 # ========== Doser Configuration Helpers ==========
+
 
 def update_doser_schedule_config(device: DoserDevice, args: Dict[str, Any]) -> DoserDevice:
     """Update a doser device configuration based on set_schedule command args.
@@ -102,7 +102,7 @@ def update_doser_schedule_config(device: DoserDevice, args: Dict[str, Any]) -> D
 
 def create_doser_config_from_command(address: str, args: Dict[str, Any]) -> DoserDevice:
     """Create a minimal DoserDevice configuration from a set_schedule command.
-    
+
     This is called when a doser device executes a command but has no saved config yet.
     Creates a minimal config containing only the head being configured.
     Other heads are NOT created upfront - users configure them as needed.
@@ -157,7 +157,7 @@ def create_doser_config_from_command(address: str, args: Dict[str, Any]) -> Dose
             dailyDoseMl=volume_tenths_ml / 10.0,
             startTime=f"{hour:02d}:{minute:02d}",
         ),
-        recurrence=Recurrence(days=cast(list[Weekday], weekday_names)),
+        recurrence=Recurrence(days=cast(list[DoserWeekday], weekday_names)),
         missedDoseCompensation=False,
         calibration=Calibration(mlPerSecond=0.1, lastCalibratedAt=timestamp),
         stats=DoserHeadStats(dosesToday=0, mlDispensedToday=0.0),
@@ -193,7 +193,9 @@ def create_doser_config_from_command(address: str, args: Dict[str, Any]) -> Dose
     )
 
     logger.info(
-        f"Created minimal doser config for {address} from schedule command, head {head_storage_index}"
+        "Created minimal doser config for %s from schedule command, head %s",
+        address,
+        head_storage_index,
     )
 
     return device
@@ -201,9 +203,10 @@ def create_doser_config_from_command(address: str, args: Dict[str, Any]) -> Dose
 
 # ========== Light Device Configuration Helpers ==========
 
+
 def update_light_manual_profile(device: LightDevice, levels: Dict[str, int]) -> LightDevice:
     """Update or create a manual profile in the active configuration.
-    
+
     Saves manual brightness levels as a new revision in the active configuration.
     This persists the current manual brightness state to the device's configuration file.
 
@@ -217,14 +220,14 @@ def update_light_manual_profile(device: LightDevice, levels: Dict[str, int]) -> 
     """
     active_config = device.get_active_configuration()
     latest_revision = active_config.latest_revision()
-    
+
     # Create new manual profile
     profile = ManualProfile(mode="manual", levels=levels)
-    
+
     # Create new revision
     next_revision_num = latest_revision.revision + 1
     timestamp = _now_iso()
-    
+
     new_revision = LightProfileRevision(
         revision=next_revision_num,
         savedAt=timestamp,
@@ -232,12 +235,12 @@ def update_light_manual_profile(device: LightDevice, levels: Dict[str, int]) -> 
         note="Manual brightness adjustment",
         savedBy="user",
     )
-    
+
     # Add to configuration
     active_config.revisions.append(new_revision)
     active_config.updatedAt = timestamp
     device.updatedAt = timestamp
-    
+
     logger.info(f"Updated manual profile for {device.id} (revision {next_revision_num})")
     return device
 
@@ -277,7 +280,7 @@ def add_light_auto_program(
         id=program_id,
         label=label,
         enabled=enabled,
-        days=cast(list["Weekday"], weekdays),
+        days=cast(list[LightWeekday], weekdays),
         sunrise=sunrise,
         sunset=sunset,
         rampMinutes=ramp_minutes,
@@ -304,7 +307,7 @@ def create_light_config_from_command(
     channels_info: list[Dict[str, Any]],
 ) -> LightDevice:
     """Create a minimal LightDevice config from a command.
-    
+
     This is called when a light device executes a command but has no saved config yet.
     Creates a minimal config containing just the command data and device channels.
     User metadata is NOT created - frontend displays defaults.
@@ -318,7 +321,7 @@ def create_light_config_from_command(
 
     Returns:
         Minimal LightDevice with one configuration containing the command data
-        
+
     Raises:
         ValueError: If channels_info is missing or empty
     """
@@ -327,17 +330,11 @@ def create_light_config_from_command(
 
     timestamp = _now_iso()
     device_name = f"Light {address[-8:]}"
-    
+
     # Create channel defs from device info
     sorted_channels = sorted(channels_info, key=lambda ch: ch.get("index", 0))
     channel_defs = [
-        ChannelDef(
-            key=ch["name"].lower(),
-            label=ch["name"].capitalize(),
-            min=0,
-            max=100,
-            step=1
-        )
+        ChannelDef(key=ch["name"].lower(), label=ch["name"].capitalize(), min=0, max=100, step=1)
         for ch in sorted_channels
     ]
 
@@ -351,7 +348,7 @@ def create_light_config_from_command(
         brightness_list = [0] * len(channel_defs)
         if color < len(channel_defs):
             brightness_list[color] = brightness
-        
+
         # Normalize brightness list to channel keys
         levels = {}
         for i, ch in enumerate(channel_defs):
@@ -359,13 +356,13 @@ def create_light_config_from_command(
                 levels[ch.key] = int(brightness_list[i])
             else:
                 levels[ch.key] = 0
-        
+
         profile = ManualProfile(mode="manual", levels=levels)
-        note = f"Created from brightness command"
+        note = "Created from brightness command"
 
     elif command_type == "multi_channel_brightness":
         channels = args.get("channels", [])
-        
+
         # Normalize brightness list to channel keys
         levels = {}
         for i, ch in enumerate(channel_defs):
@@ -373,7 +370,7 @@ def create_light_config_from_command(
                 levels[ch.key] = int(channels[i])
             else:
                 levels[ch.key] = 0
-        
+
         profile = ManualProfile(mode="manual", levels=levels)
         note = "Created from multi-channel brightness command"
 
@@ -396,7 +393,7 @@ def create_light_config_from_command(
         else:
             # Single int - apply to all channels
             brightness_list = [int(brightness_arg)] * len(channel_defs)
-        
+
         # Normalize brightness list to channel keys
         levels = {}
         for i, ch in enumerate(channel_defs):
@@ -426,7 +423,7 @@ def create_light_config_from_command(
             id=str(uuid4()),
             label=label or f"Auto {sunrise}-{sunset}",
             enabled=True,
-            days=cast(list["Weekday"], weekdays),
+            days=cast(list[LightWeekday], weekdays),
             sunrise=sunrise,
             sunset=sunset,
             rampMinutes=ramp_up_minutes,

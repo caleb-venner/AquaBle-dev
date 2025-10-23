@@ -4,8 +4,7 @@ import json
 import tempfile
 from pathlib import Path
 
-from aquable.doser_storage import DoserStorage
-from aquable.light_storage import LightStorage
+from aquable.storage import DoserStorage, LightStorage
 
 
 def test_real_world_metadata_scenario():

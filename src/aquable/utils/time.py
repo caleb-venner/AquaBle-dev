@@ -71,12 +71,12 @@ def get_system_timezone() -> str:
 
 def _is_valid_timezone(tz_str: str) -> bool:
     """Validate if a string is a valid IANA timezone identifier.
-    
+
     Uses zoneinfo to validate - no fallback to format-only checks.
-    
+
     Args:
         tz_str: String to validate
-        
+
     Returns:
         True if valid IANA timezone, False otherwise
     """

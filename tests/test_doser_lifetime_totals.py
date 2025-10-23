@@ -1,6 +1,6 @@
 """Test lifetime totals parsing in doser status."""
 
-from aquable.doser_status import parse_doser_payload
+from aquable.storage.models import parse_doser_payload
 
 
 def test_lifetime_totals_parsing():

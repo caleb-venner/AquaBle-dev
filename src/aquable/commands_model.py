@@ -119,7 +119,7 @@ class CommandRecord:
 # Supported command actions and their argument schemas
 class LightBrightnessArgs(BaseModel):
     """Arguments for set_brightness command.
-    
+
     Normalizes to list format internally: [brightness] represents single channel,
     expanded to [0, 0, brightness, 0] for specific color index during processing.
     """
@@ -170,7 +170,7 @@ class DoserScheduleArgs(BaseModel):
     @classmethod
     def validate_weekdays(cls, v):
         """Validate weekday selections and convert strings/integers to PumpWeekday enums.
-        
+
         Accepts:
         - Lowercase weekday strings ('monday', 'tuesday', etc.)
         - Integer enum values (64, 32, 16, 8, 4, 2, 1, 127)
@@ -182,14 +182,14 @@ class DoserScheduleArgs(BaseModel):
 
             # Map lowercase strings to PumpWeekday enums
             string_to_enum = {
-                'monday': PumpWeekday.monday,
-                'tuesday': PumpWeekday.tuesday,
-                'wednesday': PumpWeekday.wednesday,
-                'thursday': PumpWeekday.thursday,
-                'friday': PumpWeekday.friday,
-                'saturday': PumpWeekday.saturday,
-                'sunday': PumpWeekday.sunday,
-                'everyday': PumpWeekday.everyday
+                "monday": PumpWeekday.monday,
+                "tuesday": PumpWeekday.tuesday,
+                "wednesday": PumpWeekday.wednesday,
+                "thursday": PumpWeekday.thursday,
+                "friday": PumpWeekday.friday,
+                "saturday": PumpWeekday.saturday,
+                "sunday": PumpWeekday.sunday,
+                "everyday": PumpWeekday.everyday,
             }
 
             # Convert to PumpWeekday enum instances
@@ -217,8 +217,7 @@ class DoserScheduleArgs(BaseModel):
                     converted.append(day)
                 else:
                     raise ValueError(
-                        f"Invalid weekday type: {type(day)}. "
-                        f"Expected str, int, or PumpWeekday"
+                        f"Invalid weekday type: {type(day)}. " f"Expected str, int, or PumpWeekday"
                     )
 
             v = converted
@@ -286,7 +285,7 @@ class LightAutoSettingArgs(BaseModel):
     @classmethod
     def validate_weekdays(cls, v: Optional[list]) -> Optional[list[LightWeekday]]:
         """Validate weekday selections and convert strings to LightWeekday enums.
-        
+
         Accepts:
         - Lowercase weekday strings ('monday', 'tuesday', etc.)
         - LightWeekday enum instances
@@ -297,14 +296,14 @@ class LightAutoSettingArgs(BaseModel):
 
             # Map lowercase strings to LightWeekday enums
             string_to_enum = {
-                'monday': LightWeekday.monday,
-                'tuesday': LightWeekday.tuesday,
-                'wednesday': LightWeekday.wednesday,
-                'thursday': LightWeekday.thursday,
-                'friday': LightWeekday.friday,
-                'saturday': LightWeekday.saturday,
-                'sunday': LightWeekday.sunday,
-                'everyday': LightWeekday.everyday
+                "monday": LightWeekday.monday,
+                "tuesday": LightWeekday.tuesday,
+                "wednesday": LightWeekday.wednesday,
+                "thursday": LightWeekday.thursday,
+                "friday": LightWeekday.friday,
+                "saturday": LightWeekday.saturday,
+                "sunday": LightWeekday.sunday,
+                "everyday": LightWeekday.everyday,
             }
 
             # Convert to LightWeekday enum instances
@@ -323,8 +322,7 @@ class LightAutoSettingArgs(BaseModel):
                     converted.append(day)
                 else:
                     raise ValueError(
-                        f"Invalid weekday type: {type(day)}. "
-                        f"Expected str or LightWeekday"
+                        f"Invalid weekday type: {type(day)}. " f"Expected str or LightWeekday"
                     )
 
             v = converted

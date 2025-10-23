@@ -6,12 +6,12 @@ from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from conftest import create_default_doser_config, create_default_light_profile
 
 from aquable.ble_service import BLEService, CachedStatus
-from aquable.command_executor import CommandExecutor
 from aquable.commands.encoder import LightWeekday, PumpWeekday
 from aquable.commands_model import CommandRequest
-from conftest import create_default_doser_config, create_default_light_profile
+from aquable.config import CommandExecutor
 
 # All test coroutines will be treated as marked.
 pytestmark = pytest.mark.asyncio
@@ -173,7 +173,7 @@ async def test_execute_add_light_auto_setting_success(
     profile_revision = active_config.latest_revision()
 
     # After add_auto_setting, the profile should be converted to AutoProfile
-    from aquable.light_storage import AutoProfile
+    from aquable.storage import AutoProfile
 
     assert isinstance(profile_revision.profile, AutoProfile)
 
@@ -253,7 +253,7 @@ async def test_execute_set_brightness_saves_config(
     assert len(active_config.revisions) == initial_revision_count + 1
 
     # New revision should be a ManualProfile
-    from aquable.light_storage import ManualProfile
+    from aquable.storage import ManualProfile
 
     assert isinstance(profile_revision.profile, ManualProfile)
 
@@ -265,4 +265,3 @@ async def test_execute_set_brightness_saves_config(
     assert manual_profile.levels["blue"] == 0
     assert profile_revision.note == "Manual brightness adjustment"
     assert profile_revision.savedBy == "user"
-

@@ -5,7 +5,7 @@ from unittest.mock import patch
 import pytest
 
 from aquable.ble_service import BLEService
-from aquable.doser_storage import DoserStorage
+from aquable.storage import DoserStorage
 
 
 @pytest.fixture
@@ -68,8 +68,9 @@ def test_config_helpers_create_default():
 
 def test_config_helpers_update_schedule():
     """Test updating schedule in configuration."""
-    from aquable.config_helpers import update_doser_schedule_config
     from conftest import create_default_doser_config
+
+    from aquable.config import update_doser_schedule_config
 
     device = create_default_doser_config("AA:BB:CC:DD:EE:FF")
 

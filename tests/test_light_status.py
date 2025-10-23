@@ -1,6 +1,6 @@
 """Unit tests for light status parsing."""
 
-from aquable.light_status import parse_light_payload
+from aquable.storage.models import parse_light_payload
 
 
 def hex_to_bytes(h: str) -> bytes:

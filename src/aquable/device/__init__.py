@@ -7,21 +7,22 @@ from typing import Type
 from bleak import BleakScanner
 
 from ..errors import DeviceNotFoundError
-from ..light_status import LightStatus
-from .a2 import AII
 from .base_device import BaseDevice
-from .c2 import CII
-from .c2rgb import CIIRGB
-from .commander1 import Commander1
-from .commander4 import Commander4
 from .doser import Doser
-from .light_device import LightDevice
-from .tiny_terrarium_egg import TinyTerrariumEgg
-from .universal_wrgb import UniversalWRGB
-from .wrgb2 import WRGBII
-from .wrgb2_pro import WRGBIIPro
-from .wrgb2_slim import WRGBIISlim
-from .z_light_tiny import ZLightTiny
+from .light import LightDevice
+from .models import (
+    AII,
+    CII,
+    CIIRGB,
+    WRGBII,
+    Commander1,
+    Commander4,
+    TinyTerrariumEgg,
+    UniversalWRGB,
+    WRGBIIPro,
+    WRGBIISlim,
+    ZLightTiny,
+)
 
 CODE2MODEL = {}
 for name, obj in inspect.getmembers(sys.modules[__name__]):
@@ -66,7 +67,6 @@ __all__ = [
     "UniversalWRGB",
     "BaseDevice",
     "LightDevice",
-    "LightStatus",
     "CODE2MODEL",
     "get_device_from_address",
     "get_model_class_from_name",

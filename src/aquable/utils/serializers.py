@@ -8,8 +8,7 @@ from __future__ import annotations
 from dataclasses import asdict
 from typing import Any, Dict
 
-from .doser_status import DoserStatus
-from .light_status import LightStatus
+from ..storage.models import DoserStatus, LightStatus
 
 
 def serialize_doser_status(status: DoserStatus) -> Dict[str, Any]:

@@ -10,10 +10,10 @@ import tempfile
 from pathlib import Path
 
 import pytest
+from conftest import create_default_doser_config, create_default_light_profile
 from fastapi.testclient import TestClient
 
 from aquable.service import app
-from conftest import create_default_doser_config, create_default_light_profile
 
 
 @pytest.fixture
@@ -30,9 +30,8 @@ def temp_config_dir(monkeypatch):
     monkeypatch.setattr(ble_service, "DEVICE_CONFIG_PATH", devices_dir)
 
     # Patch the global service instance
-    from aquable.doser_storage import DoserStorage
-    from aquable.light_storage import LightStorage
     from aquable.service import service
+    from aquable.storage import DoserStorage, LightStorage
 
     monkeypatch.setattr(service, "_doser_storage", DoserStorage(devices_dir, {}))
     monkeypatch.setattr(service, "_light_storage", LightStorage(devices_dir, {}))

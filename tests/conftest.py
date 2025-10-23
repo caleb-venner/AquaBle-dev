@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import shutil
 import sys
 from pathlib import Path
 
@@ -25,21 +24,21 @@ TEST_DEVICE_ADDRESSES = [
 @pytest.fixture(scope="session", autouse=True)
 def cleanup_test_device_files():
     """Cleanup any test device files from the real ~/.aqua-ble/devices directory.
-    
+
     This runs after all tests complete to remove any dummy device files that
     were accidentally created in the production directory during interactive testing.
     """
     devices_dir = Path.home() / ".aqua-ble" / "devices"
-    
+
     yield  # Tests run here
-    
+
     # Cleanup after all tests
     if devices_dir.exists():
         for address in TEST_DEVICE_ADDRESSES:
             # Convert address to safe filename (replace : with _)
             safe_name = address.replace(":", "_")
             test_file = devices_dir / f"{safe_name}.json"
-            
+
             if test_file.exists():
                 try:
                     test_file.unlink()
@@ -63,7 +62,7 @@ def create_default_doser_config(address: str, name: str | None = None):
     Returns:
         A DoserDevice with default configuration for 4 heads
     """
-    from aquable.doser_storage import (
+    from aquable.storage import (
         Calibration,
         ConfigurationRevision,
         DeviceConfiguration,
@@ -73,7 +72,7 @@ def create_default_doser_config(address: str, name: str | None = None):
         Recurrence,
         SingleSchedule,
     )
-    from aquable.time_utils import now_iso as _now_iso
+    from aquable.utils import now_iso as _now_iso
 
     device_name = name or f"Doser {address[-8:]}"
     timestamp = _now_iso()
@@ -150,14 +149,14 @@ def create_default_light_profile(
     Returns:
         A LightDevice with default manual profile
     """
-    from aquable.light_storage import (
+    from aquable.storage import (
         ChannelDef,
         LightConfiguration,
         LightDevice,
         LightProfileRevision,
         ManualProfile,
     )
-    from aquable.time_utils import now_iso as _now_iso
+    from aquable.utils import now_iso as _now_iso
 
     device_name = name or f"Light {address[-8:]}"
     timestamp = _now_iso()

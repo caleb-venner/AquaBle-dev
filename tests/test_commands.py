@@ -5,8 +5,8 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from aquable.ble_service import BLEService
-from aquable.command_executor import CommandExecutor
 from aquable.commands_model import CommandRecord, CommandRequest
+from aquable.config import CommandExecutor
 from aquable.errors import CommandValidationError
 
 
@@ -186,4 +186,3 @@ class TestBLEServiceCommandPersistence:
         commands = service.get_commands("test_device")
         assert len(commands) == 1
         assert commands[0]["status"] == "success"
-

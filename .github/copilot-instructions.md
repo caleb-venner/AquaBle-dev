@@ -9,8 +9,9 @@ IMPORTANT: This file contains instructions for automated coding assistants and c
 **FastAPI Backend + Vite TypeScript Frontend**: This project manages Chihiros aquarium devices (lights/dosers) over BLE. Backend uses `bleak` library for Bluetooth communication with a modular device class hierarchy. Frontend is a Vite-built SPA using Zustand for state management with command queue and optimistic updates.
 
 **Key Components**:
-- `BLEService` (`ble_service.py`): Main orchestration class managing device connections, status caching, and unified storage persistence to `~/.aquable/devices/`
-- `UnifiedDeviceStorage` (`unified_device_storage.py`): Manages per-device files containing metadata, status, and configurations in a single JSON file
+- `BLEService` (`ble_service.py`): Main orchestration class managing device connections, status caching, and storage persistence to `~/.aquable/devices/`
+- `BaseDeviceStorage` (`base_device_storage.py`): Abstract base class providing unified file I/O for device configurations, metadata, and status in single JSON files per device
+- `DoserStorage`/`LightStorage` (`doser_storage.py`, `light_storage.py`): Type-safe facades extending BaseDeviceStorage for device-specific operations
 - `GlobalSettings` (`global_settings.py`): Manages global settings like display timezone in `~/.aquable/global_settings.json`
 - Device Classes (`device/`): `BaseDevice` with specific implementations (Doser, LightDevice, etc.) handling BLE connection lifecycle
 - Command System (`commands/encoder.py`): Encodes BLE commands with message ID management (skipping 0x5A/90), checksums, and structured byte arrays
@@ -145,7 +146,9 @@ await actions.processCommandQueue(); // Processes queue sequentially
 ## Key Files to Reference
 
 - `src/aquable/ble_service.py`: Main service orchestration and device management
-- `src/aquable/unified_device_storage.py`: Unified per-device storage with metadata, status, and configurations
+- `src/aquable/base_device_storage.py`: Abstract base class for device storage with unified file I/O operations
+- `src/aquable/doser_storage.py`: Doser-specific storage facade and models
+- `src/aquable/light_storage.py`: Light-specific storage facade and models
 - `src/aquable/global_settings.py`: Global settings management (timezone, etc.)
 - `src/aquable/storage_migration.py`: Automatic migration from legacy state.json format
 - `src/aquable/device/base_device.py`: BLE connection lifecycle and messaging

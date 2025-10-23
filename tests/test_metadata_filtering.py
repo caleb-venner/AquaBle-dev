@@ -4,9 +4,9 @@ import json
 import tempfile
 from pathlib import Path
 
-from aquable.doser_storage import DoserStorage
-from aquable.light_storage import LightStorage
 from conftest import create_default_doser_config
+
+from aquable.storage import DoserStorage, LightStorage
 
 
 def test_doser_storage_excludes_metadata_files():

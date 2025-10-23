@@ -1,6 +1,6 @@
 """Tests for doser decode tolerance of ±1 minute header/body mismatch."""
 
-from aquable.doser_status import parse_doser_payload
+from aquable.storage.models import parse_doser_payload
 
 
 def test_doser_status_parsing_tolerates_one_minute_mismatch():

@@ -23,8 +23,8 @@ from bleak_retry_connector import (
 
 from ..commands import encoder as commands
 from ..constants import UART_RX_CHAR_UUID, UART_TX_CHAR_UUID
-from ..env_utils import get_env_float, get_env_int
 from ..errors import CharacteristicMissingError
+from ..utils import get_env_float, get_env_int
 
 DEFAULT_ATTEMPTS = 3
 

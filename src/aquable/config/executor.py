@@ -12,11 +12,11 @@ from bleak_retry_connector import BleakConnectionError, BleakNotFoundError
 from fastapi import HTTPException
 from pydantic import ValidationError
 
-from .ble_service import BLEService
-from .commands_model import COMMAND_ARG_SCHEMAS, CommandRecord, CommandRequest
-from .constants import BLE_DOSER_SCHEDULE_WAIT, COMMAND_TIMEOUT_DEFAULT
-from .errors import CommandValidationError, ErrorCode
-from .serializers import cached_status_to_dict
+from ..ble_service import BLEService
+from ..commands_model import COMMAND_ARG_SCHEMAS, CommandRecord, CommandRequest
+from ..constants import BLE_DOSER_SCHEDULE_WAIT, COMMAND_TIMEOUT_DEFAULT
+from ..errors import CommandValidationError, ErrorCode
+from ..utils import cached_status_to_dict
 
 logger = logging.getLogger(__name__)
 
@@ -31,13 +31,17 @@ class CommandExecutor:
 
     def _get_device_channels(self, address: str) -> Optional[list[Dict[str, Any]]]:
         """Get channel info for a device from cached status.
-        
+
         Used for auto_setting to create channel levels dict.
         """
         snapshot = self.ble_service.get_status_snapshot()
         cached_status = snapshot.get(address)
-        if cached_status and cached_status.channels:
-            return cached_status.channels
+        if cached_status and hasattr(cached_status, "parsed"):
+            parsed = cached_status.parsed
+            if parsed and isinstance(parsed, dict) and "channels" in parsed:
+                channels = parsed.get("channels")
+                if isinstance(channels, list):
+                    return channels
         return None
 
     def _get_device_lock(self, address: str) -> asyncio.Lock:
@@ -46,9 +50,11 @@ class CommandExecutor:
             self._device_locks[address] = asyncio.Lock()
         return self._device_locks[address]
 
-    def validate_command_args(self, action: str, args: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    def validate_command_args(
+        self, action: str, args: Optional[Dict[str, Any]]
+    ) -> Optional[Dict[str, Any]]:
         """Validate command arguments against schema and return normalized args.
-        
+
         Returns the normalized args dict with enums and other types properly converted,
         or None if no args are needed.
         """
@@ -268,7 +274,7 @@ class CommandExecutor:
             return
 
         try:
-            from .config_helpers import update_doser_schedule_config
+            from .helpers import update_doser_schedule_config
 
             device = self.ble_service._doser_storage.get_device(address)
             if device:
@@ -280,7 +286,7 @@ class CommandExecutor:
                 )
             else:
                 # Create new configuration from the actual command being sent
-                from .config_helpers import create_doser_config_from_command
+                from .helpers import create_doser_config_from_command
 
                 logger.info(
                     f"Creating new configuration for doser {address} " f"from schedule command"
@@ -310,14 +316,14 @@ class CommandExecutor:
             return
 
         try:
-            from .config_helpers import create_light_config_from_command, add_light_auto_program
+            from .helpers import add_light_auto_program, create_light_config_from_command
 
             brightness_arg = args.get("brightness")
             if brightness_arg is None:
                 raise ValueError("'brightness' must be provided")
 
             device = self.ble_service._light_storage.get_device(address)
-            
+
             if not device:
                 # Create new configuration
                 channels_info = self._get_device_channels(address)
@@ -327,37 +333,49 @@ class CommandExecutor:
                         f"Command executed but no config saved."
                     )
                     return
-                
-                device = create_light_config_from_command(address, "auto_program", args, channels_info)
+
+                device = create_light_config_from_command(
+                    address, "auto_program", args, channels_info
+                )
                 self.ble_service._light_storage.upsert_device(device)
                 logger.info(
                     f"Created and saved new light profile for {address} "
                     f"from auto program command {args['sunrise']}-{args['sunset']}"
                 )
                 return
-            
+
             # Convert brightness to levels dict for all channels
             channels_info = self._get_device_channels(address)
             if not channels_info:
-                logger.warning(f"Could not save auto program for {address}: device channels not cached")
+                logger.warning(
+                    f"Could not save auto program for {address}: device channels not cached"
+                )
                 return
-            
+
             # Build channel dict with brightness value for all channels
             sorted_channels = sorted(channels_info, key=lambda ch: ch.get("index", 0))
             channel_keys = [ch["name"].lower() for ch in sorted_channels]
             brightness_val = int(brightness_arg) if isinstance(brightness_arg, int) else 50
             levels = {key: brightness_val for key in channel_keys}
-            
+
             # Normalize weekdays
             weekdays = args.get("weekdays")
             if weekdays is None:
-                weekdays = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
+                weekdays = [
+                    "monday",
+                    "tuesday",
+                    "wednesday",
+                    "thursday",
+                    "friday",
+                    "saturday",
+                    "sunday",
+                ]
             else:
                 weekdays = [
                     (day.value.lower() if hasattr(day, "value") else str(day).lower())
                     for day in weekdays
                 ]
-            
+
             # Update the existing configuration
             device = add_light_auto_program(
                 device,
@@ -372,8 +390,7 @@ class CommandExecutor:
             )
             self.ble_service._light_storage.upsert_device(device)
             logger.info(
-                f"Saved light auto program for {address}, "
-                f"{args['sunrise']}-{args['sunset']}"
+                f"Saved light auto program for {address}, " f"{args['sunrise']}-{args['sunset']}"
             )
         except Exception as exc:
             logger.error(
@@ -393,7 +410,10 @@ class CommandExecutor:
             return
 
         try:
-            from .config_helpers import update_light_manual_profile, create_light_config_from_command
+            from .helpers import (
+                create_light_config_from_command,
+                update_light_manual_profile,
+            )
 
             brightness = args.get("brightness", 0)
             color_index = args.get("color", 0)
@@ -414,7 +434,9 @@ class CommandExecutor:
                     address, "brightness", args, channels_info
                 )
                 self.ble_service._light_storage.upsert_device(device)
-                logger.info(f"Created and saved new light config for {address} from brightness command")
+                logger.info(
+                    f"Created and saved new light config for {address} from brightness command"
+                )
                 return
 
             # Build levels dict from single brightness + color index
@@ -440,8 +462,7 @@ class CommandExecutor:
             device = update_light_manual_profile(device, levels)
             self.ble_service._light_storage.upsert_device(device)
             logger.info(
-                f"Saved manual brightness for {address}: "
-                f"channel {color_index} = {brightness}%"
+                f"Saved manual brightness for {address}: " f"channel {color_index} = {brightness}%"
             )
         except Exception as exc:
             logger.error(

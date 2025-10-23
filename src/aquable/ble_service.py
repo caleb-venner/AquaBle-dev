@@ -15,22 +15,21 @@ import time
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, is_dataclass
 from datetime import time as _time
-from typing import Any, AsyncIterator, Dict, Iterable, Optional, Sequence, Tuple, Type, cast
+from typing import Any, AsyncIterator, Dict, Iterable, Optional, Sequence, Tuple, Type
 
 from bleak import BleakScanner
 from bleak.backends.device import BLEDevice
 from bleak_retry_connector import BleakConnectionError, BleakNotFoundError
 from fastapi import HTTPException
 
-from . import serializers as _serializers
+from . import utils as _utils
 from .commands import encoder as commands
 from .commands import ops as device_commands
 from .constants import BLE_STATUS_CAPTURE_WAIT
-from .env_utils import get_config_dir, get_env_bool, get_env_float
-from .device import Doser, LightDevice, get_device_from_address, get_model_class_from_name
+from .device import get_device_from_address, get_model_class_from_name
 from .device.base_device import BaseDevice
 from .errors import DeviceNotFoundError
-from .unified_device_storage import DeviceStatus as UnifiedDeviceStatus
+from .utils import get_config_dir, get_env_bool, get_env_float
 
 # Re-implement lightweight internal API functions (previously in core_api)
 SupportedDeviceInfo = Tuple[BLEDevice, Type[BaseDevice]]
@@ -118,7 +117,7 @@ async def discover_supported_devices(
     timeout: float = 5.0,
 ) -> list[SupportedDeviceInfo]:
     """Discover BLE devices and return the supported Chihiros models.
-    
+
     Returns empty list if Bluetooth is unavailable or disabled.
     """
     try:
@@ -156,52 +155,50 @@ class BLEService:
         # Ensure config directory exists
         CONFIG_DIR.mkdir(parents=True, exist_ok=True)
 
-        # Initialize unified device storage
-        from .unified_device_storage import UnifiedDeviceStorage
+        # Initialize storage instances for persistent configurations
+        # These are initialized with empty metadata dicts which get populated from disk
+        from .storage import DoserStorage, LightStorage
 
-        self._unified_storage = UnifiedDeviceStorage(DEVICE_CONFIG_PATH)
-        logger.info("Unified device storage initialized: %s", DEVICE_CONFIG_PATH)
-
-        # Pre-populate metadata from unified storage before creating storage instances
-        # so that DoserStorage and LightStorage have access to metadata from startup
-        all_devices = self._unified_storage.list_all_devices()
-        
-        # Separate metadata dicts by device type to avoid cross-contamination
         doser_metadata: Dict[str, dict] = {}
         light_metadata: Dict[str, dict] = {}
-        
-        for unified_device in all_devices:
-            metadata_entry = None
-            if unified_device.metadata:
-                # Use existing metadata
-                metadata_entry = unified_device.metadata.model_dump()
-            else:
-                # Create default metadata for any device that exists but has no metadata
-                # This ensures newly discovered/connected devices appear in configuration lists
-                metadata_entry = {"id": unified_device.device_id}
-            
-            # Populate the appropriate metadata dict based on device type
-            if unified_device.device_type == "doser":
-                doser_metadata[unified_device.device_id] = metadata_entry
-                self._device_metadata[unified_device.device_id] = metadata_entry
-            elif unified_device.device_type == "light":
-                light_metadata[unified_device.device_id] = metadata_entry
-                self._device_metadata[unified_device.device_id] = metadata_entry
-
-        # Initialize storage instances for persistent configurations
-        from .doser_storage import DoserStorage
-        from .light_storage import LightStorage
 
         self._doser_storage = DoserStorage(DEVICE_CONFIG_PATH, doser_metadata)
         self._light_storage = LightStorage(DEVICE_CONFIG_PATH, light_metadata)
         logger.info("Configuration storage initialized: %s", DEVICE_CONFIG_PATH)
 
+        # Pre-populate metadata from both storage instances after initialization
+        # BaseDeviceStorage.__init__ already loads metadata from disk
+        # Now copy it into the service's metadata dict
+        for device_id, metadata in doser_metadata.items():
+            self._device_metadata[device_id] = metadata
+        for device_id, metadata in light_metadata.items():
+            self._device_metadata[device_id] = metadata
+
         # Initialize timezone configuration
-        from .time_utils import get_system_timezone
+        from .utils import get_system_timezone
 
         self._display_timezone = get_system_timezone()
         logger.info("Display timezone: %s", self._display_timezone)
 
+    def _list_all_devices(self) -> list[Dict[str, Any]]:
+        """List all devices from both storage systems.
+
+        Returns a combined list of device information from doser and light storage.
+        """
+        all_devices = []
+        all_devices.extend(self._doser_storage.list_all_devices_with_metadata())
+        all_devices.extend(self._light_storage.list_all_devices_with_metadata())
+        return all_devices
+
+    def _get_storage_for_type(self, device_type: str):
+        """Get the appropriate storage instance for a device type."""
+        normalized = device_type.lower()
+        if normalized == "doser":
+            return self._doser_storage
+        elif normalized == "light":
+            return self._light_storage
+        else:
+            raise ValueError(f"Unknown device type: {device_type}")
 
     def _format_message(self, device_type: Optional[str], category: str) -> str:
         """Format a user-friendly error message for device errors."""
@@ -217,7 +214,6 @@ class BLEService:
             return f"{label} not reachable"
         return f"{label} error"
 
-
     def _get_device_kind(self, device: BaseDevice | Type[BaseDevice]) -> Optional[str]:
         """Return the device kind attribute lowercased if present."""
         kind = getattr(device, "device_kind", None)
@@ -225,15 +221,14 @@ class BLEService:
             return kind.lower()
         return None
 
-
     async def _auto_discover_worker(self) -> None:
         """Background worker that auto-discovers and connects devices."""
         try:
             logger.info("Auto-discover worker: scanning for supported devices")
             connected_any = await self._auto_discover_and_connect()
-            device_count = len(self._unified_storage.list_all_devices())
+            device_count = len(self._list_all_devices())
             if connected_any and device_count > 0:
-                logger.info("Auto-discover worker: discovered devices saved to unified storage")
+                logger.info("Auto-discover worker: discovered devices saved to storage")
             else:
                 if self._auto_reconnect:
                     logger.info("Auto-discover found no devices; scheduling reconnect worker")
@@ -245,7 +240,6 @@ class BLEService:
             raise
         except Exception:  # pragma: no cover - runtime diagnostics
             logger.exception("Auto-discover worker failed unexpectedly")
-
 
     async def _auto_discover_and_connect(self) -> bool:
         supported = await discover_supported_devices(timeout=5.0)
@@ -274,19 +268,18 @@ class BLEService:
                 continue
         return connected_any
 
-
     async def _reconnect_and_refresh(self) -> None:
         """Reconnect to known devices without aggressively refreshing status.
-        
+
         For aquarium devices, we just ensure connectivity without polling status,
         since status only changes when users explicitly modify configuration.
         """
         try:
-            # Load devices from unified storage and attempt reconnection
-            all_devices = self._unified_storage.list_all_devices()
-            for unified_device in all_devices:
-                address = unified_device.device_id
-                device_type = unified_device.device_type
+            # Load devices from storage and attempt reconnection
+            all_devices = self._list_all_devices()
+            for device_info in all_devices:
+                address = device_info["device_id"]
+                device_type = device_info["device_type"]
                 try:
                     logger.info(
                         "Attempting reconnect to %s (type=%s)",
@@ -307,7 +300,6 @@ class BLEService:
         except Exception:  # pragma: no cover - runtime diagnostics
             logger.exception("Reconnect worker failed unexpectedly")
 
-
     async def _ensure_device(self, address: str, device_type: Optional[str] = None) -> BaseDevice:
         expected_kind = device_type.lower() if device_type else None
         async with self._lock:
@@ -318,12 +310,12 @@ class BLEService:
                     return current_device
                 # If we have a device of this kind but different address, keep it
                 # Only disconnect if we're replacing the same address
-            
+
             # Retry logic: try up to 3 times with delays
             # Device might not be advertising immediately after scan
             device = None
             max_retries = 3
-            
+
             for attempt in range(max_retries):
                 try:
                     device = await get_device_from_address(address)
@@ -331,7 +323,7 @@ class BLEService:
                 except Exception as exc:
                     if attempt < max_retries - 1:
                         # Wait before retrying (exponential backoff: 0.5s, 1s)
-                        wait_time = 0.5 * (2 ** attempt)
+                        wait_time = 0.5 * (2**attempt)
                         logger.warning(
                             f"Device {address} not found on attempt {attempt + 1}/{max_retries}, "
                             f"retrying in {wait_time}s: {exc}"
@@ -342,10 +334,10 @@ class BLEService:
                             status_code=404,
                             detail=self._format_message(expected_kind, "not_found"),
                         ) from exc
-            
+
             if device is None:  # Should not happen but safety check
                 raise HTTPException(status_code=500, detail="Device acquisition failed")
-            
+
             kind = self._get_device_kind(device)
             if kind is None:
                 raise HTTPException(status_code=400, detail="Unsupported device type")
@@ -364,7 +356,6 @@ class BLEService:
             self._addresses[kind] = address
 
             return device
-
 
     async def _refresh_device_status(
         self, device_type: str, *, persist: bool = True
@@ -392,7 +383,7 @@ class BLEService:
                 detail=f"No serializer defined for {normalized}",
             )
 
-        serializer = getattr(_serializers, serializer_name, None)
+        serializer = getattr(_utils, serializer_name, None)
         if serializer is None:  # pragma: no cover - defensive guard
             raise HTTPException(
                 status_code=500,
@@ -440,22 +431,18 @@ class BLEService:
             channels=channels,
         )
         if persist:
-            # Update unified device file with new status (no in-memory cache needed)
-            device_status = UnifiedDeviceStatus(
-                model_name=cached.model_name,
-                raw_payload=cached.raw_payload,
-                parsed=cached.parsed,
-                updated_at=cached.updated_at,
-                channels=cached.channels,
-            )
-            self._unified_storage.update_status(
-                device_id=address,
-                device_type=normalized,  # type: ignore
-                status=device_status,
-            )
-            logger.debug(f"Updated unified device file for {address}")
+            # Update device file with new status (no in-memory cache needed)
+            status_dict = {
+                "model_name": cached.model_name,
+                "raw_payload": cached.raw_payload,
+                "parsed": cached.parsed,
+                "updated_at": cached.updated_at,
+                "channels": cached.channels,
+            }
+            storage = self._get_storage_for_type(normalized)
+            storage.update_device_status(address, status_dict)
+            logger.debug(f"Updated device file for {address}")
         return cached
-
 
     async def _load_device_configuration(self, address: str, device_kind: str) -> None:
         """Load saved configuration for a device after connection.
@@ -494,15 +481,14 @@ class BLEService:
                     "(will be created when user configures device)"
                 )
 
-
     async def _load_state(self) -> None:
-        """Load device state from unified device files.
+        """Load device state from device files.
 
         Loads last known status and metadata for all devices.
         """
-        # Load from unified device files
-        all_devices = self._unified_storage.list_all_devices()
-        logger.info(f"Loading state from {len(all_devices)} unified device files")
+        # Load from device files
+        all_devices = self._list_all_devices()
+        logger.info(f"Loading state from {len(all_devices)} device files")
 
         # Metadata already loaded in __init__() before storage instances were created
 
@@ -518,16 +504,13 @@ class BLEService:
         else:
             self._commands = {}
 
-
     def current_device_address(self, device_type: str) -> Optional[str]:
         """Return the current primary address for a device type, if known."""
         return self._addresses.get(device_type.lower())
 
-
     def get_devices_by_kind(self, device_type: str) -> Dict[str, BaseDevice]:
         """Return all connected devices of the specified kind."""
         return self._devices.get(device_type.lower(), {}).copy()
-
 
     def get_all_devices(self) -> Dict[str, Dict[str, BaseDevice]]:
         """Return all connected devices organized by kind and address."""
@@ -536,41 +519,39 @@ class BLEService:
             result[kind] = device_dict.copy()
         return result
 
-
     def get_device_count(self) -> int:
         """Return the total number of connected devices."""
         return sum(len(device_dict) for device_dict in self._devices.values())
 
-
     def get_status_snapshot(self) -> Dict[str, CachedStatus]:
-        """Return a snapshot of all device statuses from unified storage."""
+        """Return a snapshot of all device statuses from storage."""
         snapshot: Dict[str, CachedStatus] = {}
-        
-        # Load all devices from unified storage
-        devices = self._unified_storage.list_all_devices()
-        for device in devices:
-            if device.last_status:
-                # Convert UnifiedDeviceStatus to CachedStatus
-                cached = CachedStatus(
-                    address=device.device_id,
-                    device_type=device.device_type,
-                    raw_payload=device.last_status.raw_payload,
-                    parsed=device.last_status.parsed,
-                    updated_at=device.last_status.updated_at,
-                    model_name=device.last_status.model_name,
-                    channels=device.last_status.channels,
-                )
-                snapshot[device.device_id] = cached
-                
-        return snapshot
 
+        # Load all devices from storage
+        all_devices = self._list_all_devices()
+        for device_info in all_devices:
+            last_status = device_info.get("last_status")
+            if last_status:
+                # Convert status dict to CachedStatus
+                cached = CachedStatus(
+                    address=device_info["device_id"],
+                    device_type=device_info["device_type"],
+                    raw_payload=last_status.get("raw_payload"),
+                    parsed=last_status.get("parsed"),
+                    updated_at=last_status.get("updated_at"),
+                    model_name=last_status.get("model_name"),
+                    channels=last_status.get("channels"),
+                )
+                snapshot[device_info["device_id"]] = cached
+
+        return snapshot
 
     async def start(self) -> None:
         """Start background tasks and load persisted state."""
         await self._load_state()
-        # Count devices from unified storage instead of cache
-        device_count = len(self._unified_storage.list_all_devices())
-        logger.info("Service start: loaded %d unified devices", device_count)
+        # Count devices from storage instead of cache
+        device_count = len(self._list_all_devices())
+        logger.info("Service start: loaded %d devices", device_count)
         logger.info(
             "Settings: auto_discover_on_start=%s, " "auto_reconnect=%s, capture_wait=%.2fs",
             self._auto_discover_on_start,
@@ -593,7 +574,6 @@ class BLEService:
                 logger.info("Auto-reconnect enabled; attempting reconnect to cached devices")
                 self._reconnect_task = asyncio.create_task(self._reconnect_and_refresh())
                 logger.info("Reconnect worker scheduled in background")
-
 
     async def stop(self) -> None:
         """Stop background workers and persist current service state."""
@@ -618,7 +598,6 @@ class BLEService:
             self._devices.clear()
             self._addresses.clear()
 
-
     async def scan_devices(self, timeout: float = 5.0) -> list[Dict[str, Any]]:
         """Scan for BLE devices and return those matching known models."""
         supported = await discover_supported_devices(timeout=timeout)
@@ -634,7 +613,6 @@ class BLEService:
                 }
             )
         return result
-
 
     async def connect_device(self, address: str, device_type: Optional[str] = None) -> CachedStatus:
         """Connect to a device by address and fetch its status.
@@ -653,25 +631,25 @@ class BLEService:
         try:
             await device.request_status()
             await asyncio.sleep(STATUS_CAPTURE_WAIT_SECONDS)
-            
+
             # Get the serializer for this device type
             serializer_name = getattr(device.__class__, "status_serializer", None)
             if serializer_name is None:
                 serializer_name = getattr(device, "status_serializer", None)
-            
+
             if serializer_name is None:
                 raise HTTPException(
                     status_code=500,
                     detail=f"No serializer defined for {device_kind}",
                 )
-            
-            serializer = getattr(_serializers, serializer_name, None)
+
+            serializer = getattr(_utils, serializer_name, None)
             if serializer is None:
                 raise HTTPException(
                     status_code=500,
                     detail=f"Missing serializer '{serializer_name}' for {device_kind}",
                 )
-            
+
             # Parse the status
             status_obj = getattr(device, "last_status", None)
             if not status_obj:
@@ -679,7 +657,7 @@ class BLEService:
                     status_code=500,
                     detail=f"No status received from {device_kind}",
                 )
-            
+
             try:
                 parsed = serializer(status_obj)
             except TypeError:
@@ -687,12 +665,12 @@ class BLEService:
                     parsed = dict(vars(status_obj))
                 else:
                     raise
-            
+
             raw_payload = getattr(status_obj, "raw_payload", None)
             raw_hex = raw_payload.hex() if isinstance(raw_payload, (bytes, bytearray)) else None
             # For light devices, capture color channels; for others, None
             channels = getattr(device, "colors", None) if device_kind == "light" else None
-            
+
             # Create and persist status
             timestamp = time.time()
             cached_status = CachedStatus(
@@ -704,19 +682,20 @@ class BLEService:
                 model_name=getattr(device, "model_name", None),
                 channels=channels,
             )
-            
+
             # Persist to storage
-            device_status = UnifiedDeviceStatus(
-                model_name=cached_status.model_name,
-                raw_payload=cached_status.raw_payload,
-                parsed=cached_status.parsed,
-                updated_at=cached_status.updated_at,
-                channels=cached_status.channels,
-            )
-            self._unified_storage.update_status(address, device_kind.lower(), device_status)  # type: ignore[arg-type]
-            
+            status_dict = {
+                "model_name": cached_status.model_name,
+                "raw_payload": cached_status.raw_payload,
+                "parsed": cached_status.parsed,
+                "updated_at": cached_status.updated_at,
+                "channels": cached_status.channels,
+            }
+            storage = self._get_storage_for_type(device_kind.lower())
+            storage.update_device_status(address, status_dict)
+
             return cached_status
-            
+
         except (BleakNotFoundError, BleakConnectionError) as exc:
             logger.warning(
                 "Could not get status from %s during connect: %s",
@@ -740,7 +719,6 @@ class BLEService:
                 detail=f"Failed to connect to {device_kind}: {str(exc)}",
             ) from exc
 
-
     async def disconnect_device(self, address: str) -> None:
         """Disconnect a connected device by address if present."""
         async with self._lock:
@@ -760,15 +738,19 @@ class BLEService:
                             self._addresses.pop(kind, None)
                     break
 
-
     async def request_status(self, address: str) -> CachedStatus:
         """Request and return the status for a device by address."""
         logger.info("Manual request_status for %s", address)
-        
-        # Try to get device type from storage first
-        stored_device = self._unified_storage.read_device(address)
-        if stored_device:
-            device_type = stored_device.device_type
+
+        # Try to get device type from storage first by checking both storages
+        device_type = None
+        all_devices = self._list_all_devices()
+        for device_info in all_devices:
+            if device_info["device_id"] == address:
+                device_type = device_info["device_type"]
+                break
+
+        if device_type:
             try:
                 return await self.connect_device(address, device_type)
             except ValueError as exc:
@@ -790,8 +772,6 @@ class BLEService:
             address,
         )
         return await self.connect_device(address, device_type)
-
-
 
     # Doser settings
 
@@ -820,7 +800,6 @@ class BLEService:
             wait_seconds=wait_seconds,
         )
 
-
     # Light settings
 
     async def set_light_brightness(
@@ -831,31 +810,25 @@ class BLEService:
             self, address, brightness=brightness, color=color
         )
 
-
     async def turn_light_on(self, address: str) -> CachedStatus:
         """Turn the light device at the address on."""
         return await device_commands.turn_light_on(self, address)
-
 
     async def turn_light_off(self, address: str) -> CachedStatus:
         """Turn the light device at the address off."""
         return await device_commands.turn_light_off(self, address)
 
-
     async def enable_auto_mode(self, address: str) -> CachedStatus:
         """Enable auto mode on the specified light device."""
         return await device_commands.enable_auto_mode(self, address)
-
 
     async def set_manual_mode(self, address: str) -> CachedStatus:
         """Switch the specified light device to manual mode."""
         return await device_commands.set_manual_mode(self, address)
 
-
     async def reset_auto_settings(self, address: str) -> CachedStatus:
         """Reset auto mode settings on the specified light device."""
         return await device_commands.reset_auto_settings(self, address)
-
 
     async def add_light_auto_setting(
         self,
@@ -878,7 +851,6 @@ class BLEService:
             weekdays=weekdays,
         )
 
-
     async def get_live_statuses(self) -> tuple[list[CachedStatus], list[str]]:
         """Capture live statuses for known device kinds and return results.
 
@@ -900,7 +872,6 @@ class BLEService:
                 results.append(status)
 
         return results, errors
-
 
     # Command persistence methods
 

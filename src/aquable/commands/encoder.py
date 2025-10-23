@@ -187,7 +187,7 @@ def create_status_request_command(msg_id: tuple[int, int]) -> bytearray:
 
 class LightWeekday(str, Enum):
     """Enum for human-readable weekday selections used by light commands.
-    
+
     Values are strings for JSON serialization and readability.
     Bit values are equivalent to PumpWeekday for encoding:
     - Monday (bit 6)    = 64
@@ -212,32 +212,32 @@ class LightWeekday(str, Enum):
 
 # Mapping from weekday enums to their bit values
 _WEEKDAY_BIT_VALUES = {
-    LightWeekday.monday: 1 << 6,      # bit 6, value 64
-    LightWeekday.tuesday: 1 << 5,     # bit 5, value 32
-    LightWeekday.wednesday: 1 << 4,   # bit 4, value 16
-    LightWeekday.thursday: 1 << 3,    # bit 3, value 8
-    LightWeekday.friday: 1 << 2,      # bit 2, value 4
-    LightWeekday.saturday: 1 << 1,    # bit 1, value 2
-    LightWeekday.sunday: 1 << 0,      # bit 0, value 1
-    LightWeekday.everyday: 0x7F,      # all bits set
+    LightWeekday.monday: 1 << 6,  # bit 6, value 64
+    LightWeekday.tuesday: 1 << 5,  # bit 5, value 32
+    LightWeekday.wednesday: 1 << 4,  # bit 4, value 16
+    LightWeekday.thursday: 1 << 3,  # bit 3, value 8
+    LightWeekday.friday: 1 << 2,  # bit 2, value 4
+    LightWeekday.saturday: 1 << 1,  # bit 1, value 2
+    LightWeekday.sunday: 1 << 0,  # bit 0, value 1
+    LightWeekday.everyday: 0x7F,  # all bits set
 }
 
 
 class PumpWeekday(IntFlag):
     """Bitmask representing the pump's weekday selection order.
-    
+
     Uses bitwise flags with identical bit values as LightWeekday for unified encoding.
     Both Light and Doser devices use the same bit mapping for weekday scheduling.
     """
 
-    monday = 1 << 6      # bit 6, value 64
-    tuesday = 1 << 5     # bit 5, value 32
-    wednesday = 1 << 4   # bit 4, value 16
-    thursday = 1 << 3    # bit 3, value 8
-    friday = 1 << 2      # bit 2, value 4
-    saturday = 1 << 1    # bit 1, value 2
-    sunday = 1 << 0      # bit 0, value 1
-    everyday = 0x7F      # all bits set (127)
+    monday = 1 << 6  # bit 6, value 64
+    tuesday = 1 << 5  # bit 5, value 32
+    wednesday = 1 << 4  # bit 4, value 16
+    thursday = 1 << 3  # bit 3, value 8
+    friday = 1 << 2  # bit 2, value 4
+    saturday = 1 << 1  # bit 1, value 2
+    sunday = 1 << 0  # bit 0, value 1
+    everyday = 0x7F  # all bits set (127)
 
 
 def encode_weekdays(
@@ -249,7 +249,7 @@ def encode_weekdays(
     mappings (Monday=64 through Sunday=1), so we can use one algorithm:
     - If input is None or contains "everyday", return 127 (all days)
     - Otherwise, collect bit values and combine them with bitwise OR
-    
+
     This eliminates duplication between Light (string enum) and Doser (IntFlag
     enum) encoding by treating both the same way: extract bit values and OR them.
 
@@ -278,13 +278,14 @@ def encode_weekdays(
     # Handle sequence of weekdays (LightWeekday or PumpWeekday)
     if hasattr(weekdays, "__iter__") and not isinstance(weekdays, str):
         weekday_list = list(weekdays)
-        
+
         if not weekday_list:
             raise ValueError("Weekdays list cannot be empty")
 
         # Check for "everyday" in any form
         if LightWeekday.everyday in weekday_list or any(
-            day == LightWeekday.everyday or (isinstance(day, PumpWeekday) and day == PumpWeekday.everyday)
+            day == LightWeekday.everyday
+            or (isinstance(day, PumpWeekday) and day == PumpWeekday.everyday)
             for day in weekday_list
         ):
             return 127
@@ -346,7 +347,7 @@ def create_head_select_command(
     msg_id: tuple[int, int],
     head_index: int,
     *,
-    flag1: int = 0x00, # So this might be set catchup dosing
+    flag1: int = 0x00,  # So this might be set catchup dosing
     flag2: int = 0x01,
 ) -> bytearray:
     """Select the dosing head that will be modified next (mode 0x20)."""
@@ -453,7 +454,7 @@ def create_head_schedule_command(
     hour: int,
     minute: int,
     *,
-    reserve1: int = 0x00, # So this might be set catchup dosing
+    reserve1: int = 0x00,  # So this might be set catchup dosing
     reserve2: int = 0x00,
 ) -> bytearray:
     """Create the mode 0x15 command that sets the daily schedule time."""

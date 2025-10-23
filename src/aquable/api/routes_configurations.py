@@ -18,8 +18,14 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException, Request
 
 from ..ble_service import DEVICE_CONFIG_PATH
-from ..doser_storage import DoserDevice, DoserMetadata, DoserStorage
-from ..light_storage import LightDevice, LightMetadata, LightStorage
+from ..storage import (
+    DoserDevice,
+    DoserMetadata,
+    DoserStorage,
+    LightDevice,
+    LightMetadata,
+    LightStorage,
+)
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/configurations", tags=["configurations"])
@@ -487,7 +493,7 @@ async def get_system_timezone() -> dict:
         dict: Contains system timezone information
     """
     try:
-        from ..time_utils import get_system_timezone
+        from ..utils import get_system_timezone
 
         system_tz = get_system_timezone()
 

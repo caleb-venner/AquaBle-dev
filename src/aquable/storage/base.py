@@ -15,8 +15,8 @@ from typing import Any, Dict, Generic, TypeVar
 
 from pydantic import BaseModel
 
-from .storage_utils import filter_device_json_files
-from .time_utils import now_iso as _now_iso
+from ..utils.time import now_iso as _now_iso
+from .utils import filter_device_json_files
 
 logger = logging.getLogger(__name__)
 
@@ -322,6 +322,108 @@ class BaseDeviceStorage(ABC, Generic[TDevice]):
         if device is None:
             raise KeyError(device_id)
         return device
+
+    def update_device_status(self, device_id: str, status: Dict[str, Any]) -> None:
+        """Update only the status portion of a device file.
+
+        Creates the device file if it doesn't exist (for newly discovered devices).
+        Preserves existing metadata and device_data if present.
+
+        Args:
+            device_id: Device identifier (MAC address)
+            status: Status dictionary to store (should match DeviceStatus format)
+        """
+        device_file = self._get_device_file_path(device_id)
+
+        # Read existing data if file exists
+        existing_data = {}
+        if device_file.exists():
+            try:
+                existing_data = json.loads(device_file.read_text(encoding="utf-8"))
+            except (json.JSONDecodeError, OSError):
+                # If we can't read the file, start fresh
+                pass
+
+        # Create or update data structure
+        data = existing_data or {
+            "device_type": self.device_type,
+            "device_id": device_id,
+        }
+
+        # Update status and timestamp
+        data["last_status"] = status
+        data["last_updated"] = _now_iso()
+
+        # Ensure device_type is set correctly
+        data["device_type"] = self.device_type
+        data["device_id"] = device_id
+
+        # Write atomically
+        device_file.parent.mkdir(parents=True, exist_ok=True)
+        tmp_file = device_file.with_suffix(".tmp")
+        tmp_file.write_text(
+            json.dumps(data, indent=2, sort_keys=True),
+            encoding="utf-8",
+        )
+        tmp_file.replace(device_file)
+
+    def get_device_status(self, device_id: str) -> Dict[str, Any] | None:
+        """Get the last known status for a device.
+
+        Args:
+            device_id: Device identifier (MAC address)
+
+        Returns:
+            Status dictionary or None if no status available
+        """
+        device_file = self._get_device_file_path(device_id)
+        if not device_file.exists():
+            return None
+
+        try:
+            data = json.loads(device_file.read_text(encoding="utf-8"))
+            return data.get("last_status")
+        except (json.JSONDecodeError, OSError) as exc:
+            logger.error(f"Could not read status from {device_file}: {exc}")
+            return None
+
+    def list_all_devices_with_metadata(self) -> list[Dict[str, Any]]:
+        """List all devices including those with only metadata (no device_data).
+
+        Returns a list of dictionaries with device information, suitable for
+        BLEService to enumerate all known devices.
+
+        Returns:
+            List of device info dictionaries with keys:
+                - device_id: Device MAC address
+                - device_type: 'doser' or 'light'
+                - has_device_data: Whether device has configurations
+                - metadata: Device metadata if present
+                - last_status: Last status if present
+        """
+        devices = []
+        for device_file in self._list_device_files():
+            try:
+                device_id = device_file.stem.replace("_", ":")
+                data = json.loads(device_file.read_text(encoding="utf-8"))
+
+                # Only include devices of this storage type
+                if data.get("device_type") != self.device_type:
+                    continue
+
+                device_info = {
+                    "device_id": device_id,
+                    "device_type": self.device_type,
+                    "has_device_data": data.get("device_data") is not None,
+                    "metadata": data.get("metadata"),
+                    "last_status": data.get("last_status"),
+                }
+                devices.append(device_info)
+            except (json.JSONDecodeError, OSError) as exc:
+                logger.warning(f"Could not read device file {device_file}: {exc}")
+                continue
+
+        return devices
 
 
 __all__ = ["BaseDeviceStorage"]

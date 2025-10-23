@@ -1,6 +1,6 @@
 """Z Light TINY device Model."""
 
-from .light_device import LightDevice
+from ..light import LightDevice
 
 
 class ZLightTiny(LightDevice):

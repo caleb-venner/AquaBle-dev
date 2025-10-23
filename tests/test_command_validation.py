@@ -82,7 +82,7 @@ class TestDoserScheduleArgsValidation:
             volume_tenths_ml=100,
             hour=12,
             minute=0,
-            weekdays=['monday', 'tuesday', 'friday'],
+            weekdays=["monday", "tuesday", "friday"],
             confirm=True,
             wait_seconds=2.0,
         )
@@ -110,7 +110,7 @@ class TestDoserScheduleArgsValidation:
             volume_tenths_ml=100,
             hour=12,
             minute=0,
-            weekdays=['everyday'],
+            weekdays=["everyday"],
             confirm=True,
             wait_seconds=2.0,
         )
@@ -135,7 +135,7 @@ class TestDoserScheduleArgsValidation:
                 volume_tenths_ml=100,
                 hour=12,
                 minute=0,
-                weekdays=['mondey'],  # Typo
+                weekdays=["mondey"],  # Typo
                 confirm=True,
                 wait_seconds=2.0,
             )
@@ -356,7 +356,7 @@ class TestLightAutoSettingArgsValidation:
             sunset="18:00",
             brightness=50,
             ramp_up_minutes=0,
-            weekdays=['monday', 'wednesday', 'friday'],
+            weekdays=["monday", "wednesday", "friday"],
         )
         assert args.weekdays is not None
         assert len(args.weekdays) == 3
@@ -370,7 +370,7 @@ class TestLightAutoSettingArgsValidation:
             sunset="18:00",
             brightness=50,
             ramp_up_minutes=0,
-            weekdays=['everyday'],
+            weekdays=["everyday"],
         )
         assert args.weekdays == [LightWeekday.everyday]
 
@@ -391,7 +391,7 @@ class TestLightAutoSettingArgsValidation:
                 sunset="18:00",
                 brightness=50,
                 ramp_up_minutes=0,
-                weekdays=['munday'],  # Typo
+                weekdays=["munday"],  # Typo
             )
 
         # Empty weekdays should fail

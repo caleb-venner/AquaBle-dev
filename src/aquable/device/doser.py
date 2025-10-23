@@ -8,7 +8,7 @@ from typing import ClassVar, Sequence
 from bleak.backends.characteristic import BleakGATTCharacteristic
 
 from ..commands import encoder as doser_commands
-from ..doser_status import DoserStatus, parse_doser_payload
+from ..storage.models import DoserStatus, parse_doser_payload
 from .base_device import BaseDevice
 
 

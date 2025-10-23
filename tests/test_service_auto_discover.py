@@ -21,21 +21,24 @@ def test_auto_discover_skips_auto_reconnect(monkeypatch):
         # In the real code, this would add devices to _devices dict and unified storage
         return True
 
-    # Mock list_all_devices to return a device after auto-discover
-    original_list = svc._unified_storage.list_all_devices
+    # Mock _list_all_devices to return a device after auto-discover
     device_count = [0]  # Use list to allow modification in nested function
-    
+
     def fake_list_all_devices():
         # Return empty initially, then 1 device after auto-discover is called
         if device_count[0] > 0:
-            # Return a mock device
-            from unittest.mock import MagicMock
-            mock_device = MagicMock()
-            mock_device.device_id = "test_addr"
-            mock_device.device_type = "light"
-            return [mock_device]
+            # Return a mock device info dict
+            return [
+                {
+                    "device_id": "test_addr",
+                    "device_type": "light",
+                    "has_device_data": False,
+                    "metadata": None,
+                    "last_status": None,
+                }
+            ]
         return []
-    
+
     async def fake_auto_discover_wrapper():
         result = await fake_auto_discover()
         device_count[0] = 1  # Increment after auto-discover runs
@@ -43,7 +46,7 @@ def test_auto_discover_skips_auto_reconnect(monkeypatch):
 
     monkeypatch.setattr(svc, "_load_state", fake_load_state)
     monkeypatch.setattr(svc, "_auto_discover_and_connect", fake_auto_discover_wrapper)
-    monkeypatch.setattr(svc._unified_storage, "list_all_devices", fake_list_all_devices)
+    monkeypatch.setattr(svc, "_list_all_devices", fake_list_all_devices)
 
     asyncio.run(svc.start())
 
@@ -64,13 +67,13 @@ def test_auto_discover_allows_auto_reconnect_when_none_found(monkeypatch):
         # Simulate no devices found
         return False
 
-    # Mock list_all_devices to always return empty (no devices)
+    # Mock _list_all_devices to always return empty (no devices)
     def fake_list_all_devices():
         return []
 
     monkeypatch.setattr(svc, "_load_state", fake_load_state)
     monkeypatch.setattr(svc, "_auto_discover_and_connect", fake_auto_discover)
-    monkeypatch.setattr(svc._unified_storage, "list_all_devices", fake_list_all_devices)
+    monkeypatch.setattr(svc, "_list_all_devices", fake_list_all_devices)
 
     asyncio.run(svc.start())
 

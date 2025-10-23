@@ -1,6 +1,6 @@
 """CII RGB device Model."""
 
-from .light_device import LightDevice
+from ..light import LightDevice
 
 
 class CIIRGB(LightDevice):

@@ -1,8 +1,15 @@
-"""Utilities for parsing status payloads from the dosing pump."""
+"""Status parsing models for device BLE notifications.
+
+This module combines status parsing functionality for both doser and light devices,
+providing structured representations of the raw BLE payload data.
+"""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Optional, Tuple
+
+# ===== Doser Status Models =====
 
 
 def _plausible_time(wd: int, hr: int, minute: int) -> bool:
@@ -38,8 +45,6 @@ class HeadSnapshot:
     minute: int
     dosed_tenths_ml: int
     extra: bytes
-    # lifetime counters removed - we only keep per-head configuration and
-    # dosed amount for the current day.
 
     def mode_label(self) -> str:
         """Return a human friendly mode name if known."""
@@ -63,10 +68,7 @@ class DoserStatus:
     tail_targets: list[int]
     tail_flag: int | None
     tail_raw: bytes
-    # Lifetime totals in tenths of mL for each head (4 heads max)
     lifetime_totals_tenths_ml: list[int]
-    # Preserve the original raw payload bytes so callers can access the
-    # underlying frame when necessary (keeps parity with LightStatus).
     raw_payload: bytes = b""
 
     def lifetime_totals_ml(self) -> list[float]:
@@ -75,11 +77,7 @@ class DoserStatus:
 
 
 def parse_doser_payload(payload: bytes) -> DoserStatus:
-    """Parse the 0xFE status notification from the pump.
-
-    The function accepts either the full UART frame (starting with 0x5B) or
-    the trimmed body (legacy behaviour).
-    """
+    """Parse the 0xFE status notification from the pump."""
     if not payload:
         raise ValueError("payload too short")
 
@@ -95,19 +93,11 @@ def parse_doser_payload(payload: bytes) -> DoserStatus:
             raise ValueError("payload too short")
         message_id = (payload[3], payload[4])
         response_mode = payload[5]
-        # Some notification fragments (counters / totals) include the UART
-        # header and response_mode but omit the weekday/time fields; in that
-        # case the body begins immediately after response_mode. Detect this
-        # by validating the weekday/hour/minute plausibility; weekdays are
-        # expected 0-6 and hour 0-23, minute 0-59. If the values are outside
-        # these ranges treat the fragment as header-only and start the body
-        # earlier so counters/tail bytes are parsed correctly.
         response_mode = payload[5]
         maybe_wd = payload[6]
         maybe_hr = payload[7]
         maybe_min = payload[8]
         if not _plausible_time(maybe_wd, maybe_hr, maybe_min):
-            # Header contains no weekday/time; body starts at payload[6]
             weekday = None
             hour = None
             minute = None
@@ -117,11 +107,6 @@ def parse_doser_payload(payload: bytes) -> DoserStatus:
             hour = maybe_hr
             minute = maybe_min
             body = payload[9:]
-            # Some frames include filler bytes before a second copy of the
-            # weekday/hour/minute at the start of the body. If present, and
-            # within ±1 minute of the header timestamp, skip up to and
-            # including that triplet so we don't accidentally parse the filler
-            # as the first head block.
             if len(body) >= 3 and weekday is not None and hour is not None and minute is not None:
                 scan_limit = min(32, len(body) - 2)
                 adjusted_start = None
@@ -141,7 +126,6 @@ def parse_doser_payload(payload: bytes) -> DoserStatus:
         weekday, hour, minute = payload[0], payload[1], payload[2]
         body = payload[3:]
 
-    # Split tail (configured daily targets) from per-head blocks
     tail_raw = b""
     if len(body) >= 5:
         tail_raw = body[-5:]
@@ -172,15 +156,9 @@ def parse_doser_payload(payload: bytes) -> DoserStatus:
         if len(tail_raw) > 4:
             tail_flag = tail_raw[4]
 
-    # Parse lifetime totals if this is a counter-style fragment
     lifetime_totals_tenths_ml: list[int] = []
-
-    # Check if this is a lifetime totals payload (no time fields, 8+ bytes of data)
     if weekday is None and hour is None and minute is None and len(body) >= 8:
-        # This appears to be a lifetime totals payload
-        # Each head total is 2 bytes (big-endian), up to 4 heads
-        # The payload may have a trailing checksum byte, so use pairs of bytes
-        usable_bytes = (len(body) // 2) * 2  # Round down to even number
+        usable_bytes = (len(body) // 2) * 2
         num_heads = min(4, usable_bytes // 2)
         for i in range(num_heads):
             high_byte = body[i * 2]
@@ -201,3 +179,134 @@ def parse_doser_payload(payload: bytes) -> DoserStatus:
         lifetime_totals_tenths_ml=lifetime_totals_tenths_ml,
         raw_payload=payload,
     )
+
+
+# ===== Light Status Models =====
+
+
+@dataclass(slots=True)
+class LightKeyframe:
+    """Single scheduled point (hour, minute, intensity)."""
+
+    hour: int
+    minute: int
+    value: int
+
+    def as_time(self) -> str:
+        """Return the keyframe timestamp formatted as HH:MM."""
+        return f"{self.hour:02d}:{self.minute:02d}"
+
+
+@dataclass(slots=True)
+class LightStatus:
+    """Decoded view of a WRGB status notification."""
+
+    message_id: Optional[Tuple[int, int]]
+    response_mode: Optional[int]
+    weekday: Optional[int]
+    hour: Optional[int]
+    minute: Optional[int]
+    keyframes: list[LightKeyframe]
+    time_markers: list[Tuple[int, int]]
+    tail: bytes
+    raw_payload: bytes
+
+
+def _split_body(
+    payload: bytes,
+) -> Tuple[
+    Optional[Tuple[int, int]],
+    Optional[int],
+    Optional[int],
+    Optional[int],
+    Optional[int],
+    bytes,
+]:
+    """Return header fields and body bytes."""
+    message_id = response_mode = weekday = hour = minute = None
+    body = payload
+    if payload and payload[0] == 0x5B and len(payload) >= 9:
+        message_id = (payload[3], payload[4])
+        response_mode = payload[5]
+        weekday = payload[6]
+        hour = payload[7]
+        minute = payload[8]
+        body = payload[9:]
+    return message_id, response_mode, weekday, hour, minute, body
+
+
+def parse_light_payload(payload: bytes) -> LightStatus:
+    """Decode a WRGB status payload into keyframes and markers."""
+    (
+        message_id,
+        response_mode,
+        weekday,
+        hour,
+        minute,
+        body,
+    ) = _split_body(payload)
+
+    tail = body[-5:] if len(body) >= 5 else b""
+    body_bytes = body[:-5] if len(body) >= 5 else body
+
+    if weekday is not None and hour is not None and minute is not None and len(body_bytes) >= 3:
+        pattern = bytes((weekday, hour, minute))
+        idx = body_bytes.find(pattern)
+        if idx != -1 and idx <= 16:
+            body_bytes = body_bytes[idx + 3 :]
+
+    keyframes: list[LightKeyframe] = []
+    time_markers: list[tuple[int, int]] = []
+
+    i = 0
+    last_time: Optional[int] = None
+    length = len(body_bytes)
+    while i < length:
+        remaining = length - i
+        if remaining >= 4 and body_bytes[i] == 0x00 and body_bytes[i + 1] == 0x02:
+            time_markers.append((body_bytes[i + 2], body_bytes[i + 3]))
+            i += 4
+            continue
+
+        if remaining < 3:
+            break
+
+        hour = body_bytes[i]
+        minute = body_bytes[i + 1]
+        value = body_bytes[i + 2]
+        triple = (hour, minute, value)
+
+        if triple == (0, 0, 0):
+            i += 3
+            continue
+
+        total_minutes = hour * 60 + minute
+        if last_time is not None and total_minutes < last_time:
+            break
+
+        keyframes.append(LightKeyframe(hour=hour, minute=minute, value=value))
+        last_time = total_minutes
+        i += 3
+
+    return LightStatus(
+        message_id=message_id,
+        response_mode=response_mode,
+        weekday=weekday,
+        hour=hour,
+        minute=minute,
+        keyframes=keyframes,
+        time_markers=time_markers,
+        tail=tail,
+        raw_payload=payload,
+    )
+
+
+__all__ = [
+    "DoserStatus",
+    "HeadSnapshot",
+    "LightKeyframe",
+    "LightStatus",
+    "MODE_NAMES",
+    "parse_doser_payload",
+    "parse_light_payload",
+]

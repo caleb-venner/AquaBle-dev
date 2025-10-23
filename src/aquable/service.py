@@ -24,7 +24,7 @@ from .api.routes_commands import router as commands_router
 from .api.routes_configurations import router as configurations_router
 from .api.routes_devices import router as devices_router
 from .ble_service import BLEService
-from .env_utils import get_env_float
+from .utils import get_env_float
 
 try:
     _ble_impl.STATUS_CAPTURE_WAIT_SECONDS = get_env_float(
@@ -41,7 +41,7 @@ _service_instance: BLEService | None = None
 
 def get_service() -> BLEService:
     """Get or create the singleton BLE service instance.
-    
+
     This lazy initialization prevents double-initialization when uvicorn
     imports the module in both main and worker processes.
     """
@@ -57,58 +57,58 @@ service = get_service()
 
 class IngressIPRestrictionMiddleware(BaseHTTPMiddleware):
     """Middleware to restrict access to Ingress gateway IP when in Ingress mode.
-    
+
     Home Assistant Ingress requires that add-ons only accept connections from
     the Ingress gateway at 172.30.32.2. This middleware enforces that restriction
     when the add-on is running in Ingress mode (detected by SUPERVISOR_TOKEN env var).
     """
-    
+
     INGRESS_GATEWAY_IP = "172.30.32.2"
-    
+
     def __init__(self, app, ingress_enabled: bool = False):
         super().__init__(app)
         self.ingress_enabled = ingress_enabled
-    
+
     async def dispatch(self, request: Request, call_next):
         # Only enforce IP restriction when Ingress is enabled
         if self.ingress_enabled:
             client_host = request.client.host if request.client else None
-            
+
             # Allow health checks from localhost for Docker/HA monitoring
             if client_host in ("127.0.0.1", "localhost", "::1"):
                 return await call_next(request)
-            
+
             # Enforce Ingress gateway IP restriction
             if client_host != self.INGRESS_GATEWAY_IP:
                 return Response(
                     content="Access denied: Only Ingress connections allowed",
                     status_code=403,
-                    media_type="text/plain"
+                    media_type="text/plain",
                 )
-        
+
         return await call_next(request)
 
 
 class IngressPathMiddleware(BaseHTTPMiddleware):
     """Middleware to capture and expose X-Ingress-Path header.
-    
+
     Home Assistant Ingress adds the X-Ingress-Path header to all requests,
     which contains the base path for the add-on. This middleware makes it
     available to the application for constructing proper URLs if needed.
     """
-    
+
     async def dispatch(self, request: Request, call_next):
         # Capture X-Ingress-Path header if present
         ingress_path = request.headers.get("X-Ingress-Path", "")
-        
+
         # Store in request state for potential use by handlers
         request.state.ingress_path = ingress_path
-        
+
         # Add custom header to response for debugging/frontend use
         response = await call_next(request)
         if ingress_path:
             response.headers["X-AquaBle-Ingress-Path"] = ingress_path
-        
+
         return response
 
 
@@ -179,7 +179,7 @@ async def _proxy_dev_server(path: str) -> Response | None:
 
 def _inject_base_tag_if_needed(request: Request, html_content: str) -> str:
     """Inject <base> tag into HTML if serving through Ingress.
-    
+
     When Home Assistant Ingress proxies requests, it adds X-Ingress-Path header
     containing the base path (e.g., '/api/hassio_ingress/xyz123'). We need to
     inject a <base> tag so that relative asset paths resolve correctly.
@@ -188,28 +188,25 @@ def _inject_base_tag_if_needed(request: Request, html_content: str) -> str:
     ingress_path = request.headers.get("X-Ingress-Path", "")
     if not ingress_path:
         return html_content
-    
+
     # Ensure ingress_path ends with /
     if not ingress_path.endswith("/"):
         ingress_path += "/"
-    
+
     # Inject base tag after <head> opening tag
     base_tag = f'<base href="{ingress_path}">'
-    
+
     # Find <head> tag and inject base tag right after it
     import re
-    head_pattern = re.compile(r'(<head[^>]*>)', re.IGNORECASE)
+
+    head_pattern = re.compile(r"(<head[^>]*>)", re.IGNORECASE)
     match = head_pattern.search(html_content)
-    
+
     if match:
         # Insert base tag right after <head>
         insert_pos = match.end()
-        html_content = (
-            html_content[:insert_pos] +
-            '\n    ' + base_tag +
-            html_content[insert_pos:]
-        )
-    
+        html_content = html_content[:insert_pos] + "\n    " + base_tag + html_content[insert_pos:]
+
     return html_content
 
 
@@ -299,7 +296,6 @@ async def serve_spa_assets(spa_path: str, request: Request) -> Response:
     raise HTTPException(status_code=404)
 
 
-
 def main() -> None:  # pragma: no cover
     """Run the FastAPI service under Uvicorn for Home Assistant add-on.
 
@@ -307,32 +303,34 @@ def main() -> None:  # pragma: no cover
     via 'python3 -m aquable.service'. Configuration is handled via
     environment variables set by the S6 service script.
     """
-    import sys
-    import os
     import logging
-    import time
+    import os
+    import sys
+
     import uvicorn
 
     # Configure logging with timezone support
     # The TZ environment variable is set by the run script
     # Note: Let uvicorn handle logging to avoid double output
-    logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s [%(name)s] %(message)s')
-    
+    logging.basicConfig(
+        level=logging.INFO, format="%(asctime)s %(levelname)s [%(name)s] %(message)s"
+    )
+
     logger = logging.getLogger(__name__)
     tz = os.getenv("TZ", "UTC")
-    
+
     # Determine port: Ingress uses 8099, standalone uses 8000
     # When running under Home Assistant Supervisor, SUPERVISOR_TOKEN is set
     is_ingress = bool(os.getenv("SUPERVISOR_TOKEN"))
     port = int(os.getenv("INGRESS_PORT", "8099" if is_ingress else "8000"))
-    
+
     logger.info(f"Starting AquaBle with timezone: {tz}")
     logger.info(f"Ingress mode: {is_ingress}, listening on port: {port}")
     logger.info(f"App object: {app}")
-    
-    # Back-compat: export service instance for tests
-    service = get_service()
-    
+
+    # Back-compat: service instance available via get_service() for tests
+    get_service()
+
     try:
         logger.info(f"Calling uvicorn.run() on port {port}...")
         uvicorn.run(
@@ -344,6 +342,7 @@ def main() -> None:  # pragma: no cover
         )
     except Exception as e:
         import traceback
+
         logger.error(f"FATAL ERROR: {e}")
         traceback.print_exc(file=sys.stderr)
         sys.exit(1)

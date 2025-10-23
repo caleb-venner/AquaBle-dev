@@ -1,6 +1,6 @@
 """Tiny Terraform egg device Model."""
 
-from .light_device import LightDevice
+from ..light import LightDevice
 
 
 class TinyTerrariumEgg(LightDevice):

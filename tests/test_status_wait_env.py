@@ -63,7 +63,7 @@ def test_capture_wait_uses_env_override(monkeypatch: pytest.MonkeyPatch, patched
     from aquable import ble_service as ble_impl
 
     monkeypatch.setattr(
-        ble_impl._serializers,
+        ble_impl._utils,
         "serialize_doser_status",
         lambda s: {"ok": True},
     )

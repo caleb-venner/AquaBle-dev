@@ -1,6 +1,6 @@
 """Commander 1 device Model."""
 
-from .light_device import LightDevice
+from ..light import LightDevice
 
 
 class Commander1(LightDevice):

@@ -1,6 +1,6 @@
 """A2 device Model."""
 
-from .light_device import LightDevice
+from ..light import LightDevice
 
 
 class AII(LightDevice):

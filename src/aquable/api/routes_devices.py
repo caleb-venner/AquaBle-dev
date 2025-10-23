@@ -7,7 +7,7 @@ from typing import Any, Dict
 from fastapi import APIRouter, HTTPException, Request
 
 from ..device import get_device_from_address
-from ..serializers import cached_status_to_dict
+from ..utils import cached_status_to_dict
 
 router = APIRouter(prefix="/api", tags=["devices"])
 
@@ -63,7 +63,8 @@ async def scan_devices(request: Request, timeout: float = 5.0) -> list[Dict[str,
         elif "adapter" in error_msg or "controller" in error_msg:
             raise HTTPException(
                 status_code=503,
-                detail="Bluetooth adapter not found. Ensure Bluetooth hardware is present and enabled.",
+                detail="Bluetooth adapter not found. Ensure Bluetooth hardware "
+                "is present and enabled.",
             ) from e
         # Re-raise as generic 503 for other scan errors
         raise HTTPException(
@@ -85,18 +86,18 @@ async def reconnect_device(request: Request, address: str) -> Dict[str, Any]:
     """(Re)connect to a device and return its current status."""
     import asyncio
     import logging
+
     logger = logging.getLogger(__name__)
-    
+
     logger.info(f"Connect request for address: {address}")
     service = request.app.state.service
     cached = service.get_status_snapshot().get(address)
-    
+
     if cached:
         logger.info(f"Found cached device for {address}, type: {cached.device_type}")
         try:
             status = await asyncio.wait_for(
-                service.connect_device(address, cached.device_type),
-                timeout=60.0
+                service.connect_device(address, cached.device_type), timeout=60.0
             )
             logger.info(f"Successfully connected to {address}")
             return cached_status_to_dict(service, status)
@@ -119,13 +120,10 @@ async def reconnect_device(request: Request, address: str) -> Dict[str, Any]:
     if not kind:
         logger.error(f"Device at {address} has no device_kind")
         raise HTTPException(status_code=400, detail="Unsupported device type")
-    
+
     logger.info(f"Device kind: {kind}, connecting...")
     try:
-        status = await asyncio.wait_for(
-            service.connect_device(address, kind),
-            timeout=60.0
-        )
+        status = await asyncio.wait_for(service.connect_device(address, kind), timeout=60.0)
         logger.info(f"Successfully connected to {address}")
         return cached_status_to_dict(service, status)
     except asyncio.TimeoutError:
