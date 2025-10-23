@@ -25,7 +25,7 @@ def test_lifetime_totals_parsing():
             0xFE,  # Head 3: 25342 tenths = 2534.2 mL
             0x54,
             0xFB,  # Head 4: 21755 tenths = 2175.5 mL
-            0x70,  # Trailer
+            0x70,  # Tail
         ]
     )
 
@@ -61,9 +61,11 @@ def test_regular_status_no_lifetime_totals():
     # Two head blocks (9 bytes each)
     head1 = bytes([0x00, 0x0C, 0x37, 0x11, 0x22, 0x33, 0x44, 0x01, 0x2C])  # 30.0ml
     head2 = bytes([0x01, 0x0D, 0x00, 0x55, 0x66, 0x77, 0x88, 0x00, 0x64])  # 10.0ml
+    head3 = bytes([0x00, 0x0C, 0x37, 0x11, 0x22, 0x33, 0x44, 0x01, 0x2C])  # 30.0ml
+    head4 = bytes([0x01, 0x0D, 0x00, 0x55, 0x66, 0x77, 0x88, 0x00, 0x64])  # 10.0ml
     tail = bytes([0x10, 0x20, 0x30, 0x40, 0x55])
 
-    payload = header + filler + body_time + head1 + head2 + tail
+    payload = header + filler + body_time + head1 + head2 + head3 + head4 + tail
 
     status = parse_doser_payload(payload)
 
@@ -73,6 +75,6 @@ def test_regular_status_no_lifetime_totals():
     assert status.minute == 56  # 0x38
 
     # Should have head data but no lifetime totals
-    assert len(status.heads) == 2
+    assert len(status.heads) == 4
     assert len(status.lifetime_totals_tenths_ml) == 0
     assert status.lifetime_totals_ml() == []

@@ -13,9 +13,6 @@ from typing import TYPE_CHECKING, Any, Sequence
 from bleak_retry_connector import BleakConnectionError, BleakNotFoundError
 from fastapi import HTTPException
 
-from ..commands import encoder as doser_commands
-from .encoder import LightWeekday
-
 if TYPE_CHECKING:
     # Avoid runtime import cycles; used for type annotations only
     from ..ble_service import CachedStatus
@@ -29,7 +26,7 @@ async def set_doser_schedule(
     volume_tenths_ml: int,
     hour: int,
     minute: int,
-    weekdays: Sequence[doser_commands.PumpWeekday] | None = None,
+    weekdays: Sequence[str] | None = None,
     confirm: bool = False,
     wait_seconds: float = 1.5,
 ) -> "CachedStatus":
@@ -133,7 +130,7 @@ async def add_light_auto_setting(
     sunset: _time,
     brightness: object,
     ramp_up_minutes: int = 0,
-    weekdays: list[LightWeekday] | None = None,
+    weekdays: Sequence[str] | None = None,
 ) -> "CachedStatus":
     """Add an auto program setting to the specified light device."""
     device = await service._ensure_device(address, "light")
@@ -144,7 +141,7 @@ async def add_light_auto_setting(
                 sunset,
                 int(brightness),
                 ramp_up_minutes,
-                weekdays or [LightWeekday.everyday],
+                weekdays or ["everyday"],
             )
         elif isinstance(brightness, (list, tuple)):
             if len(brightness) != 3:
@@ -155,7 +152,7 @@ async def add_light_auto_setting(
                 sunset,
                 rgb,
                 ramp_up_minutes,
-                weekdays or [LightWeekday.everyday],
+                weekdays or ["everyday"],
             )
         elif isinstance(brightness, dict):
             # Handle per-channel brightness dict from frontend
@@ -164,7 +161,7 @@ async def add_light_auto_setting(
                 sunset,
                 channel_brightness=brightness,
                 ramp_up_in_minutes=ramp_up_minutes,
-                weekdays=weekdays or [LightWeekday.everyday],
+                weekdays=weekdays or ["everyday"],
             )
         else:
             raise ValueError("brightness must be an int, three-element sequence, or dict")

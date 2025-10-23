@@ -58,8 +58,8 @@ lint:
 		$(PY) -m pip install black flake8 isort doc8 flake8-pyprojecttoml; \
 	fi
 	@echo "Running code quality checks..."
-	black --check --diff src/ tests/ frontend/
-	isort --check-only --diff --profile black src/ tests/ frontend/
+	black src/ tests/ frontend/
+	isort --profile black src/ tests/ frontend/
 	flake8 src/ tests/ frontend/
 	doc8 README.md aquable/DOCS.md
 

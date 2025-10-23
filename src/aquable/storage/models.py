@@ -9,22 +9,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Optional, Tuple
 
-# ===== Doser Status Models =====
-
-
-def _plausible_time(wd: int, hr: int, minute: int) -> bool:
-    return 0 <= wd <= 7 and 0 <= hr <= 23 and 0 <= minute <= 59
-
-
-def _minutes_distance(h1: int, m1: int, h2: int, m2: int) -> int:
-    """Return minimal absolute distance in minutes between two HH:MM values.
-
-    Computed modulo 24h so wrap-around at midnight is handled.
-    """
-    a = (h1 * 60 + m1) % (24 * 60)
-    b = (h2 * 60 + m2) % (24 * 60)
-    diff = abs(a - b)
-    return min(diff, (24 * 60) - diff)
+# ============================================================================
+# Doser Status Models
+# ============================================================================
 
 
 MODE_NAMES = {
@@ -76,64 +63,41 @@ class DoserStatus:
         return [total / 10.0 for total in self.lifetime_totals_tenths_ml]
 
 
-def parse_doser_payload(payload: bytes) -> DoserStatus:
-    """Parse the 0xFE status notification from the pump."""
-    if not payload:
-        raise ValueError("payload too short")
+def _parse_status_payload(payload: bytes) -> DoserStatus:
+    """Parse response mode 0xFE: Head data with schedule info and daily dosed amounts.
 
-    message_id: tuple[int, int] | None = None
-    response_mode: int | None = None
-    weekday: int | None = None
-    hour: int | None = None
-    minute: int | None = None
+    The payload structure is:
+    - Bytes 0-8: Standard header (0x5B, msg_id_hi, msg_id_lo, msg_id_hi,
+                 msg_id_lo, 0xFE, weekday, hour, minute)
+    - Bytes 09-17: Head 1 (9 bytes)
+    - Bytes 18-26: Head 2 (9 bytes)
+    - Bytes 27-35: Head 3 (9 bytes)
+    - Bytes 36-44: Head 4 (9 bytes)
+    - Last 5 bytes: Tail (contains daily set dose amounts for each head)
+    """
+    if not payload or len(payload) < 9 or payload[0] != 0x5B:
+        raise ValueError("Invalid payload structure")
 
-    body = payload
-    if payload[0] == 0x5B:
-        if len(payload) < 9:
-            raise ValueError("payload too short")
-        message_id = (payload[3], payload[4])
-        response_mode = payload[5]
-        response_mode = payload[5]
-        maybe_wd = payload[6]
-        maybe_hr = payload[7]
-        maybe_min = payload[8]
-        if not _plausible_time(maybe_wd, maybe_hr, maybe_min):
-            weekday = None
-            hour = None
-            minute = None
-            body = payload[6:]
-        else:
-            weekday = maybe_wd
-            hour = maybe_hr
-            minute = maybe_min
-            body = payload[9:]
-            if len(body) >= 3 and weekday is not None and hour is not None and minute is not None:
-                scan_limit = min(32, len(body) - 2)
-                adjusted_start = None
-                for off in range(0, scan_limit):
-                    wd2, hr2, min2 = body[off], body[off + 1], body[off + 2]
-                    if (
-                        _plausible_time(wd2, hr2, min2)
-                        and _minutes_distance(hour, minute, hr2, min2) <= 1
-                    ):
-                        adjusted_start = off + 3
-                        break
-                if adjusted_start is not None and adjusted_start > 0:
-                    body = body[adjusted_start:]
-    else:
-        if len(payload) < 3:
-            raise ValueError("payload too short")
-        weekday, hour, minute = payload[0], payload[1], payload[2]
-        body = payload[3:]
+    message_id = (payload[3], payload[4])
+    response_mode = payload[5]
+    weekday = payload[6]
+    hour = payload[7]
+    minute = payload[8]
 
+    body = payload[9:]
+    heads: list[HeadSnapshot] = []
+    tail_targets: list[int] = []
+    tail_flag: int | None = None
     tail_raw = b""
+
+    # Extract tail from last 5 bytes
     if len(body) >= 5:
         tail_raw = body[-5:]
         head_bytes = body[:-5]
     else:
         head_bytes = body
 
-    heads: list[HeadSnapshot] = []
+    # Parse head blocks (9 bytes each, up to 4 heads)
     for idx in range(0, min(len(head_bytes), 9 * 4), 9):
         end_index = idx + 9
         chunk = head_bytes[idx:end_index]
@@ -149,22 +113,10 @@ def parse_doser_payload(payload: bytes) -> DoserStatus:
             )
         )
 
-    tail_targets: list[int] = []
-    tail_flag: int | None = None
     if tail_raw:
         tail_targets = list(tail_raw[:4])
         if len(tail_raw) > 4:
             tail_flag = tail_raw[4]
-
-    lifetime_totals_tenths_ml: list[int] = []
-    if weekday is None and hour is None and minute is None and len(body) >= 8:
-        usable_bytes = (len(body) // 2) * 2
-        num_heads = min(4, usable_bytes // 2)
-        for i in range(num_heads):
-            high_byte = body[i * 2]
-            low_byte = body[i * 2 + 1]
-            total_tenths_ml = (high_byte << 8) | low_byte
-            lifetime_totals_tenths_ml.append(total_tenths_ml)
 
     return DoserStatus(
         message_id=message_id,
@@ -176,12 +128,81 @@ def parse_doser_payload(payload: bytes) -> DoserStatus:
         tail_targets=tail_targets,
         tail_flag=tail_flag,
         tail_raw=tail_raw,
+        lifetime_totals_tenths_ml=[],
+        raw_payload=payload,
+    )
+
+
+def _parse_lifetime_payload(payload: bytes) -> DoserStatus:
+    """Parse response mode 0x1E: Lifetime dose totals (4 heads x 2 bytes each).
+
+    For mode 0x1E, the structure is:
+    - Bytes 0-5: Standard header (0x5B, msg_id_hi, msg_id_lo, msg_id_hi, msg_id_lo, 0x1E)
+    - Bytes 6+: Lifetime totals (2 bytes per head)
+    """
+    if not payload or len(payload) < 6 or payload[0] != 0x5B:
+        raise ValueError("Invalid payload structure")
+
+    message_id = (payload[3], payload[4])
+    response_mode = payload[5]
+
+    # For 0x1E payloads, time fields are not present
+    weekday = None
+    hour = None
+    minute = None
+
+    lifetime_totals_tenths_ml: list[int] = []
+
+    # Lifetime data starts at byte 6
+    lifetime_data = payload[6:]
+
+    num_heads = min(4, len(lifetime_data) // 2)
+    for i in range(num_heads):
+        high_byte = lifetime_data[i * 2]
+        low_byte = lifetime_data[i * 2 + 1]
+        total_tenths_ml = (high_byte << 8) | low_byte
+        lifetime_totals_tenths_ml.append(total_tenths_ml)
+
+    return DoserStatus(
+        message_id=message_id,
+        response_mode=response_mode,
+        weekday=weekday,
+        hour=hour,
+        minute=minute,
+        heads=[],
+        tail_targets=[],
+        tail_flag=None,
+        tail_raw=b"",
         lifetime_totals_tenths_ml=lifetime_totals_tenths_ml,
         raw_payload=payload,
     )
 
 
-# ===== Light Status Models =====
+def parse_doser_payload(payload: bytes) -> DoserStatus:
+    """Parse a doser status notification from the pump.
+
+    Dispatches to appropriate parser based on response mode:
+    - 0xFE: Head data with schedule info and daily dosed amounts (includes time fields)
+    - 0x1E: Lifetime dose totals (no time fields)
+    """
+    if not payload or len(payload) < 6:
+        raise ValueError("payload too short")
+
+    # Extract response_mode (byte 5) to determine which parser to use
+    response_mode = payload[5]
+
+    if response_mode == 0xFE:
+        return _parse_status_payload(payload)
+    elif response_mode == 0x1E:
+        return _parse_lifetime_payload(payload)
+    else:
+        # Default behavior: treat as status payload if response_mode is unknown
+        return _parse_status_payload(payload)
+
+
+# ============================================================================
+# Light Status Models
+# ============================================================================
 
 
 @dataclass(slots=True)
@@ -210,6 +231,21 @@ class LightStatus:
     time_markers: list[Tuple[int, int]]
     tail: bytes
     raw_payload: bytes
+
+
+def _plausible_time(wd: int, hr: int, minute: int) -> bool:
+    return 0 <= wd <= 7 and 0 <= hr <= 23 and 0 <= minute <= 59
+
+
+def _minutes_distance(h1: int, m1: int, h2: int, m2: int) -> int:
+    """Return minimal absolute distance in minutes between two HH:MM values.
+
+    Computed modulo 24h so wrap-around at midnight is handled.
+    """
+    a = (h1 * 60 + m1) % (24 * 60)
+    b = (h2 * 60 + m2) % (24 * 60)
+    diff = abs(a - b)
+    return min(diff, (24 * 60) - diff)
 
 
 def _split_body(

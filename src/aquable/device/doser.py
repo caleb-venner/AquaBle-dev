@@ -33,19 +33,50 @@ class Doser(BaseDevice):
         self.handle_notification(bytes(data))
 
     def handle_notification(self, payload: bytes) -> None:
-        """Handle an incoming UART notification from the pump."""
-        # Parse the incoming payload into a DoserStatus and keep only the
-        # canonical parsed status. Historically we retained a short history
-        # of fragments for the service to merge; after refactor the device
-        # provides the canonical parsed view and the service consumes that
-        # directly (similar to lights).
+        """Handle an incoming UART notification from the pump.
+
+        Validates payload structure, discriminates by message type, and updates
+        status only on successful parsing. Parses two relevant payload types:
+        - Mode 0xFE: Current schedule and dosing data (includes time fields)
+        - Mode 0x1E: Lifetime dose totals (no time fields)
+
+        Mode 0x22 (today's dose amounts) received but not yet decoded.
+        """
+        if not payload:
+            return
+
+        # Validate basic structure: must start with 0x5B and be long enough
+        if payload[0] != 0x5B or len(payload) < 6:
+            self._logger.debug("%s: Invalid payload structure: %s", self.name, payload.hex())
+            return
+
+        # Discriminate by response mode
+        mode = payload[5]
+
+        # Parse modes 0xFE (schedule/current data) and 0x1E (lifetime totals)
+        # Mode 0x22 (today's dose) received but not yet decoded
+        if mode not in (0xFE, 0x1E):
+            self._logger.debug(
+                "%s: Received payload (mode 0x%02X) - decoding pending: %s",
+                self.name,
+                mode,
+                payload.hex(),
+            )
+            return
+
         try:
             parsed = parse_doser_payload(payload)
-        except Exception:
-            # If parsing fails, keep no change to last_status rather than
-            # overwrite with invalid data.
+        except Exception as e:
+            self._logger.debug(
+                "%s: Failed to parse payload (mode 0x%02X): %s",
+                self.name,
+                mode,
+                str(e),
+            )
             return
+
         self._last_status = parsed
+        self._logger.debug("%s: Status payload (mode 0x%02X): %s", self.name, mode, payload.hex())
 
     @property
     def last_status(self) -> DoserStatus | None:
@@ -59,7 +90,7 @@ class Doser(BaseDevice):
         hour: int,
         minute: int,
         *,
-        weekdays: doser_commands.PumpWeekday | Sequence[doser_commands.PumpWeekday] | None = None,
+        weekdays: Sequence[str] | None = None,
         confirm: bool = False,
         wait_seconds: float = 1.5,
     ) -> DoserStatus | None:

@@ -82,8 +82,8 @@ async def refresh_status(request: Request, address: str) -> Dict[str, Any]:
 
 
 @router.post("/devices/{address}/connect")
-async def reconnect_device(request: Request, address: str) -> Dict[str, Any]:
-    """(Re)connect to a device and return its current status."""
+async def connect_device(request: Request, address: str) -> Dict[str, Any]:
+    """Connect to a device and return its current status."""
     import asyncio
     import logging
 

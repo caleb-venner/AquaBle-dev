@@ -32,17 +32,6 @@ export {
   getLightConfiguration,
   updateLightConfiguration,
   deleteLightConfiguration,
-  // Configuration summary
-  getConfigurationSummary,
-  // Helper functions
-  formatMacAddress,
-  getShortDeviceName,
-  isValidTimeFormat,
-  sortAutoSettings,
-  validateDoserConfig,
-  validateLightProfile,
-  // System configuration
-  getSystemTimezone,
   // Metadata functions
   updateDoserMetadata,
   getDoserMetadata,
@@ -60,8 +49,6 @@ export type {
   AutoSetting,
   LightProfile,
   LightDevice,
-  ConfigurationSummary,
-  SystemTimezone,
   DeviceMetadata,
   LightMetadata,
 } from "./configurations";

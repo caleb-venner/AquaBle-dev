@@ -56,22 +56,6 @@ export interface LightDevice {
   updatedAt?: string;
 }
 
-export interface ConfigurationSummary {
-  total_configurations: number;
-  dosers: {
-    count: number;
-    addresses: string[];
-  };
-  lights: {
-    count: number;
-    addresses: string[];
-  };
-  storage_paths: {
-    doser_configs: string;
-    light_profiles: string;
-  };
-}
-
 // ============================================================================
 // Doser Configuration API
 // ============================================================================
@@ -145,18 +129,7 @@ export async function updateLightConfiguration(
  * Delete a light profile
  */
 export async function deleteLightConfiguration(address: string): Promise<void> {
-  await deleteJson(`/api/configurations/lights/${encodeURIComponent(address)}`);
-}
-
-// ============================================================================
-// Configuration Summary API
-// ============================================================================
-
-/**
- * Get a summary of all stored configurations
- */
-export async function getConfigurationSummary(): Promise<ConfigurationSummary> {
-  return fetchJson<ConfigurationSummary>("api/configurations/summary");
+  deleteLightConfiguration(address);
 }
 
 // ============================================================================
@@ -235,14 +208,6 @@ export function validateLightProfile(config: LightDevice): string[] {
 }
 
 // ============================================================================
-// System Configuration API
-// ============================================================================
-
-export interface SystemTimezone {
-  system_timezone: string;
-  default_for_new_devices: string;
-  note: string;
-}
 
 // Metadata Types
 export interface DeviceMetadata {
@@ -262,15 +227,8 @@ export interface LightMetadata {
   updatedAt?: string;
 }
 
-/**
- * Get system timezone information
- */
-export async function getSystemTimezone(): Promise<SystemTimezone> {
-  return fetchJson<SystemTimezone>("api/configurations/system/timezone");
-}
-
 // ============================================================================
-// Metadata API Functions
+// Helper Functions
 // ============================================================================
 
 /**

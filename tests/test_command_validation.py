@@ -3,7 +3,6 @@
 import pytest
 from pydantic import ValidationError
 
-from aquable.commands.encoder import LightWeekday, PumpWeekday
 from aquable.commands_model import DoserScheduleArgs, LightAutoSettingArgs, LightBrightnessArgs
 
 
@@ -17,7 +16,7 @@ class TestDoserScheduleArgsValidation:
             volume_tenths_ml=1000,
             hour=12,
             minute=30,
-            weekdays=[PumpWeekday.monday, PumpWeekday.wednesday],
+            weekdays=["monday", "wednesday"],
             confirm=True,
             wait_seconds=2.0,
         )
@@ -25,7 +24,7 @@ class TestDoserScheduleArgsValidation:
         assert args.volume_tenths_ml == 1000
         assert args.hour == 12
         assert args.minute == 30
-        assert args.weekdays == [PumpWeekday.monday, PumpWeekday.wednesday]
+        assert args.weekdays == ["monday", "wednesday"]
 
     def test_head_index_validation(self):
         """Test head index validation."""
@@ -36,6 +35,7 @@ class TestDoserScheduleArgsValidation:
                 volume_tenths_ml=100,
                 hour=12,
                 minute=0,
+                weekdays=["monday"],
                 confirm=True,
                 wait_seconds=2.0,
             )
@@ -48,6 +48,7 @@ class TestDoserScheduleArgsValidation:
                 volume_tenths_ml=100,
                 hour=12,
                 minute=0,
+                weekdays=["monday"],
                 confirm=True,
                 wait_seconds=2.0,
             )
@@ -58,19 +59,20 @@ class TestDoserScheduleArgsValidation:
                 volume_tenths_ml=100,
                 hour=12,
                 minute=0,
+                weekdays=["monday"],
                 confirm=True,
                 wait_seconds=2.0,
             )
 
     def test_weekday_validation(self):
         """Test weekday validation."""
-        # Valid weekdays using enums
+        # Valid weekdays using strings
         args = DoserScheduleArgs(
             head_index=0,
             volume_tenths_ml=100,
             hour=12,
             minute=0,
-            weekdays=[PumpWeekday.monday, PumpWeekday.tuesday],
+            weekdays=["monday", "tuesday"],
             confirm=True,
             wait_seconds=2.0,
         )
@@ -87,22 +89,22 @@ class TestDoserScheduleArgsValidation:
             wait_seconds=2.0,
         )
         assert len(args.weekdays) == 3
-        assert args.weekdays[0] == PumpWeekday.monday
-        assert args.weekdays[1] == PumpWeekday.tuesday
-        assert args.weekdays[2] == PumpWeekday.friday
+        assert args.weekdays[0] == "monday"
+        assert args.weekdays[1] == "tuesday"
+        assert args.weekdays[2] == "friday"
 
-        # Valid weekdays using integers
+        # Mixed case should be converted to lowercase
         args = DoserScheduleArgs(
             head_index=0,
             volume_tenths_ml=100,
             hour=12,
             minute=0,
-            weekdays=[64, 32, 4],  # monday, tuesday, friday
+            weekdays=["Monday", "TUESDAY", "Friday"],
             confirm=True,
             wait_seconds=2.0,
         )
         assert len(args.weekdays) == 3
-        assert args.weekdays[0] == PumpWeekday.monday
+        assert args.weekdays[0] == "monday"
 
         # Valid everyday using string
         args = DoserScheduleArgs(
@@ -114,19 +116,19 @@ class TestDoserScheduleArgsValidation:
             confirm=True,
             wait_seconds=2.0,
         )
-        assert args.weekdays == [PumpWeekday.everyday]
+        assert args.weekdays == ["everyday"]
 
-        # Valid everyday using enum
+        # Valid everyday using string
         args = DoserScheduleArgs(
             head_index=0,
             volume_tenths_ml=100,
             hour=12,
             minute=0,
-            weekdays=[PumpWeekday.everyday],
+            weekdays=["everyday"],
             confirm=True,
             wait_seconds=2.0,
         )
-        assert args.weekdays == [PumpWeekday.everyday]
+        assert args.weekdays == ["everyday"]
 
         # Invalid weekday string
         with pytest.raises(ValidationError, match="Invalid weekday string"):
@@ -162,7 +164,7 @@ class TestDoserScheduleArgsValidation:
                 volume_tenths_ml=100,
                 hour=12,
                 minute=0,
-                weekdays=[PumpWeekday.everyday, PumpWeekday.monday],
+                weekdays=["everyday", "monday"],
                 confirm=True,
                 wait_seconds=2.0,
             )
@@ -174,7 +176,7 @@ class TestDoserScheduleArgsValidation:
                 volume_tenths_ml=100,
                 hour=12,
                 minute=0,
-                weekdays=[PumpWeekday.monday, PumpWeekday.monday],
+                weekdays=["monday", "monday"],
                 confirm=True,
                 wait_seconds=2.0,
             )
@@ -214,7 +216,7 @@ class TestLightAutoSettingArgsValidation:
             sunset="18:45",
             brightness=75,
             ramp_up_minutes=30,
-            weekdays=[LightWeekday.monday, LightWeekday.wednesday],
+            weekdays=["monday", "wednesday"],
         )
         assert args.sunrise == "06:30"
         assert args.sunset == "18:45"
@@ -233,7 +235,7 @@ class TestLightAutoSettingArgsValidation:
                 sunset=sunset_time,
                 brightness=50,
                 ramp_up_minutes=0,
-                weekdays=[LightWeekday.monday],
+                weekdays=["monday"],
             )
             assert args.sunrise == time_str
 
@@ -246,7 +248,7 @@ class TestLightAutoSettingArgsValidation:
                     sunset="18:00",
                     brightness=50,
                     ramp_up_minutes=0,
-                    weekdays=[LightWeekday.monday],
+                    weekdays=["monday"],
                 )
 
         # Invalid hour ranges
@@ -256,7 +258,7 @@ class TestLightAutoSettingArgsValidation:
                 sunset="18:00",
                 brightness=50,
                 ramp_up_minutes=0,
-                weekdays=[LightWeekday.monday],
+                weekdays=["monday"],
             )
 
         # Invalid minute ranges
@@ -266,7 +268,7 @@ class TestLightAutoSettingArgsValidation:
                 sunset="18:00",
                 brightness=50,
                 ramp_up_minutes=0,
-                weekdays=[LightWeekday.monday],
+                weekdays=["monday"],
             )
 
     def test_sunset_after_sunrise_validation(self):
@@ -277,7 +279,7 @@ class TestLightAutoSettingArgsValidation:
             sunset="18:45",
             brightness=50,
             ramp_up_minutes=0,
-            weekdays=[LightWeekday.monday],
+            weekdays=["monday"],
         )
         assert args.sunrise == "06:30"
         assert args.sunset == "18:45"
@@ -288,7 +290,7 @@ class TestLightAutoSettingArgsValidation:
             sunset="12:30",
             brightness=50,
             ramp_up_minutes=0,
-            weekdays=[LightWeekday.monday],
+            weekdays=["monday"],
         )
         assert args.sunset == "12:30"
 
@@ -299,7 +301,7 @@ class TestLightAutoSettingArgsValidation:
                 sunset="06:30",
                 brightness=50,
                 ramp_up_minutes=0,
-                weekdays=[LightWeekday.monday],
+                weekdays=["monday"],
             )
 
     def test_ramp_time_validation(self):
@@ -310,7 +312,7 @@ class TestLightAutoSettingArgsValidation:
             sunset="18:45",
             brightness=50,
             ramp_up_minutes=60,
-            weekdays=[LightWeekday.monday],
+            weekdays=["monday"],
         )
         assert args.ramp_up_minutes == 60
 
@@ -321,7 +323,7 @@ class TestLightAutoSettingArgsValidation:
                 sunset="18:45",
                 brightness=50,
                 ramp_up_minutes=-1,
-                weekdays=[LightWeekday.monday],
+                weekdays=["monday"],
             )
 
         # Ramp time exceeding span
@@ -334,7 +336,7 @@ class TestLightAutoSettingArgsValidation:
                 sunset="12:30",  # 30 minute span
                 brightness=50,
                 ramp_up_minutes=60,  # Exceeds span
-                weekdays=[LightWeekday.monday],
+                weekdays=["monday"],
             )
 
     def test_weekday_validation(self):
@@ -345,7 +347,7 @@ class TestLightAutoSettingArgsValidation:
             sunset="18:00",
             brightness=50,
             ramp_up_minutes=0,
-            weekdays=[LightWeekday.monday, LightWeekday.tuesday],
+            weekdays=["monday", "tuesday"],
         )
         assert args.weekdays is not None
         assert len(args.weekdays) == 2
@@ -360,9 +362,9 @@ class TestLightAutoSettingArgsValidation:
         )
         assert args.weekdays is not None
         assert len(args.weekdays) == 3
-        assert args.weekdays[0] == LightWeekday.monday
-        assert args.weekdays[1] == LightWeekday.wednesday
-        assert args.weekdays[2] == LightWeekday.friday
+        assert args.weekdays[0] == "monday"
+        assert args.weekdays[1] == "wednesday"
+        assert args.weekdays[2] == "friday"
 
         # Valid everyday using string
         args = LightAutoSettingArgs(
@@ -372,7 +374,7 @@ class TestLightAutoSettingArgsValidation:
             ramp_up_minutes=0,
             weekdays=["everyday"],
         )
-        assert args.weekdays == [LightWeekday.everyday]
+        assert args.weekdays == ["everyday"]
 
         # Valid everyday using enum
         args = LightAutoSettingArgs(
@@ -380,9 +382,9 @@ class TestLightAutoSettingArgsValidation:
             sunset="18:00",
             brightness=50,
             ramp_up_minutes=0,
-            weekdays=[LightWeekday.everyday],
+            weekdays=["everyday"],
         )
-        assert args.weekdays == [LightWeekday.everyday]
+        assert args.weekdays == ["everyday"]
 
         # Invalid weekday string
         with pytest.raises(ValidationError, match="Invalid weekday string"):
@@ -414,7 +416,7 @@ class TestLightAutoSettingArgsValidation:
                 sunset="18:00",
                 brightness=50,
                 ramp_up_minutes=0,
-                weekdays=[LightWeekday.everyday, LightWeekday.monday],
+                weekdays=["everyday", "monday"],
             )
 
         # Duplicates should fail
@@ -424,5 +426,5 @@ class TestLightAutoSettingArgsValidation:
                 sunset="18:00",
                 brightness=50,
                 ramp_up_minutes=0,
-                weekdays=[LightWeekday.monday, LightWeekday.monday],
+                weekdays=["monday", "monday"],
             )

@@ -9,7 +9,6 @@ import pytest
 from conftest import create_default_doser_config, create_default_light_profile
 
 from aquable.ble_service import BLEService, CachedStatus
-from aquable.commands.encoder import LightWeekday, PumpWeekday
 from aquable.commands_model import CommandRequest
 from aquable.config import CommandExecutor
 
@@ -68,9 +67,9 @@ async def test_execute_set_doser_schedule_success(
             "hour": 10,
             "minute": 30,
             "weekdays": [
-                PumpWeekday.monday,
-                PumpWeekday.wednesday,
-                PumpWeekday.friday,
+                "monday",
+                "wednesday",
+                "friday",
             ],
         },
     )
@@ -92,9 +91,9 @@ async def test_execute_set_doser_schedule_success(
     assert call_args[1]["hour"] == 10
     assert call_args[1]["minute"] == 30
     assert call_args[1]["weekdays"] == [
-        PumpWeekday.monday,
-        PumpWeekday.wednesday,
-        PumpWeekday.friday,
+        "monday",
+        "wednesday",
+        "friday",
     ]
 
     # 3. Verify the configuration was saved correctly
@@ -142,7 +141,7 @@ async def test_execute_add_light_auto_setting_success(
             "sunset": "20:00",
             "brightness": 80,
             "ramp_up_minutes": 15,
-            "weekdays": [LightWeekday.saturday, LightWeekday.sunday],
+            "weekdays": ["saturday", "sunday"],
         },
     )
 
@@ -162,8 +161,8 @@ async def test_execute_add_light_auto_setting_success(
     assert call_args[1]["sunset"] == time(20, 0)
     assert call_args[1]["brightness"] == 80
     assert call_args[1]["weekdays"] == [
-        LightWeekday.saturday,
-        LightWeekday.sunday,
+        "saturday",
+        "sunday",
     ]
 
     # 3. Verify the configuration was saved correctly

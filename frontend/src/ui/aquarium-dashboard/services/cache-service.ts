@@ -81,13 +81,11 @@ export const cacheService = new CacheService();
 export const CACHE_KEYS = {
   DOSER_METADATA: 'doser_metadata',
   LIGHT_METADATA: 'light_metadata',
-  CONFIGURATION_SUMMARY: 'config_summary',
 } as const;
 
 // Cache TTLs (in milliseconds)
 export const CACHE_TTL = {
   METADATA: 10 * 60 * 1000, // 10 minutes - metadata rarely changes
-  SUMMARY: 5 * 60 * 1000,   // 5 minutes - summary rarely changes
   STATUS: 30 * 1000,        // 30 seconds - status should be fresh
 } as const;
 
@@ -97,7 +95,6 @@ export const CACHE_TTL = {
 export function invalidateMetadataCache(): void {
   cacheService.clear(CACHE_KEYS.DOSER_METADATA);
   cacheService.clear(CACHE_KEYS.LIGHT_METADATA);
-  cacheService.clear(CACHE_KEYS.CONFIGURATION_SUMMARY);
 }
 
 /**
@@ -114,11 +111,6 @@ export function getCacheDebugInfo(): Record<string, any> {
       cached: cacheService.get(CACHE_KEYS.LIGHT_METADATA) !== null,
       age: cacheService.getAge(CACHE_KEYS.LIGHT_METADATA),
       valid: cacheService.isValid(CACHE_KEYS.LIGHT_METADATA),
-    },
-    summary: {
-      cached: cacheService.get(CACHE_KEYS.CONFIGURATION_SUMMARY) !== null,
-      age: cacheService.getAge(CACHE_KEYS.CONFIGURATION_SUMMARY),
-      valid: cacheService.isValid(CACHE_KEYS.CONFIGURATION_SUMMARY),
     },
   };
 }

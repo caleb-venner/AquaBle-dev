@@ -37,15 +37,6 @@ def temp_config_dir(monkeypatch):
     monkeypatch.setattr(service, "_light_storage", LightStorage(devices_dir, {}))
     monkeypatch.setattr(service, "_device_metadata", {})
 
-    # Also patch the paths in the API routes module
-    from aquable.api import routes_configurations
-
-    monkeypatch.setattr(
-        routes_configurations,
-        "DEVICE_CONFIG_PATH",
-        devices_dir,
-    )
-
     yield temp_dir
 
     # Cleanup
@@ -279,38 +270,5 @@ def test_address_mismatch_light(client, temp_config_dir, sample_light):
 
 
 # ============================================================================
-# Configuration Summary Tests
+# Light-specific tests
 # ============================================================================
-
-
-def test_configuration_summary_empty(client, temp_config_dir):
-    """Test configuration summary when no configurations exist."""
-    response = client.get("/api/configurations/summary")
-    assert response.status_code == 200
-    summary = response.json()
-    assert summary["total_configurations"] == 0
-    assert summary["dosers"]["count"] == 0
-    assert summary["lights"]["count"] == 0
-
-
-def test_configuration_summary_with_data(client, temp_config_dir, sample_doser, sample_light):
-    """Test configuration summary with both doser and light configurations."""
-    # Create configurations
-    client.put(
-        f"/api/configurations/dosers/{sample_doser.id}",
-        json=sample_doser.model_dump(),
-    )
-    client.put(
-        f"/api/configurations/lights/{sample_light.id}",
-        json=sample_light.model_dump(),
-    )
-
-    # Get summary
-    response = client.get("/api/configurations/summary")
-    assert response.status_code == 200
-    summary = response.json()
-    assert summary["total_configurations"] == 2
-    assert summary["dosers"]["count"] == 1
-    assert summary["lights"]["count"] == 1
-    assert sample_doser.id in summary["dosers"]["addresses"]
-    assert sample_light.id in summary["lights"]["addresses"]
