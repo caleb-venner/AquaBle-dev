@@ -104,8 +104,11 @@ async def connect_device(request: Request, address: str) -> Dict[str, Any]:
         except asyncio.TimeoutError:
             logger.error(f"Connection timeout for cached device {address}")
             raise HTTPException(status_code=504, detail="Connection timeout") from None
+        except HTTPException:
+            # HTTPException already logged by service, re-raise without duplication
+            raise
         except Exception as e:
-            logger.error(f"Failed to connect to cached device {address}: {e}", exc_info=True)
+            logger.error(f"Failed to connect to cached device {address}: {e}")
             raise
 
     logger.info(f"No cached device for {address}, attempting discovery")
@@ -129,8 +132,11 @@ async def connect_device(request: Request, address: str) -> Dict[str, Any]:
     except asyncio.TimeoutError:
         logger.error(f"Connection timeout for device {address}")
         raise HTTPException(status_code=504, detail="Connection timeout") from None
+    except HTTPException:
+        # HTTPException already logged by service, re-raise without duplication
+        raise
     except Exception as e:
-        logger.error(f"Failed to connect to device {address}: {e}", exc_info=True)
+        logger.error(f"Failed to connect to device {address}: {e}")
         raise
 
 

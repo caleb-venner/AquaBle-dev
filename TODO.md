@@ -5,20 +5,16 @@
 ### Urgent
 
 - Data types getting convoluted. Status, settings, config, file, memory. Especially doser.
-- Seems to de a disconnect for saving metadata when deployed in hassio; check config paths.
+- Still need to nail down metdata + payload --> doser settings modal, overall and head specific.
 - Correctly pass light status payload; need to refine time-check logic. Placeholders inserted.
   [Lines 202 -> 336](src/aquable/storage/models.py#L204)
 - Correct doser lifetime status payload; currently not correctly integration to device state.
 - Implement remaining doser payload decode. (0x22 (today's dose))
-- Doser connection/discovery iffy when deployed via hassio. Requires 1 or more addon restarts.
-  'No status recieved', 'expecting doser, light device found/recieved'.
 
 ### UI
 
-- Dynamic load on connect for device cards broken.
 - When new light automode config is sent and saved --> dynamic reload of device card and settings window.
 - Add placeholder text on light device cards that have no settings saved.
-- Metadata names not loading within device settings modal.
 - Need to decide when/what triggers a payload status request from devies
 - Doser Heads not displayed correctly when in dark mode
 
