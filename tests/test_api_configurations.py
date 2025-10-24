@@ -170,15 +170,29 @@ def test_delete_doser_configuration(client, temp_config_dir, sample_doser):
     response = client.delete(f"/api/configurations/dosers/{sample_doser.id}")
     assert response.status_code == 204
 
-    # Verify deletion
+    # Verify deletion - should now return default config
     response = client.get(f"/api/configurations/dosers/{sample_doser.id}")
-    assert response.status_code == 404
+    assert response.status_code == 200
+    config = response.json()
+    # Should be a default configuration (name is None, has Default Configuration)
+    assert config["configurations"][0]["name"] == "Default Configuration"
 
 
 def test_get_nonexistent_doser_configuration(client, temp_config_dir):
-    """Test getting a doser configuration that doesn't exist."""
+    """Test getting a doser configuration that doesn't exist returns a default config."""
     response = client.get("/api/configurations/dosers/00:00:00:00:00:00")
-    assert response.status_code == 404
+    assert response.status_code == 200
+    config = response.json()
+    assert config["id"] == "00:00:00:00:00:00"
+    assert config["name"] is None  # Default config has no name
+    assert len(config["configurations"]) == 1
+    assert config["configurations"][0]["name"] == "Default Configuration"
+    # Verify it has 4 heads
+    latest_revision = config["configurations"][0]["revisions"][-1]
+    assert len(latest_revision["heads"]) == 4
+    # Verify all heads are inactive by default
+    for head in latest_revision["heads"]:
+        assert head["active"] is False
 
 
 def test_delete_nonexistent_doser_configuration(client, temp_config_dir):
@@ -255,9 +269,12 @@ def test_delete_light_configuration(client, temp_config_dir, sample_light):
     response = client.delete(f"/api/configurations/lights/{sample_light.id}")
     assert response.status_code == 204
 
-    # Verify deletion
+    # Verify deletion - should now return default config
     response = client.get(f"/api/configurations/lights/{sample_light.id}")
-    assert response.status_code == 404
+    assert response.status_code == 200
+    config = response.json()
+    # Should be a default configuration (name is None, has Default Configuration)
+    assert config["configurations"][0]["name"] == "Default Configuration"
 
 
 def test_address_mismatch_light(client, temp_config_dir, sample_light):

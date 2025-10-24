@@ -49,6 +49,8 @@ interface DeviceStore {
     // Configuration management
     loadConfigurations: () => Promise<void>;
     setConfigurations: (dosers: import('../api/configurations').DoserDevice[], lights: import('../api/configurations').LightDevice[]) => void;
+    refreshDeviceConfig: (address: string, deviceType: 'doser' | 'light') => Promise<import('../api/configurations').DoserDevice | import('../api/configurations').LightDevice>;
+    getDeviceConfig: (address: string, deviceType: 'doser' | 'light') => import('../api/configurations').DoserDevice | import('../api/configurations').LightDevice | null;
 
     // Device management
     setDevices: (devices: CachedStatus[]) => void;
@@ -152,6 +154,79 @@ const storeInitializer: StateCreator<DeviceStore> = (set, get) => ({
           }
         });
         set({ devices });
+      },
+
+      refreshDeviceConfig: async (address, deviceType) => {
+        try {
+          console.log(`Refreshing ${deviceType} config for ${address}`);
+          
+          if (deviceType === 'doser') {
+            const { getDoserConfiguration } = await import("../api/configurations");
+            const config = await getDoserConfiguration(address);
+            
+            // Update the store
+            const dosers = new Map(get().configurations.dosers);
+            dosers.set(address, config);
+            
+            set((state) => ({
+              configurations: {
+                ...state.configurations,
+                dosers,
+              }
+            }));
+
+            // Update device state if it exists
+            const devices = new Map(get().devices);
+            const device = devices.get(address);
+            if (device) {
+              devices.set(address, {
+                ...device,
+                configuration: config,
+              });
+              set({ devices });
+            }
+
+            return config;
+          } else {
+            const { getLightConfiguration } = await import("../api/configurations");
+            const config = await getLightConfiguration(address);
+            
+            // Update the store
+            const lights = new Map(get().configurations.lights);
+            lights.set(address, config);
+            
+            set((state) => ({
+              configurations: {
+                ...state.configurations,
+                lights,
+              }
+            }));
+
+            // Update device state if it exists
+            const devices = new Map(get().devices);
+            const device = devices.get(address);
+            if (device) {
+              devices.set(address, {
+                ...device,
+                configuration: config,
+              });
+              set({ devices });
+            }
+
+            return config;
+          }
+        } catch (error) {
+          console.error(`Failed to refresh ${deviceType} config for ${address}:`, error);
+          throw error;
+        }
+      },
+
+      getDeviceConfig: (address, deviceType) => {
+        if (deviceType === 'doser') {
+          return get().configurations.dosers.get(address) || null;
+        } else {
+          return get().configurations.lights.get(address) || null;
+        }
       },
 
       // Device management

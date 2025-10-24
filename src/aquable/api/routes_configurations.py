@@ -211,18 +211,96 @@ async def get_doser_configuration(address: str, storage: DoserStorage = Depends(
         address: The MAC address of the doser device
 
     Returns:
-        The doser configuration if found
-
-    Raises:
-        404: If no configuration exists for this address
+        The doser configuration, or a default empty configuration if none exists yet.
+        This allows the frontend to display configuration UI for new devices.
     """
     device = storage.get_device(address)
     if not device:
-        raise HTTPException(
-            status_code=404,
-            detail=f"No configuration found for doser {address}",
+        # Return a default configuration for new devices with minimal viable structure
+        from uuid import uuid4
+
+        from ..storage import (
+            Calibration,
+            ConfigurationRevision,
+            DeviceConfiguration,
+            DoserHead,
+            Recurrence,
+            SingleSchedule,
+            VolumeTracking,
         )
-    logger.info(f"Retrieved configuration for doser {address}")
+        from ..utils.time import now_iso
+
+        now = now_iso()
+        config_id = str(uuid4())
+
+        # Try to get existing metadata (device name and head names)
+        metadata = storage.get_device_metadata(address)
+
+        # Create default heads (all inactive with minimal valid data)
+        # Using explicit literals for type safety
+        default_heads = []
+        for head_index in [1, 2, 3, 4]:
+            default_heads.append(
+                DoserHead(
+                    index=head_index,  # type: ignore - literal type
+                    active=False,
+                    schedule=SingleSchedule(
+                        mode="single",
+                        dailyDoseMl=1.0,
+                        startTime="12:00",
+                    ),
+                    recurrence=Recurrence(
+                        days=[
+                            "monday",
+                            "tuesday",
+                            "wednesday",
+                            "thursday",
+                            "friday",
+                            "saturday",
+                            "sunday",
+                        ]
+                    ),
+                    missedDoseCompensation=False,
+                    calibration=Calibration(
+                        mlPerSecond=0.1,  # Default calibration value
+                        lastCalibratedAt=now,
+                    ),
+                    volumeTracking=VolumeTracking(
+                        enabled=False,
+                        capacityMl=None,
+                        currentMl=None,
+                        lowThresholdMl=None,
+                    ),
+                )
+            )
+
+        default_revision = ConfigurationRevision(
+            revision=1,
+            savedAt=now,
+            heads=default_heads,
+            note="Auto-generated default configuration",
+        )
+
+        default_config = DeviceConfiguration(
+            id=config_id,
+            name="Default Configuration",
+            revisions=[default_revision],
+            createdAt=now,
+            updatedAt=now,
+        )
+
+        device = DoserDevice(
+            id=address,
+            name=metadata.name if metadata else None,
+            headNames=metadata.headNames if metadata else None,
+            configurations=[default_config],
+            activeConfigurationId=config_id,
+            createdAt=now,
+            updatedAt=now,
+        )
+        logger.info(f"Returning default configuration for new doser {address}")
+    else:
+        logger.info(f"Retrieved configuration for doser {address}")
     return device
 
 
@@ -328,15 +406,67 @@ async def get_light_configuration(address: str, storage: LightStorage = Depends(
         address: The MAC address of the light device
 
     Returns:
-        The light profile if found
-
-    Raises:
-        404: If no profile exists for this address
+        The light profile, or a default empty configuration if none exists yet.
+        This allows the frontend to display configuration UI for new devices.
     """
     device = storage.get_device(address)
     if not device:
-        raise HTTPException(status_code=404, detail=f"No profile found for light {address}")
-    logger.info(f"Retrieved profile for light {address}")
+        # Return a default configuration for new devices with minimal viable structure
+        from uuid import uuid4
+
+        from ..storage import ChannelDef, LightConfiguration, LightProfileRevision, ManualProfile
+        from ..utils.time import now_iso
+
+        now = now_iso()
+        config_id = str(uuid4())
+
+        # Try to get existing metadata (device name)
+        metadata = storage.get_light_metadata(address)
+
+        # Create a default manual profile with a single white channel
+        default_profile = ManualProfile(
+            mode="manual",
+            levels={"white": 0},
+        )
+
+        default_revision = LightProfileRevision(
+            revision=1,
+            savedAt=now,
+            profile=default_profile,
+            note="Auto-generated default configuration",
+        )
+
+        default_config = LightConfiguration(
+            id=config_id,
+            name="Default Configuration",
+            revisions=[default_revision],
+            createdAt=now,
+            updatedAt=now,
+        )
+
+        # Create a single default channel (white)
+        default_channels = [
+            ChannelDef(
+                key="white",
+                label="White",
+                min=0,
+                max=100,
+                step=1,
+            )
+        ]
+
+        device = LightDevice(
+            id=address,
+            name=metadata.name if metadata else None,
+            channels=default_channels,
+            configurations=[default_config],
+            activeConfigurationId=config_id,
+            createdAt=now,
+            updatedAt=now,
+        )
+        logger.info(f"Returning default configuration for new light {address}")
+    else:
+        logger.info(f"Retrieved profile for light {address}")
     return device
 
 

@@ -67,7 +67,7 @@ function getLightChannelNames(deviceId: string): string[] {
 }
 
 /**
- * Show the doser device settings modal - for commands and schedules (visual only)
+ * Show the doser device settings modal - for commands and schedules
  * Uses API DoserDevice type which includes configurations array
  */
 export function showDoserDeviceSettingsModal(device: APIDoserDevice): void {
@@ -87,6 +87,12 @@ export function showDoserDeviceSettingsModal(device: APIDoserDevice): void {
   `;
 
   document.body.appendChild(modal);
+
+  // Store the device data on the modal element for interactions
+  const modalContent = modal.querySelector('.modal-content.doser-config-modal') as HTMLElement;
+  if (modalContent) {
+    (modalContent as any)._doserDeviceData = device;
+  }
 
   // Close on background click
   modal.addEventListener('click', (e) => {
@@ -118,6 +124,12 @@ export function showLightDeviceSettingsModal(device: APILightDevice): void {
 
   document.body.appendChild(modal);
 
+  // Store the device data on the modal element for tab switching
+  const modalContent = modal.querySelector('.modal-content.light-settings-modal') as HTMLElement;
+  if (modalContent) {
+    (modalContent as any)._lightDeviceData = device;
+  }
+
   // Close on background click
   modal.addEventListener('click', (e) => {
     if (e.target === modal) {
@@ -127,7 +139,7 @@ export function showLightDeviceSettingsModal(device: APILightDevice): void {
 }
 
 /**
- * Render the doser device settings interface (visual only)
+ * Render the doser device settings interface
  */
 function renderDoserDeviceSettingsInterface(device: APIDoserDevice): string {
   return `
@@ -169,16 +181,21 @@ function renderHeadSelector(device: APIDoserDevice): string {
   // Extract heads from active configuration if available
   let configuredHeads: DoserHeadData[] = [];
   
-  if (device.configurations && device.configurations.length > 0) {
-    const activeConfig = device.configurations.find(c => c.id === device.activeConfigurationId) || device.configurations[0];
-    
-    if (activeConfig && activeConfig.revisions && activeConfig.revisions.length > 0) {
-      const latestRevision = activeConfig.revisions[activeConfig.revisions.length - 1];
+  try {
+    if (device.configurations && device.configurations.length > 0) {
+      const activeConfig = device.configurations.find(c => c.id === device.activeConfigurationId) || device.configurations[0];
       
-      if (latestRevision.heads) {
-        configuredHeads = latestRevision.heads as DoserHeadData[];
+      if (activeConfig && activeConfig.revisions && activeConfig.revisions.length > 0) {
+        const latestRevision = activeConfig.revisions[activeConfig.revisions.length - 1];
+        
+        if (latestRevision.heads && Array.isArray(latestRevision.heads)) {
+          configuredHeads = latestRevision.heads as DoserHeadData[];
+        }
       }
     }
+  } catch (error) {
+    console.warn('Error extracting configured heads, will use defaults:', error);
+    configuredHeads = [];
   }
 
   // Ensure we have all 4 heads
@@ -287,25 +304,45 @@ function selectDoseHead(headIndex: number): void {
 
   // Retrieve device data from Zustand store instead of DOM
   const zustandState = deviceStore.getState();
-  const device = zustandState.configurations.dosers.get(deviceId);
+  
+  // Try to get from configurations first, then fall back to devices map for unconfigured devices
+  let device: any = zustandState.configurations.dosers.get(deviceId);
   if (!device) {
-    console.error('No device configuration found in store for:', deviceId);
-    return;
+    // For new devices with no configuration, get basic device info from devices map
+    const deviceState = zustandState.devices.get(deviceId);
+    if (deviceState?.status) {
+      // Create a minimal device object with just the ID for new devices
+      const metadata = deviceState.status.metadata as any;
+      device = {
+        id: deviceId,
+        name: metadata?.name || deviceState.status.address,
+        kind: 'doser',
+        headNames: metadata?.headNames || {}
+      };
+    } else {
+      console.error('No device found in store for:', deviceId);
+      return;
+    }
   }
 
   // Extract head data from the active configuration
   let headData: DoserHeadData | null = null;
   
-  if (device.configurations && device.configurations.length > 0) {
-    const activeConfig = device.configurations.find(c => c.id === device.activeConfigurationId) || device.configurations[0];
-    
-    if (activeConfig && activeConfig.revisions && activeConfig.revisions.length > 0) {
-      const latestRevision = activeConfig.revisions[activeConfig.revisions.length - 1];
+  try {
+    if (device.configurations && device.configurations.length > 0) {
+      const activeConfig = device.configurations.find((c: any) => c.id === device.activeConfigurationId) || device.configurations[0];
       
-      if (latestRevision.heads) {
-        headData = (latestRevision.heads as DoserHeadData[]).find(h => h.index === headIndex) || null;
+      if (activeConfig && activeConfig.revisions && activeConfig.revisions.length > 0) {
+        const latestRevision = activeConfig.revisions[activeConfig.revisions.length - 1];
+        
+        if (latestRevision.heads && Array.isArray(latestRevision.heads)) {
+          headData = (latestRevision.heads as DoserHeadData[]).find(h => h.index === headIndex) || null;
+        }
       }
     }
+  } catch (error) {
+    console.warn('Error extracting head data, will use defaults:', error);
+    headData = null;
   }
 
   // Fallback to default values if no saved configuration exists
@@ -700,18 +737,23 @@ function switchLightSettingsTab(mode: 'manual' | 'auto'): void {
     return;
   }
 
-  const deviceId = modal.getAttribute('data-device-id');
-  if (!deviceId) {
-    console.error('Device ID not found on modal element');
-    return;
-  }
-
-  // Retrieve device data from Zustand store
-  const zustandState = deviceStore.getState();
-  const device = zustandState.configurations.lights.get(deviceId);
+  // Try to get device from stored data first (populated when modal is created)
+  let device = (modal as any)._lightDeviceData;
+  
   if (!device) {
-    console.error('No device configuration found in store for:', deviceId);
-    return;
+    // Fallback: retrieve device data from Zustand store
+    const deviceId = modal.getAttribute('data-device-id');
+    if (!deviceId) {
+      console.error('Device ID not found on modal element');
+      return;
+    }
+
+    const zustandState = deviceStore.getState();
+    device = zustandState.configurations.lights.get(deviceId);
+    if (!device) {
+      console.error('No device configuration found in store for:', deviceId);
+      return;
+    }
   }
 
   console.log('Rendering tab for mode:', mode);

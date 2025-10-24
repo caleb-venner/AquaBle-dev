@@ -23,7 +23,6 @@ from bleak_retry_connector import BleakConnectionError, BleakNotFoundError
 from fastapi import HTTPException
 
 from . import utils as _utils
-from .commands import encoder as commands
 from .commands import ops as device_commands
 from .constants import BLE_STATUS_CAPTURE_WAIT
 from .device import get_device_from_address, get_model_class_from_name
@@ -783,7 +782,7 @@ class BLEService:
         volume_tenths_ml: int,
         hour: int,
         minute: int,
-        weekdays: Optional[Sequence[commands.PumpWeekday]] = None,
+        weekdays: Sequence[str] | None = None,
         confirm: bool = False,
         wait_seconds: float = 1.5,
     ) -> CachedStatus:
@@ -838,7 +837,7 @@ class BLEService:
         sunset: _time,
         brightness: int,
         ramp_up_minutes: int = 0,
-        weekdays: list[commands.LightWeekday] | None = None,
+        weekdays: Sequence[str] | None = None,
     ) -> CachedStatus:
         """Add an auto program to a light device."""
         return await device_commands.add_light_auto_setting(

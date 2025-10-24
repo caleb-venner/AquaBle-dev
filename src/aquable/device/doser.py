@@ -19,7 +19,6 @@ class Doser(BaseDevice):
     status_serializer: ClassVar[str | None] = "serialize_doser_status"
     _model_name = "Dosing Pump"
     _model_codes = ["DYDOSE"]
-    _colors: dict[str, int] = {}
 
     _last_status: DoserStatus | None = None
 

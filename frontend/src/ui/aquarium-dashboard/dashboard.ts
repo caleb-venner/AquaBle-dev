@@ -110,47 +110,28 @@ export function initializeDashboardHandlers(): void {
 
   // Legacy device settings (for command interface)
   (window as any).openDeviceSettings = async (address: string, deviceType: string) => {
-    if (deviceType === 'doser') {
-      const { showDoserDeviceSettingsModal } = await import('./modals/device-modals');
-      const { getDoserConfiguration } = await import('../../api/configurations');
+    const { showDoserDeviceSettingsModal, showLightDeviceSettingsModal } = await import('./modals/device-modals');
+    
+    try {
+      // Refresh device configuration from API and update store
+      const device = await deviceStore.getState().actions.refreshDeviceConfig(
+        address, 
+        deviceType as 'doser' | 'light'
+      );
       
-      try {
-        // Load actual saved configuration data
-        const doserDevice = await getDoserConfiguration(address);
-        showDoserDeviceSettingsModal(doserDevice);
-      } catch (error) {
-        console.error('Failed to load doser configuration:', error);
-        // Fallback to empty device if configuration doesn't exist
-        const doserDevice = {
-          id: address,
-          name: undefined,
-          heads: [],
-          configurations: [],
-          activeConfigurationId: undefined
-        };
-        showDoserDeviceSettingsModal(doserDevice);
+      // Show modal with fresh data from store
+      if (deviceType === 'doser') {
+        showDoserDeviceSettingsModal(device as any);
+      } else if (deviceType === 'light') {
+        showLightDeviceSettingsModal(device as any);
       }
-    } else if (deviceType === 'light') {
-      const { showLightDeviceSettingsModal } = await import('./modals/device-modals');
-      const { getLightConfiguration } = await import('../../api/configurations');
-      
-      try {
-        // Load actual saved configuration data
-        const lightDevice = await getLightConfiguration(address);
-        showLightDeviceSettingsModal(lightDevice);
-      } catch (error) {
-        console.error('Failed to load light configuration:', error);
-        // Fallback to empty device if configuration doesn't exist
-        const lightDevice = {
-          id: address,
-          name: undefined,
-          channels: [],
-          configurations: [],
-          activeConfigurationId: undefined,
-          profile: { mode: 'manual' as const, levels: {} }
-        };
-        showLightDeviceSettingsModal(lightDevice);
-      }
+    } catch (error) {
+      console.error(`Failed to load ${deviceType} configuration:`, error);
+      deviceStore.getState().actions.addNotification({
+        type: 'error',
+        message: `Failed to load ${deviceType} settings`,
+        autoHide: true,
+      });
     }
   };
 
