@@ -73,15 +73,20 @@ async def device_session(address: str) -> AsyncIterator[BaseDevice]:
 
 @dataclass(slots=True)
 class CachedStatus:
-    """Serialized snapshot for persistence."""
+    """Ultra-minimal device runtime status snapshot.
+
+    Contains ONLY connection state and timestamp. All other device data
+    (parsed status, raw payloads, configurations, metadata) is stored
+    separately in device JSON files and accessed via configuration API.
+
+    This minimal structure eliminates API payload duplication since
+    parsed/raw data is already persisted to ~/.aquable/devices/{address}.json.
+    """
 
     address: str
     device_type: str
-    raw_payload: str | None
-    parsed: Dict[str, Any] | None
+    connected: bool
     updated_at: float
-    model_name: str | None = None
-    channels: Dict[str, int] | None = None
 
 
 def filter_supported_devices(
@@ -418,41 +423,42 @@ class BLEService:
                 raise
         raw_payload = getattr(status_obj, "raw_payload", None)
         raw_hex = raw_payload.hex() if isinstance(raw_payload, (bytes, bytearray)) else None
-        # For light devices, capture color channels; for others, None
-        channels = getattr(device, "colors", None) if normalized == "light" else None
+        model_name = getattr(device, "model_name", None)
+        timestamp = time.time()
+
+        # Ultra-minimal CachedStatus for API responses
         cached = CachedStatus(
             address=address,
             device_type=normalized,
-            raw_payload=raw_hex,
-            parsed=parsed,
-            updated_at=time.time(),
-            model_name=getattr(device, "model_name", None),
-            channels=channels,
+            connected=True,  # Device is connected if we got status
+            updated_at=timestamp,
         )
+
         if persist:
-            # Update device file with new status (no in-memory cache needed)
+            # Persist full status details to device JSON file
             status_dict = {
-                "model_name": cached.model_name,
-                "raw_payload": cached.raw_payload,
-                "parsed": cached.parsed,
-                "updated_at": cached.updated_at,
-                "channels": cached.channels,
+                "model_name": model_name,
+                "raw_payload": raw_hex,
+                "parsed": parsed,
+                "updated_at": timestamp,
             }
             storage = self._get_storage_for_type(normalized)
             storage.update_device_status(address, status_dict)
             logger.debug(f"Updated device file for {address}")
         return cached
 
-    async def _load_device_configuration(self, address: str, device_kind: str) -> None:
+    async def _load_device_configuration(
+        self, address: str, device_kind: str, device_model: BaseDevice | None = None
+    ) -> None:
         """Load saved configuration for a device after connection.
 
-        Only loads existing configurations - does not auto-create new ones.
-        Configurations should be explicitly created when users edit/create them
-        or send commands that require persistence.
+        If no configuration exists, creates and saves a skeleton configuration
+        so that the device can be immediately edited without a separate creation step.
 
         Args:
             address: Device MAC address
             device_kind: Type of device ('doser' or 'light')
+            device_model: Optional device model instance to extract color order
         """
         if device_kind == "doser":
             saved_config = self._doser_storage.get_device(address)
@@ -462,9 +468,12 @@ class BLEService:
                     f"with {len(saved_config.configurations)} configuration(s)"
                 )
             else:
-                logger.debug(
-                    f"No saved configuration found for doser {address} "
-                    "(will be created when user configures device)"
+                # Create and save a default skeleton configuration
+                default_config = self._doser_storage.create_default_device(address)
+                self._doser_storage.upsert_device(default_config)
+                logger.info(
+                    f"Created skeleton configuration for doser {address} "
+                    f"(will be updated when user configures device)"
                 )
 
         elif device_kind == "light":
@@ -475,9 +484,19 @@ class BLEService:
                     f"with {len(saved_profile.configurations)} configuration(s)"
                 )
             else:
-                logger.debug(
-                    f"No saved profile found for light {address} "
-                    "(will be created when user configures device)"
+                # Create and save a default skeleton configuration
+                # Use device-specific color order if available
+                colors_order = None
+                if device_model and hasattr(device_model, "_colors"):
+                    colors_order = device_model._colors
+
+                default_config = self._light_storage.create_default_device(
+                    address, colors_order=colors_order
+                )
+                self._light_storage.upsert_device(default_config)
+                logger.info(
+                    f"Created skeleton profile for light {address} "
+                    f"(will be updated when user configures device)"
                 )
 
     async def _load_state(self) -> None:
@@ -531,15 +550,13 @@ class BLEService:
         for device_info in all_devices:
             last_status = device_info.get("last_status")
             if last_status:
-                # Convert status dict to CachedStatus
+                # Convert status dict to ultra-minimal CachedStatus
+                # (connected status inferred from presence of last_status)
                 cached = CachedStatus(
                     address=device_info["device_id"],
                     device_type=device_info["device_type"],
-                    raw_payload=last_status.get("raw_payload"),
-                    parsed=last_status.get("parsed"),
-                    updated_at=last_status.get("updated_at"),
-                    model_name=last_status.get("model_name"),
-                    channels=last_status.get("channels"),
+                    connected=False,  # Assume disconnected if loading from storage
+                    updated_at=last_status.get("updated_at", 0.0),
                 )
                 snapshot[device_info["device_id"]] = cached
 
@@ -623,8 +640,8 @@ class BLEService:
         if device_kind is None:
             raise HTTPException(status_code=400, detail="Unsupported device type")
 
-        # Load saved configuration if available
-        await self._load_device_configuration(address, device_kind)
+        # Load saved configuration if available, passing device model for color order
+        await self._load_device_configuration(address, device_kind, device_model=device)
 
         # Request and parse status to populate initial data
         try:
@@ -667,28 +684,23 @@ class BLEService:
 
             raw_payload = getattr(status_obj, "raw_payload", None)
             raw_hex = raw_payload.hex() if isinstance(raw_payload, (bytes, bytearray)) else None
-            # For light devices, capture color channels; for others, None
-            channels = getattr(device, "colors", None) if device_kind == "light" else None
+            model_name = getattr(device, "model_name", None)
 
-            # Create and persist status
+            # Create ultra-minimal CachedStatus and persist full data
             timestamp = time.time()
             cached_status = CachedStatus(
                 address=address,
                 device_type=device_kind,
-                raw_payload=raw_hex,
-                parsed=parsed,
+                connected=True,
                 updated_at=timestamp,
-                model_name=getattr(device, "model_name", None),
-                channels=channels,
             )
 
-            # Persist to storage
+            # Persist full status details to device JSON file
             status_dict = {
-                "model_name": cached_status.model_name,
-                "raw_payload": cached_status.raw_payload,
-                "parsed": cached_status.parsed,
-                "updated_at": cached_status.updated_at,
-                "channels": cached_status.channels,
+                "model_name": model_name,
+                "raw_payload": raw_hex,
+                "parsed": parsed,
+                "updated_at": timestamp,
             }
             storage = self._get_storage_for_type(device_kind.lower())
             storage.update_device_status(address, status_dict)
@@ -802,9 +814,15 @@ class BLEService:
     # Light settings
 
     async def set_light_brightness(
-        self, address: str, *, brightness: int, color: str | int = 0
+        self, address: str, *, brightness: int, color: int = 0
     ) -> CachedStatus:
-        """Set brightness (and optional color) for a light device."""
+        """Set brightness for a specific channel on a light device.
+
+        Args:
+            address: Device MAC address
+            brightness: Brightness value (0-100)
+            color: Channel index (0-based integer), defaults to 0
+        """
         return await device_commands.set_light_brightness(
             self, address, brightness=brightness, color=color
         )

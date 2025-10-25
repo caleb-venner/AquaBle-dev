@@ -2,11 +2,11 @@
 
 import { fetchJson, postJson } from "./http";
 import type {
-  CachedStatus,
+  DeviceStatus,
   StatusResponse,
   LiveStatusResponse,
   ScanDevice
-} from "../types/models";
+} from "../types/api";
 
 /**
  * Get cached status for all devices
@@ -25,8 +25,8 @@ export async function getLiveStatus(): Promise<LiveStatusResponse> {
 /**
  * Connect to a specific device and return its updated status
  */
-export async function connectDevice(address: string): Promise<CachedStatus> {
-  return postJson<CachedStatus>(`api/devices/${encodeURIComponent(address)}/connect`, {});
+export async function connectDevice(address: string): Promise<DeviceStatus> {
+  return postJson<DeviceStatus>(`api/devices/${encodeURIComponent(address)}/connect`, {});
 }
 
 /**

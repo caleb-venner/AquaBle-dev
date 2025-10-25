@@ -3,7 +3,7 @@
  */
 
 import { getDeviceStatus } from "../../../api/devices";
-import type { StatusResponse } from "../../../types/models";
+import type { StatusResponse } from "../../../types/api";
 import { deviceStore } from "../../../stores/deviceStore";
 import {
   cacheService,
@@ -31,9 +31,20 @@ export async function loadAllDashboardData(): Promise<void> {
       const newStatus = await getDeviceStatus();
       
       // Update device status in Zustand store
-      Object.entries(newStatus).forEach(([address, status]) => {
+      const configPromises: Promise<any>[] = [];
+      
+      for (const [address, status] of Object.entries(newStatus)) {
         actions.updateDevice(address, status);
-      });
+        
+        // Fetch configuration for each device
+        console.log(`📥 Fetching configuration for ${address}...`);
+        const configPromise = actions.refreshDeviceConfig(address, status.device_type as 'doser' | 'light')
+          .catch(err => console.error(`Failed to load config for ${address}:`, err));
+        configPromises.push(configPromise);
+      }
+      
+      // Wait for all configurations to load
+      await Promise.allSettled(configPromises);
       
       console.log("✅ Device status loaded:", Object.keys(newStatus).length, "devices");
     } catch (statusErr) {

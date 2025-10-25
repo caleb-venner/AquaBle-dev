@@ -11,10 +11,9 @@
  * - Types are properly defined for TypeScript safety
  */
 
-import type { DoserDevice as UIDoserDevice, LightDevice as UILightDevice } from "../../../types/models";
-import type { DoserDevice as APIDoserDevice, LightDevice as APILightDevice, DoserHead } from "../../../api/configurations";
+import type { DoserDevice as APIDoserDevice, LightDevice as APILightDevice } from "../../../api/configurations";
 import { executeCommand } from "../../../api/commands";
-import type { CommandRequest } from "../../../types/models";
+import type { CommandRequest } from "../../../types/api";
 import { deviceStore } from "../../../stores/deviceStore";
 
 /**
@@ -312,12 +311,12 @@ function selectDoseHead(headIndex: number): void {
     const deviceState = zustandState.devices.get(deviceId);
     if (deviceState?.status) {
       // Create a minimal device object with just the ID for new devices
-      const metadata = deviceState.status.metadata as any;
+      // Note: Names and metadata come from configuration, not status
       device = {
         id: deviceId,
-        name: metadata?.name || deviceState.status.address,
+        name: deviceState.status.address, // Fallback to address for unconfigured devices
         kind: 'doser',
-        headNames: metadata?.headNames || {}
+        headNames: {} // Empty until configured
       };
     } else {
       console.error('No device found in store for:', deviceId);
@@ -862,13 +861,10 @@ async function sendLightAutoModeCommand(address: string): Promise<void> {
       return;
     }
 
-    // Build channel brightness dict (assuming Red, Green, Blue, White order)
-    const channelNames = ['red', 'green', 'blue', 'white'];
+    // Build channel brightness dict using channel indices (0, 1, 2, 3)
     const channels: { [key: string]: number } = {};
-    channelNames.forEach((name, index) => {
-      if (index < channelValues.length) {
-        channels[name] = channelValues[index];
-      }
+    channelValues.forEach((value, index) => {
+      channels[index.toString()] = value;
     });
 
     // Send command to add auto setting
@@ -971,7 +967,7 @@ async function sendDoserScheduleCommand(address: string, headIndex: number): Pro
     const volumeTenthsMl = Math.round(doseAmount * 10);
 
     const args = {
-      head_index: headIndex - 1, // Backend uses 0-based indexing
+      head_index: headIndex, // Backend uses 1-based indexing
       volume_tenths_ml: volumeTenthsMl,
       hour,
       minute,

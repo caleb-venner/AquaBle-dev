@@ -1,17 +1,19 @@
-// Type Guard Functions and Type Predicates
-// These functions help with runtime type checking and narrowing
+/**
+ * Type Guard Functions
+ * Runtime type checking and type narrowing utilities
+ */
 
-import type { CachedStatus, LightParsed, DoserParsed, CommandRecord, CommandStatus } from './backend-models';
+import type { DeviceStatus, LightParsed, DoserParsed, CommandRecord, CommandStatus } from './api';
 
 // ========================================
 // DEVICE TYPE GUARDS
 // ========================================
 
-export function isLightDevice(device: CachedStatus): device is CachedStatus & { device_type: "light" } {
+export function isLightDevice(device: DeviceStatus): device is DeviceStatus & { device_type: "light" } {
   return device.device_type === "light";
 }
 
-export function isDoserDevice(device: CachedStatus): device is CachedStatus & { device_type: "doser" } {
+export function isDoserDevice(device: DeviceStatus): device is DeviceStatus & { device_type: "doser" } {
   return device.device_type === "doser";
 }
 

@@ -3,7 +3,7 @@
  */
 
 import { deviceStore } from "../../../stores/deviceStore";
-import type { CachedStatus } from "../../../types/models";
+import type { DeviceStatus } from "../../../types/api";
 import { renderDeviceSection } from "../devices/device-card";
 
 /**
@@ -13,10 +13,10 @@ export function renderOverviewTab(): string {
   const state = deviceStore.getState();
 
   // Convert device Map to array of connected devices
-  const devices: (CachedStatus & { address: string })[] = Array.from(state.devices.values())
+  const devices: (DeviceStatus & { address: string })[] = Array.from(state.devices.values())
     .filter(device => device.status?.connected)
     .map(device => ({
-      ...(device.status as CachedStatus),
+      ...(device.status as DeviceStatus),
       address: device.address
     }));
 

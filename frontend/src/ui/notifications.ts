@@ -1,7 +1,7 @@
 // Notification system for user feedback
 
 import { useNotifications, useActions } from "../stores/deviceStore";
-import type { Notification } from "../types/models";
+import type { Notification } from "../types/store";
 
 export function createNotificationSystem(): void {
   const container = document.createElement("div");

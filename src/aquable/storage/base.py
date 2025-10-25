@@ -75,6 +75,9 @@ class BaseDeviceStorage(ABC, Generic[TDevice]):
     def _get_device_file_path(self, device_id: str) -> Path:
         """Get the file path for a specific device.
 
+        Handles both underscore-escaped format (AA_BB_CC_DD_EE_FF) and
+        colon format (AA:BB:CC:DD:EE:FF) for backward compatibility.
+
         Args:
             device_id: Device identifier (MAC address)
 
@@ -82,31 +85,29 @@ class BaseDeviceStorage(ABC, Generic[TDevice]):
             Path to the device's configuration file
         """
         safe_id = device_id.replace(":", "_")
-        return self._storage_dir / f"{safe_id}.json"
+        escaped_path = self._storage_dir / f"{safe_id}.json"
+
+        # If the underscore-escaped version exists, use it
+        if escaped_path.exists():
+            return escaped_path
+
+        # Otherwise, try the colon version for backward compatibility with old files
+        colon_path = self._storage_dir / f"{device_id}.json"
+        if colon_path.exists():
+            return colon_path
+
+        # If neither exists, return the preferred escaped format for new files
+        return escaped_path
 
     def _load_all_metadata_from_disk(self) -> None:
         """Load metadata from all device files on startup.
 
-        This ensures that metadata for newly discovered devices without
-        full configurations is loaded from disk.
+        DEPRECATED: Metadata is now stored in device_data. This method is kept
+        for backward compatibility but is effectively a no-op.
         """
-        try:
-            for device_file in self._list_device_files():
-                try:
-                    raw = device_file.read_text(encoding="utf-8").strip()
-                    if not raw:
-                        continue
-
-                    data = json.loads(raw)
-                    device_id = data.get("device_id", device_file.stem)
-
-                    # Load metadata if present
-                    if "metadata" in data and data["metadata"]:
-                        self._metadata_dict[device_id] = data["metadata"]
-                except (json.JSONDecodeError, OSError) as exc:
-                    logger.warning(f"Could not read metadata from {device_file}: {exc}")
-        except OSError as exc:
-            logger.warning(f"Could not load metadata from disk: {exc}")
+        # Metadata is now part of the device configuration (device_data)
+        # This method is kept for backward compatibility but does nothing
+        pass
 
     def _read_device_file(self, device_id: str) -> TDevice | None:
         """Read a single device from its JSON file (unified format).
@@ -137,16 +138,10 @@ class BaseDeviceStorage(ABC, Generic[TDevice]):
                 return None
 
             # Extract device_data (configuration)
+            # Metadata is now stored within device_data, not separately
             device_data = data.get("device_data")
 
-            # Load metadata into shared dict if present
-            if "metadata" in data and data["metadata"]:
-                self._metadata_dict[device_id] = data["metadata"]
-                # Merge metadata into device_data for model validation
-                if device_data is not None:
-                    device_data = {**device_data, **data["metadata"]}
-
-            # If device_data is None, this is a metadata-only file
+            # If device_data is None, this is a metadata-only file (legacy format)
             if device_data is None:
                 return None
 
@@ -159,6 +154,7 @@ class BaseDeviceStorage(ABC, Generic[TDevice]):
         """Write a device to its JSON file atomically (unified format).
 
         Preserves existing last_status if present in the file.
+        Metadata is now stored within device_data.
 
         Args:
             device_file: Path to the device file
@@ -179,17 +175,13 @@ class BaseDeviceStorage(ABC, Generic[TDevice]):
         # Get device id from the device model
         device_id = getattr(device, "id")
 
-        # Build unified device file
+        # Build unified device file (metadata no longer separate)
         data = {
             "device_type": self.device_type,
             "device_id": device_id,
             "last_updated": _now_iso(),
             "device_data": device.model_dump(mode="json"),
         }
-
-        # Add metadata if present
-        if device_id in self._metadata_dict:
-            data["metadata"] = self._metadata_dict[device_id]
 
         # Preserve last_status if it existed
         if existing_last_status:
@@ -201,41 +193,17 @@ class BaseDeviceStorage(ABC, Generic[TDevice]):
         tmp_file.replace(device_file)
 
     def _write_metadata_file(self, device_id: str, metadata: dict) -> None:
-        """Write metadata-only file for a device.
+        """DEPRECATED: Write metadata-only file for a device.
 
-        This is used for devices without full configurations yet. Preserves
-        existing device_data and last_status if the file already exists.
+        This method is deprecated as metadata is now stored within device_data.
+        It is kept for backward compatibility but does nothing.
 
         Args:
             device_id: Device identifier (MAC address)
-            metadata: Metadata dictionary to write
+            metadata: Metadata dictionary to write (ignored)
         """
-        device_file = self._get_device_file_path(device_id)
-        device_file.parent.mkdir(parents=True, exist_ok=True)
-
-        # Read existing file if it exists to preserve device_data and last_status
-        existing_data = {}
-        if device_file.exists():
-            try:
-                existing_data = json.loads(device_file.read_text(encoding="utf-8"))
-            except (json.JSONDecodeError, OSError):
-                pass
-
-        # Update or create file with metadata
-        data = existing_data or {
-            "device_type": self.device_type,
-            "device_id": device_id,
-            "last_updated": _now_iso(),
-        }
-
-        # Update metadata and timestamp
-        data["metadata"] = metadata
-        data["last_updated"] = _now_iso()
-
-        # Atomic write using temporary file
-        tmp_file = device_file.with_suffix(".tmp")
-        tmp_file.write_text(json.dumps(data, indent=2, sort_keys=True), encoding="utf-8")
-        tmp_file.replace(device_file)
+        # Metadata is now part of device_data. This method is deprecated.
+        pass
 
     def _list_device_files(self) -> list[Path]:
         """List all device JSON files in the storage directory.
@@ -272,6 +240,62 @@ class BaseDeviceStorage(ABC, Generic[TDevice]):
             Device model instance or None
         """
         return self._read_device_file(device_id)
+
+    def get_device_with_status(self, device_id: str) -> dict | None:
+        """Return device configuration with last_status included for API responses.
+
+        This reads the complete device file including the last_status field,
+        useful for frontend display of live device information.
+
+        Args:
+            device_id: Device identifier (MAC address)
+
+        Returns:
+            Dictionary containing device data and last_status, or None if not found
+        """
+        device_file = self._get_device_file_path(device_id)
+        if not device_file.exists():
+            return None
+
+        try:
+            raw = device_file.read_text(encoding="utf-8").strip()
+            if not raw:
+                return None
+
+            data = json.loads(raw)
+
+            # Validate device type matches
+            if data.get("device_type") != self.device_type:
+                logger.warning(
+                    f"Device file {device_file} has wrong type: "
+                    f"expected {self.device_type}, got {data.get('device_type')}"
+                )
+                return None
+
+            # Extract device_data
+            device_data = data.get("device_data")
+            if device_data is None:
+                return None
+
+            # Validate the device_data
+            self._validate_device(device_data)
+
+            # Build response with device_data and optional last_status
+            response = device_data.copy() if isinstance(device_data, dict) else device_data
+            if "last_status" in data:
+                if isinstance(response, dict):
+                    response["last_status"] = data["last_status"]
+                else:
+                    # If response is a Pydantic model, convert to dict and add last_status
+                    response = {
+                        **response.model_dump(mode="json"),
+                        "last_status": data["last_status"],
+                    }
+
+            return response
+        except (json.JSONDecodeError, ValueError) as exc:
+            logger.error(f"Could not parse device file {device_file}: {exc}")
+            return None
 
     def upsert_device(self, device: TDevice | dict) -> TDevice:
         """Insert or update a device and persist to its individual file.

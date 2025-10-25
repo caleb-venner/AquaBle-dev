@@ -119,31 +119,30 @@ class CommandRecord:
 class LightBrightnessArgs(BaseModel):
     """Arguments for set_brightness command.
 
-    Normalizes to list format internally: [brightness] represents single channel,
-    expanded to [0, 0, brightness, 0] for specific color index during processing.
+    Uses 0-indexed channel specification: color field must be a channel index (0, 1, 2, etc.)
+    corresponding to the device's channel order (e.g., 0=Red, 1=Green, 2=Blue, 3=White for RGBW).
     """
 
-    brightness: int = Field(..., ge=0, le=100)
-    color: int = Field(..., description="Channel/color index")
+    brightness: int = Field(..., ge=0, le=100, description="Brightness level (0-100)")
+    color: int = Field(..., ge=0, description="Channel index (0-based)")
 
     @field_validator("color")
     @classmethod
     def validate_color_index(cls, v: int) -> int:
-        """Validate color/channel index for light devices.
+        """Validate channel index for light devices.
 
-        TODO: Make this validation device-aware based on device type/capabilities.
-        For now, allow any non-negative integer as channel indices will be
-        validated against actual device capabilities at command execution time.
+        Channel index must be non-negative. Specific device validation
+        (e.g., RGBW has 4 channels 0-3) occurs at command execution time.
         """
         if v < 0:
-            raise ValueError(f"Color index must be non-negative, got {v}")
+            raise ValueError(f"Channel index must be non-negative, got {v}")
         return v
 
 
 class DoserScheduleArgs(BaseModel):
     """Arguments for set_schedule command."""
 
-    head_index: int = Field(..., description="Doser head index (0-3)")
+    head_index: int = Field(..., description="Doser head index (1-4)")
     volume_tenths_ml: int = Field(
         ..., ge=0, le=65535, description="Volume in tenths of ml (0-6553.5ml)"
     )
@@ -158,11 +157,11 @@ class DoserScheduleArgs(BaseModel):
     def validate_head_index(cls, v: int) -> int:
         """Validate head index for doser devices.
 
-        Currently supports 4-head devices (indices 0-3).
-        TODO: Add support for 2-head devices (indices 0-1).
+        Currently supports 4-head devices (indices 1-4).
+        TODO: Add support for 2-head devices (indices 1-2).
         """
-        if not (0 <= v <= 3):
-            raise ValueError(f"Head index must be 0-3 for 4-head doser devices, got {v}")
+        if not (1 <= v <= 4):
+            raise ValueError(f"Head index must be 1-4 for 4-head doser devices, got {v}")
         return v
 
     @field_validator("weekdays", mode="before")

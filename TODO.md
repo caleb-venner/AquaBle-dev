@@ -2,19 +2,24 @@
 
 ## General -
 
+### Test list
+
+- Connect 4-channel light --> Check it shows 4 channels
+- Save doser schedule --> Check no "Lock acquisition failed" errors
+- Modify light auto mode --> Check no "_unified_storage" errors
+- Device modals --> Check tab switching works with and without saved config
+- When new light automode config is sent and saved --> dynamic reload of device card and settings window.
+
 ### Urgent
 
-- Data types getting convoluted. Status, settings, config, file, memory. Especially doser.
-- Still need to nail down metdata + payload --> doser settings modal, overall and head specific.
-- Correctly pass light status payload; need to refine time-check logic. Placeholders inserted.
+- Correctly pass light status payload (keyframes); need to refine time-check logic. Placeholders inserted.
   [Lines 202 -> 336](src/aquable/storage/models.py#L204)
-- Correct doser lifetime status payload; currently not correctly integration to device state.
+- Correct doser lifetime status payload; currently not correctly integrating to device state.
 - Implement remaining doser payload decode. (0x22 (today's dose))
 
 ### UI
 
-- When new light automode config is sent and saved --> dynamic reload of device card and settings window.
-- Add placeholder text on light device cards that have no settings saved.
+- Disabled head on device card shows 'disabled disabled'
 - Need to decide when/what triggers a payload status request from devies
 - Doser Heads not displayed correctly when in dark mode
 

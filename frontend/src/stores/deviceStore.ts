@@ -5,14 +5,16 @@ import { createStore } from "zustand/vanilla";
 import type { StateCreator, StoreApi } from "zustand";
 import { subscribeWithSelector } from "zustand/middleware";
 import type {
-  CachedStatus,
+  DeviceStatus,
+  CommandRecord,
+  CommandRequest,
+} from "../types/api";
+import type {
   DeviceState,
   QueuedCommand,
   UIState,
-  CommandRecord,
   Notification,
-  CommandRequest,
-} from "../types/models";
+} from "../types/store";
 import { getErrorMessage } from "../errors";
 
 // ========================================
@@ -53,8 +55,8 @@ interface DeviceStore {
     getDeviceConfig: (address: string, deviceType: 'doser' | 'light') => import('../api/configurations').DoserDevice | import('../api/configurations').LightDevice | null;
 
     // Device management
-    setDevices: (devices: CachedStatus[]) => void;
-    updateDevice: (address: string, status: CachedStatus) => void;
+    setDevices: (devices: DeviceStatus[]) => void;
+    updateDevice: (address: string, status: DeviceStatus) => void;
     setDeviceLoading: (address: string, loading: boolean) => void;
     setDeviceError: (address: string, error: string | null) => void;
 
@@ -114,16 +116,13 @@ const storeInitializer: StateCreator<DeviceStore> = (set, get) => ({
       // Configuration management
       loadConfigurations: async () => {
         try {
-          const { getDoserConfigurations, getLightConfigurations } = await import("../api/configurations");
-          const [dosers, lights] = await Promise.all([
-            getDoserConfigurations(),
-            getLightConfigurations()
-          ]);
-
-          get().actions.setConfigurations(dosers, lights);
+          // Note: Old list endpoints (/api/configurations/dosers, /lights) have been removed.
+          // Configurations are now loaded on-demand when viewing specific devices.
+          // This method is kept for backward compatibility but does nothing.
+          console.log("Configuration auto-loading is deprecated; configurations are loaded on-demand");
         } catch (error) {
           console.error("Failed to load configurations:", error);
-          get().actions.setGlobalError("Failed to load device configurations");
+          // Don't set global error since this is now optional
         }
       },
 
@@ -160,61 +159,44 @@ const storeInitializer: StateCreator<DeviceStore> = (set, get) => ({
         try {
           console.log(`Refreshing ${deviceType} config for ${address}`);
           
-          if (deviceType === 'doser') {
-            const { getDoserConfiguration } = await import("../api/configurations");
-            const config = await getDoserConfiguration(address);
-            
-            // Update the store
+          // Use unified endpoint that auto-detects device type
+          const { getDeviceConfiguration } = await import("../api/configurations");
+          const config = await getDeviceConfiguration(address);
+          
+          // Update the appropriate map based on device type
+          const isDoser = deviceType === 'doser';
+          if (isDoser) {
             const dosers = new Map(get().configurations.dosers);
-            dosers.set(address, config);
-            
+            dosers.set(address, config as any);
             set((state) => ({
               configurations: {
                 ...state.configurations,
                 dosers,
               }
             }));
-
-            // Update device state if it exists
-            const devices = new Map(get().devices);
-            const device = devices.get(address);
-            if (device) {
-              devices.set(address, {
-                ...device,
-                configuration: config,
-              });
-              set({ devices });
-            }
-
-            return config;
           } else {
-            const { getLightConfiguration } = await import("../api/configurations");
-            const config = await getLightConfiguration(address);
-            
-            // Update the store
             const lights = new Map(get().configurations.lights);
-            lights.set(address, config);
-            
+            lights.set(address, config as any);
             set((state) => ({
               configurations: {
                 ...state.configurations,
                 lights,
               }
             }));
-
-            // Update device state if it exists
-            const devices = new Map(get().devices);
-            const device = devices.get(address);
-            if (device) {
-              devices.set(address, {
-                ...device,
-                configuration: config,
-              });
-              set({ devices });
-            }
-
-            return config;
           }
+
+          // Update device state if it exists
+          const devices = new Map(get().devices);
+          const device = devices.get(address);
+          if (device) {
+            devices.set(address, {
+              ...device,
+              configuration: config,
+            });
+            set({ devices });
+          }
+
+          return config;
         } catch (error) {
           console.error(`Failed to refresh ${deviceType} config for ${address}:`, error);
           throw error;
@@ -498,8 +480,8 @@ const storeInitializer: StateCreator<DeviceStore> = (set, get) => ({
     refreshDevices: async () => {
       try {
         const { fetchJson } = await import("../api/http");
-        const data = await fetchJson<{ [address: string]: CachedStatus }>("api/status");
-        const devices = Object.values(data) as CachedStatus[];
+        const data = await fetchJson<{ [address: string]: DeviceStatus }>("api/status");
+        const devices = Object.values(data) as DeviceStatus[];
         get().actions.setDevices(devices);
         get().actions.setGlobalError(null);
       } catch (error) {

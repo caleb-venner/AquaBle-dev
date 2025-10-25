@@ -110,7 +110,13 @@ class Doser(BaseDevice):
         8. Head schedule command (0xA5, mode 0x15) - set daily time
 
         This matches both the iPhone app logs and other working implementations.
+
+        Args:
+            head_index: 1-based head index (1-4) for 4-head doser devices
         """
+        # Convert 1-based index to 0-based for BLE commands
+        ble_head_index = head_index - 1
+
         weekday_mask = doser_commands.encode_weekdays(weekdays)
 
         # Phase 1: Prelude - Setup and synchronization (6 commands)
@@ -125,8 +131,8 @@ class Doser(BaseDevice):
             doser_commands.create_prepare_command(self.get_next_msg_id(), 0x04),
             # 5. Prepare stage 0x05 - confirm device is ready
             doser_commands.create_prepare_command(self.get_next_msg_id(), 0x05),
-            # 6. Head select - choose which dosing head to configure
-            doser_commands.create_head_select_command(self.get_next_msg_id(), head_index),
+            # 6. Head select - choose which dosing head to configure (0-based)
+            doser_commands.create_head_select_command(self.get_next_msg_id(), ble_head_index),
         ]
 
         # Send prelude commands sequentially
@@ -135,16 +141,16 @@ class Doser(BaseDevice):
 
         # Phase 2: Programming - Dose configuration (2 commands)
         programming_commands = [
-            # 7. Head dose - set volume and weekday schedule
+            # 7. Head dose - set volume and weekday schedule (0-based)
             doser_commands.create_head_dose_command(
                 self.get_next_msg_id(),
-                head_index,
+                ble_head_index,
                 volume_tenths_ml,
                 weekday_mask=weekday_mask,
             ),
-            # 8. Head schedule - set daily dosing time
+            # 8. Head schedule - set daily dosing time (0-based)
             doser_commands.create_head_schedule_command(
-                self.get_next_msg_id(), head_index, hour, minute
+                self.get_next_msg_id(), ble_head_index, hour, minute
             ),
         ]
 
@@ -158,3 +164,6 @@ class Doser(BaseDevice):
         await self.request_status()
         await asyncio.sleep(max(0.0, wait_seconds))
         return self._last_status
+
+
+# Need to implement further commands.

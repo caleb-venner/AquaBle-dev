@@ -96,7 +96,7 @@ def test_light_storage_excludes_metadata_files():
 
 
 def test_doser_storage_metadata_listing_works():
-    """Test that metadata listing still works correctly."""
+    """Test that deprecated metadata listing returns empty list (Phase 4 deprecation)."""
     with tempfile.TemporaryDirectory() as temp_dir:
         metadata_dict = {
             "AA:BB:CC:DD:EE:FF": {
@@ -109,21 +109,19 @@ def test_doser_storage_metadata_listing_works():
         }
         storage = DoserStorage(Path(temp_dir), metadata_dict)
 
-        # List devices should be empty (metadata file excluded)
+        # List devices should be empty (no device files written)
         devices = storage.list_devices()
         assert len(devices) == 0
 
-        # But list_device_metadata should include the metadata-only device
+        # Deprecated: list_device_metadata now returns empty list (backward compat)
         metadata_list = storage.list_device_metadata()
-        assert len(metadata_list) == 1
-        assert metadata_list[0].id == "AA:BB:CC:DD:EE:FF"
-        assert metadata_list[0].headNames == {1: "Head 1"}
+        assert len(metadata_list) == 0
 
 
 def test_doser_storage_excludes_light_metadata_files():
-    """Test that DoserStorage.list_device_metadata().
+    """Test that deprecated DoserStorage.list_device_metadata() returns empty list.
 
-    returns doser metadata from dict.
+    After Phase 4 deprecation, metadata methods are no-ops for backward compat.
     """
     with tempfile.TemporaryDirectory() as temp_dir:
         metadata_dict = {
@@ -137,8 +135,6 @@ def test_doser_storage_excludes_light_metadata_files():
         }
         storage = DoserStorage(Path(temp_dir), metadata_dict)
 
-        # list_device_metadata should return the doser metadata
+        # Deprecated: list_device_metadata returns empty list (backward compat)
         metadata_list = storage.list_device_metadata()
-        assert len(metadata_list) == 1
-        assert metadata_list[0].id == "AA:BB:CC:DD:EE:FF"
-        assert metadata_list[0].name == "Test Doser"
+        assert len(metadata_list) == 0

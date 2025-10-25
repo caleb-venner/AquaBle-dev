@@ -164,10 +164,10 @@ def create_default_light_profile(
     # Create default channel definitions if not provided
     if not channels:
         channel_defs = [
-            ChannelDef(key="white", label="White", min=0, max=100, step=1),
-            ChannelDef(key="red", label="Red", min=0, max=100, step=1),
-            ChannelDef(key="green", label="Green", min=0, max=100, step=1),
-            ChannelDef(key="blue", label="Blue", min=0, max=100, step=1),
+            ChannelDef(key="0", label="White", min=0, max=100, step=1),
+            ChannelDef(key="1", label="Red", min=0, max=100, step=1),
+            ChannelDef(key="2", label="Green", min=0, max=100, step=1),
+            ChannelDef(key="3", label="Blue", min=0, max=100, step=1),
         ]
     else:
         channel_defs = [

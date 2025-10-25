@@ -39,10 +39,14 @@ def _time_to_minutes(value: str) -> int:
 
 
 class ChannelDef(BaseModel):
-    """Definition of a color/level channel exposed by a light device."""
+    """Definition of a color/level channel exposed by a light device.
 
-    key: str
-    label: str | None = None
+    Uses 0-based channel indices as keys (e.g., '0', '1', '2', '3') with
+    human-readable labels (e.g., 'Red', 'Green', 'Blue', 'White').
+    """
+
+    key: str  # Channel index as string, e.g., "0", "1", "2", "3"
+    label: str | None = None  # Human-readable name, e.g., "Red", "Green", "Blue", "White"
     min: int = 0
     max: int = 100
     step: int = 1
@@ -61,7 +65,7 @@ class ChannelDef(BaseModel):
         return self
 
 
-ChannelLevels = Mapping[str, int]
+ChannelLevels = Mapping[str, int]  # Maps channel indices (as strings) to brightness values
 
 
 class ManualProfile(BaseModel):
@@ -214,6 +218,7 @@ class LightDevice(BaseModel):
 
     id: str
     name: str | None = None
+    autoReconnect: bool = False  # Auto-reconnect on service start
     channels: list[ChannelDef]
     configurations: list[LightConfiguration]
     activeConfigurationId: str | None = None
@@ -327,6 +332,77 @@ class LightStorage(BaseDeviceStorage[LightDevice]):
             return device
         return LightDevice.model_validate(device)
 
+    def create_default_device(
+        self, device_id: str, colors_order: dict[str, int] | None = None
+    ) -> LightDevice:
+        """Create a skeleton LightDevice with device-specific channels and one manual profile.
+
+        This is used when a device is discovered but has no saved configuration yet.
+        Creates a device with channels using 0-based indices as keys,
+        and one manual profile at 0% levels.
+
+        Args:
+            device_id: Device MAC address (e.g., 'A6A644D2-08CB-9326-46AA-7087FB7DD70A')
+            colors_order: Dict mapping color names to channel indices, ordered as defined
+                         in the device model (e.g., {"red": 0, "green": 1, "blue": 2, "white": 3}).
+                         If None, defaults to standard RGBW order (Red=0, Green=1, Blue=2, White=3).
+
+        Returns:
+            LightDevice with device-specific channels and one default configuration
+        """
+        now = _now_iso()
+        config_id = str(uuid4())
+
+        # Use device-specific color order, or default to RGBW
+        if colors_order is None:
+            colors_order = {"red": 0, "green": 1, "blue": 2, "white": 3}
+
+        # Create channels in the order specified by colors_order (sorted by channel index)
+        # Use channel index as key, color name (capitalized) as label
+        channels = []
+        for color_name in sorted(colors_order.keys(), key=lambda x: colors_order[x]):
+            channel_idx = colors_order[color_name]
+            label = color_name.capitalize()
+            channels.append(ChannelDef(key=str(channel_idx), label=label, min=0, max=100, step=1))
+
+        # Default manual profile with all channels at 0%
+        # Use channel indices as keys in the levels dict
+        levels = {str(colors_order[color_name]): 0 for color_name in colors_order.keys()}
+        manual_profile = ManualProfile(
+            mode="manual",
+            levels=levels,
+        )
+
+        revision = LightProfileRevision(
+            revision=1,
+            savedAt=now,
+            profile=manual_profile,
+            note="Default configuration created on first discovery",
+            savedBy="system",
+        )
+
+        config = LightConfiguration(
+            id=config_id,
+            name="Default",
+            description="Default configuration created on first discovery",
+            revisions=[revision],
+            createdAt=now,
+            updatedAt=now,
+        )
+
+        device = LightDevice(
+            id=device_id,
+            name=None,
+            autoReconnect=False,
+            channels=channels,
+            configurations=[config],
+            activeConfigurationId=config_id,
+            createdAt=now,
+            updatedAt=now,
+        )
+
+        return device
+
     def list_configurations(self, device_id: str) -> list[LightConfiguration]:
         """List configurations for the given device id."""
         device = self._require_device(device_id)
@@ -438,39 +514,52 @@ class LightStorage(BaseDeviceStorage[LightDevice]):
         return _ProfileWrapper.model_validate({"profile": profile}).profile
 
     def upsert_light_metadata(self, metadata: LightMetadata | dict) -> LightMetadata:
-        """Insert or update light metadata."""
+        """DEPRECATED: Insert or update light metadata.
+
+        Metadata is now stored in the device configuration itself.
+        Use upsert_device() with a LightDevice that has naming fields set.
+
+        This method is kept for backward compatibility during migration.
+        """
         if isinstance(metadata, dict):
             model = LightMetadata.model_validate(metadata)
         else:
             model = metadata
 
-        # Update timestamp
-        model.updatedAt = _now_iso()
-        if not model.createdAt:
-            model.createdAt = _now_iso()
+        # Try to get existing device
+        existing_device = self.get_device(model.id)
 
-        # Store in metadata dict
-        self._metadata_dict[model.id] = model.model_dump()
-
-        # Persist metadata to disk
-        self._write_metadata_file(model.id, model.model_dump())
-
-        return model
+        if existing_device:
+            # Update existing device with new names
+            existing_device.name = model.name
+            existing_device.autoReconnect = model.autoReconnect
+            existing_device.updatedAt = _now_iso()
+            self.upsert_device(existing_device)
+            return model
+        else:
+            # Create new device with minimal config if it doesn't exist
+            # This shouldn't happen in practice
+            return model
 
     def get_light_metadata(self, device_id: str) -> LightMetadata | None:
-        """Get light metadata by device id."""
-        metadata_raw = self._metadata_dict.get(device_id)
-        if metadata_raw is None:
+        """DEPRECATED: Get light metadata by device id.
+
+        Metadata is now stored in the device configuration itself (device_data).
+        Use get_device() instead and access name/autoReconnect from the LightDevice.
+
+        This method is kept for backward compatibility during migration.
+        """
+        device = self.get_device(device_id)
+        if device is None:
             return None
 
-        try:
-            return LightMetadata.model_validate(metadata_raw)
-        except ValueError as exc:
-            # Log error but don't crash
-            import logging
-
-            logging.getLogger(__name__).error(f"Could not parse light metadata {device_id}: {exc}")
-            return None
+        return LightMetadata(
+            id=device.id,
+            name=device.name,
+            autoReconnect=device.autoReconnect,
+            createdAt=device.createdAt,
+            updatedAt=device.updatedAt,
+        )
 
     def list_light_metadata(self) -> list[LightMetadata]:
         """List all light metadata."""

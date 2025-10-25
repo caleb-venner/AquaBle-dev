@@ -4,7 +4,7 @@ import { postJson, fetchJson } from "./http";
 import type {
   CommandRecord,
   CommandRequest,
-} from "../types/models";
+} from "../types/api";
 
 /**
  * Execute a command on a device using the unified command system

@@ -1,5 +1,5 @@
-import type { StatusResponse, CachedStatus, DoserParsed } from './types/backend-models';
-import type { DeviceEntry } from './types/ui-models';
+import type { StatusResponse, DeviceStatus, DoserParsed } from './types/api';
+import type { DeviceEntry } from './types/store';
 
 export const WEEKDAY_NAMES = [
   "Sunday",
@@ -159,7 +159,7 @@ export function statusResponseToEntries(data: StatusResponse): DeviceEntry[] {
 }
 
 /** Convert debug statuses to DeviceEntry array */
-export function debugStatusesToEntries(statuses: (CachedStatus & { address: string })[]): DeviceEntry[] {
+export function debugStatusesToEntries(statuses: (DeviceStatus & { address: string })[]): DeviceEntry[] {
   return statuses.map((status) => ({
     address: status.address,
     status,

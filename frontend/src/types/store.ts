@@ -1,7 +1,9 @@
-// UI-Specific Model Interfaces
-// These types are used for frontend state management and UI logic
+/**
+ * Frontend Store Types
+ * UI state management types for Zustand store
+ */
 
-import type { CachedStatus, CommandRequest } from './backend-models';
+import type { DeviceStatus, CommandRequest } from './api';
 
 // ========================================
 // DEVICE STATE MANAGEMENT
@@ -13,8 +15,8 @@ export type DeviceConfiguration = import('../api/configurations').DoserDevice | 
 /** Individual device state for UI */
 export interface DeviceState {
   address: string;
-  status: CachedStatus | null; // Can be null if device hasn't been seen yet
-  configuration: DeviceConfiguration | null; // Saved configuration
+  status: DeviceStatus | null; // Runtime state (can be null if device hasn't been seen yet)
+  configuration: DeviceConfiguration | null; // Saved configuration (names, settings)
   lastUpdated: number;
   isLoading: boolean;
   error: string | null;
@@ -23,7 +25,7 @@ export interface DeviceState {
 /** Helper type for device entries */
 export interface DeviceEntry {
   address: string;
-  status: CachedStatus;
+  status: DeviceStatus;
 }
 
 // ========================================

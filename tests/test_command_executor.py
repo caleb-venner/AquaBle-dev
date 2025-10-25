@@ -52,14 +52,14 @@ async def test_execute_set_doser_schedule_success(
     mock_status = CachedStatus(
         address=address,
         device_type="doser",
-        raw_payload=None,
-        parsed={},
-        updated_at=0,
+        connected=True,
+        updated_at=0.0,
     )
     ble_service.set_doser_schedule = AsyncMock(return_value=mock_status)
 
     # Define the command request
     request = CommandRequest(
+        id="test-set-schedule",
         action="set_schedule",
         args={
             "head_index": 1,  # Use 1-based indexing to match default config
@@ -72,6 +72,7 @@ async def test_execute_set_doser_schedule_success(
                 "friday",
             ],
         },
+        timeout=10.0,
     )
 
     # Execute the command
@@ -102,6 +103,9 @@ async def test_execute_set_doser_schedule_success(
     active_config = saved_config.get_active_configuration()
     head_config = active_config.latest_revision().heads[0]  # First head in list (index=1)
     assert head_config is not None
+    from aquable.storage.doser import SingleSchedule
+
+    assert isinstance(head_config.schedule, SingleSchedule)
     assert head_config.schedule.dailyDoseMl == 5.5
     assert head_config.schedule.startTime == "10:30"
     assert set(head_config.recurrence.days) == {"monday", "wednesday", "friday"}
@@ -127,22 +131,23 @@ async def test_execute_add_light_auto_setting_success(
     mock_status = CachedStatus(
         address=address,
         device_type="light",
-        raw_payload=None,
-        parsed={},
-        updated_at=0,
+        connected=True,
+        updated_at=0.0,
     )
     ble_service.add_light_auto_setting = AsyncMock(return_value=mock_status)
 
     # Define the command request
     request = CommandRequest(
+        id="test-add-auto-setting",
         action="add_auto_setting",
         args={
             "sunrise": "08:00",
             "sunset": "20:00",
-            "brightness": 80,
+            "channels": {"0": 80, "1": 80, "2": 80, "3": 80},
             "ramp_up_minutes": 15,
             "weekdays": ["saturday", "sunday"],
         },
+        timeout=10.0,
     )
 
     # Execute the command
@@ -159,7 +164,8 @@ async def test_execute_add_light_auto_setting_success(
     assert call_args[0][0] == address
     assert call_args[1]["sunrise"] == time(8, 0)
     assert call_args[1]["sunset"] == time(20, 0)
-    assert call_args[1]["brightness"] == 80
+    assert call_args[1]["brightness"] == {"0": 80, "1": 80, "2": 80, "3": 80}
+    assert call_args[1]["ramp_up_minutes"] == 15
     assert call_args[1]["weekdays"] == [
         "saturday",
         "sunday",
@@ -206,9 +212,8 @@ async def test_execute_set_brightness_saves_config(
     mock_status = CachedStatus(
         address=address,
         device_type="light",
-        raw_payload=None,
-        parsed={},
-        updated_at=0,
+        connected=True,
+        updated_at=0.0,
     )
     ble_service.set_light_brightness = AsyncMock(return_value=mock_status)
 
@@ -220,11 +225,13 @@ async def test_execute_set_brightness_saves_config(
 
     # Define the command request - set red channel to 75%
     request = CommandRequest(
+        id="test-set-brightness",
         action="set_brightness",
         args={
             "brightness": 75,
             "color": 1,  # Red channel
         },
+        timeout=10.0,
     )
 
     # Execute the command
@@ -258,9 +265,9 @@ async def test_execute_set_brightness_saves_config(
 
     manual_profile = profile_revision.profile
     # Red channel (index 1) should be 75, others should be 0
-    assert manual_profile.levels["white"] == 0
-    assert manual_profile.levels["red"] == 75
-    assert manual_profile.levels["green"] == 0
-    assert manual_profile.levels["blue"] == 0
+    assert manual_profile.levels["0"] == 0  # White channel
+    assert manual_profile.levels["1"] == 75  # Red channel
+    assert manual_profile.levels["2"] == 0  # Green channel
+    assert manual_profile.levels["3"] == 0  # Blue channel
     assert profile_revision.note == "Manual brightness adjustment"
     assert profile_revision.savedBy == "user"

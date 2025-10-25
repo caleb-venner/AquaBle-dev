@@ -4,7 +4,7 @@
 
 import { scanDevices, connectDevice } from "../../../api/devices";
 import { useActions } from "../../../stores/deviceStore";
-import type { ScanDevice } from "../../../types/models";
+import type { ScanDevice } from "../../../types/api";
 
 export interface ScanState {
   isScanning: boolean;

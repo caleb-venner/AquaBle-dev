@@ -5,7 +5,7 @@
 import { deviceStore } from "../../../stores/deviceStore";
 import { getWeekdayName, formatDateTime } from "../../../utils";
 import { getCurrentScheduleInfo, AutoProgram, getAllSchedulesInOrder, SequentialSchedule } from "../../../utils/schedule-utils";
-import type { CachedStatus } from "../../../types/models";
+import type { DeviceStatus } from "../../../types/api";
 
 /**
  * Extract auto programs from device configuration
@@ -49,53 +49,87 @@ function getDeviceAutoPrograms(deviceAddress: string): (AutoProgram & { channels
 /**
  * Render light device status
  */
-export function renderLightCardStatus(device: CachedStatus & { address: string }): string {
-  const parsed = device.parsed as any; // LightParsed type
-  if (!parsed) {
+export function renderLightCardStatus(device: DeviceStatus & { address: string }): string {
+  const state = deviceStore.getState();
+  const deviceConfig = state.configurations.lights.get(device.address);
+
+  // Check if device is in auto mode and has programs
+  if (deviceConfig?.configurations && deviceConfig.activeConfigurationId) {
+    const activeConfig = deviceConfig.configurations.find(
+      (config: any) => config.id === deviceConfig.activeConfigurationId
+    );
+
+    if (activeConfig?.revisions && activeConfig.revisions.length > 0) {
+      const latestRevision = activeConfig.revisions[activeConfig.revisions.length - 1];
+      const profile = latestRevision.profile;
+
+      // If in auto mode and has programs, show schedule
+      if (profile.mode === 'auto' && profile.programs && profile.programs.length > 0) {
+        return renderLightAutoSchedule(device, deviceConfig);
+      }
+    }
+  }
+
+  // Fallback: show simple connection state
+  return `
+    <div style="padding: 24px; text-align: center; color: var(--gray-500); font-size: 14px;">
+      <div style="font-size: 16px; color: ${device.connected ? 'var(--success)' : 'var(--gray-400)'}; margin-bottom: 8px;">
+        ${device.connected ? '✓ Connected' : '○ Disconnected'}
+      </div>
+      <div style="font-size: 12px;">
+        Last update: ${new Date(device.updated_at * 1000).toLocaleTimeString()}
+      </div>
+    </div>
+  `;
+}
+
+/**
+ * Render light auto mode schedule display
+ */
+function renderLightAutoSchedule(device: DeviceStatus & { address: string }, deviceConfig: any): string {
+  const programs = getDeviceAutoPrograms(device.address);
+  
+  if (programs.length === 0) {
     return `
-      <div style="padding: 24px; text-align: center; color: var(--gray-500); font-size: 14px;">
-        No parsed data available
+      <div style="padding: 16px; text-align: center; color: var(--gray-500);">
+        No auto programs configured
       </div>
     `;
   }
 
-  const currentTime = parsed.current_hour !== null && parsed.current_minute !== null
-    ? `${String(parsed.current_hour).padStart(2, '0')}:${String(parsed.current_minute).padStart(2, '0')}`
-    : 'Unknown';
+  // Get all schedules in order
+  const schedules = getAllSchedulesInOrder(programs);
 
-  const weekdayName = parsed.weekday !== null ? getWeekdayName(parsed.weekday) : 'Unknown';
-
-  // Create combined date/time display
-  const dateTimeDisplay = currentTime !== 'Unknown' && weekdayName !== 'Unknown'
-    ? formatDateTime(parsed.current_hour, parsed.current_minute, parsed.weekday)
-    : 'Unknown';
-
-  const keyframes = parsed.keyframes || [];
-  const currentKeyframes = keyframes.filter((kf: any) => kf.value !== null);
-  const maxBrightness = currentKeyframes.length > 0
-    ? Math.max(...currentKeyframes.map((kf: any) => kf.percent || 0))
-    : 0;
-
-  // Use device type to determine channel count
-  const zustandState = deviceStore.getState();
-  const lightConfig = zustandState.configurations.lights.get(device.address);
-  const channelNames = lightConfig?.channels?.map((ch: any) => ch.label) || ['Channel 1', 'Channel 2', 'Channel 3', 'Channel 4'];
-  const channelCount = channelNames.length;
-
-  // Get schedule information for auto mode devices
-  const autoPrograms = getDeviceAutoPrograms(device.address);
-  const scheduleInfo = getCurrentScheduleInfo(autoPrograms);
-
-  // Get all schedules in sequential order
-  const allSchedules = getAllSchedulesInOrder(autoPrograms);
+  // Group schedules by status
+  const current = schedules.filter(s => s.status === 'current');
+  const next = schedules.filter(s => s.status === 'next');
+  const upcoming = schedules.filter(s => s.status === 'upcoming');
 
   return `
-    <div style="padding: 16px; background: var(--bg-secondary);">
-      ${allSchedules.length > 0 ? `
-        <div style="background: var(--card-bg); padding: 12px; border-radius: 6px; margin-bottom: 16px; border: 1px solid var(--border-color);">
-          <div style="font-size: 11px; font-weight: 600; color: var(--gray-500); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px;">Light Schedules</div>
-          <div style="display: flex; flex-direction: column; gap: 8px;">
-            ${allSchedules.map(schedule => renderScheduleItem(schedule)).join('')}
+    <div style="padding: 16px; display: flex; flex-direction: column; gap: 12px;">
+      ${current.length > 0 ? `
+        <div>
+          <div style="font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-bottom: 8px;">ACTIVE</div>
+          <div style="display: flex; flex-direction: column; gap: 6px;">
+            ${current.map(s => renderScheduleItem(s)).join('')}
+          </div>
+        </div>
+      ` : ''}
+      
+      ${next.length > 0 ? `
+        <div>
+          <div style="font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-bottom: 8px;">NEXT</div>
+          <div style="display: flex; flex-direction: column; gap: 6px;">
+            ${next.slice(0, 2).map(s => renderScheduleItem(s)).join('')}
+          </div>
+        </div>
+      ` : ''}
+      
+      ${current.length === 0 && next.length === 0 && upcoming.length > 0 ? `
+        <div>
+          <div style="font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-bottom: 8px;">UPCOMING</div>
+          <div style="display: flex; flex-direction: column; gap: 6px;">
+            ${upcoming.slice(0, 2).map(s => renderScheduleItem(s)).join('')}
           </div>
         </div>
       ` : ''}

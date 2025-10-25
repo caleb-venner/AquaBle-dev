@@ -1,8 +1,6 @@
 // Backend API Model Interfaces
 // These types match the Python backend models and API responses
 
-import type { DeviceMetadata, LightMetadata } from '../api/configurations';
-
 // ========================================
 // COMMAND MODELS
 // ========================================
@@ -47,8 +45,9 @@ export interface CommandRequest {
 
 /** Light device channel definition */
 export interface LightChannel {
-  index: number;
-  name: string;
+  index: number;         // Channel index (0, 1, 2, 3)
+  key: string;           // Channel index as string ("0", "1", "2", "3")
+  label: string;         // Human-readable name ("Red", "Green", "Blue", "White")
 }
 
 /** Light device parsed status (matches serialize_light_status) */
@@ -91,18 +90,24 @@ export interface DoserParsed {
   lifetime_totals_tenths_ml: number[]; // lifetime totals in tenths of mL for each head
 }
 
-/** Matches cached_status_to_dict output structure */
-export interface CachedStatus {
+/**
+ * Device runtime status (ultra-minimal, connection state only)
+ * Matches cached_status_to_dict output structure from backend.
+ * 
+ * This contains ONLY runtime connection state for efficient polling.
+ * Device names, configurations, parsed status, and raw payloads are
+ * available via /api/devices/{address}/configurations endpoint.
+ */
+export interface DeviceStatus {
   address: string;
   device_type: "light" | "doser";
-  raw_payload: string | null;
-  parsed: DoserParsed | LightParsed | null;
-  updated_at: number;
-  model_name: string | null;
   connected: boolean;
-  channels: LightChannel[] | null;
-  metadata?: DeviceMetadata | LightMetadata | null;
+  updated_at: number;
 }
+
+// Deprecated alias for backward compatibility
+/** @deprecated Use DeviceStatus instead - CachedStatus is an outdated name */
+export type CachedStatus = DeviceStatus;
 
 // ========================================
 // API RESPONSE MODELS
@@ -110,12 +115,12 @@ export interface CachedStatus {
 
 /** Main status endpoint response */
 export interface StatusResponse {
-  [address: string]: CachedStatus;
+  [address: string]: DeviceStatus;
 }
 
 /** Debug live status response */
 export interface LiveStatusResponse {
-  statuses: (CachedStatus & { address: string })[];
+  statuses: (DeviceStatus & { address: string })[];
   errors: string[];
 }
 
@@ -149,7 +154,7 @@ export interface AddAutoSettingArgs {
 
 /** Arguments for set_schedule command (doser) */
 export interface SetScheduleArgs {
-  head_index: number; // 0-3
+  head_index: number; // 1-4
   volume_tenths_ml: number; // 0-255
   hour: number; // 0-23
   minute: number; // 0-59
@@ -162,13 +167,4 @@ export interface SetScheduleArgs {
 // LEGACY COMPATIBILITY
 // ========================================
 
-/** Legacy DeviceStatus interface for backwards compatibility */
-export interface DeviceStatus {
-  device_type: string;
-  raw_payload: string | null;
-  parsed: Record<string, unknown> | null;
-  updated_at: number;
-  model_name?: string | null;
-  connected?: boolean;
-  channels?: LightChannel[] | null;
-}
+/** @deprecated Legacy interface - all functionality now in DeviceStatus (defined above) */

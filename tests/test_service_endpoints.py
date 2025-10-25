@@ -18,11 +18,8 @@ def _cached(device_type: str = "doser") -> CachedStatus:
     return CachedStatus(
         address="AA:BB:CC:DD:EE:FF",
         device_type=device_type,
-        raw_payload="deadbeef",
-        parsed={"example": True},
+        connected=True,
         updated_at=123.456,
-        model_name=None,
-        channels=None,
     )
 
 

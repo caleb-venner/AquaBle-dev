@@ -22,23 +22,12 @@ export {
 
 // Configuration management
 export {
-  // Doser configuration functions
-  getDoserConfigurations,
-  getDoserConfiguration,
-  updateDoserConfiguration,
-  deleteDoserConfiguration,
-  // Light configuration functions
-  getLightConfigurations,
-  getLightConfiguration,
-  updateLightConfiguration,
-  deleteLightConfiguration,
-  // Metadata functions
-  updateDoserMetadata,
-  getDoserMetadata,
-  listDoserMetadata,
-  updateLightMetadata,
-  getLightMetadata,
-  listLightMetadata,
+  getDeviceConfiguration,
+  updateDeviceConfiguration,
+  updateDeviceNaming,
+  updateDeviceSettings,
+  exportDeviceConfiguration,
+  importDeviceConfiguration,
 } from "./configurations";
 
 // Configuration types
@@ -49,6 +38,6 @@ export type {
   AutoSetting,
   LightProfile,
   LightDevice,
-  DeviceMetadata,
-  LightMetadata,
+  DeviceNamingUpdate,
+  DeviceSettingsUpdate,
 } from "./configurations";

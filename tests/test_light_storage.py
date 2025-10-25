@@ -21,14 +21,15 @@ def storage_path(tmp_path: Path) -> Path:
 def _channels() -> list[dict]:
     """Return a sample list of channel definitions for tests."""
     return [
-        {"key": "R", "label": "Red", "min": 0, "max": 100, "step": 5},
-        {"key": "G", "label": "Green", "min": 10, "max": 90, "step": 10},
-        {"key": "B", "label": "Blue", "min": 0, "max": 80, "step": 5},
+        {"key": "0", "label": "Red", "min": 0, "max": 100, "step": 5},
+        {"key": "1", "label": "Green", "min": 10, "max": 90, "step": 10},
+        {"key": "2", "label": "Blue", "min": 0, "max": 80, "step": 5},
+        {"key": "3", "label": "White", "min": 0, "max": 100, "step": 5},
     ]
 
 
 def _manual_levels() -> dict[str, int]:
-    return {"R": 50, "G": 50, "B": 40}
+    return {"0": 50, "1": 50, "2": 40, "3": 50}
 
 
 def _example_device(device_id: str = "light-1") -> dict:
@@ -86,7 +87,7 @@ def test_storage_roundtrip(storage_path: Path) -> None:
 def test_manual_profile_must_cover_all_channels(storage_path: Path) -> None:
     """Manual profile must include entries for every channel."""
     device = _example_device()
-    device["configurations"][0]["revisions"][0]["profile"]["levels"].pop("G")
+    device["configurations"][0]["revisions"][0]["profile"]["levels"].pop("1")
 
     storage = LightStorage(storage_path, {})
     with pytest.raises(ValidationError):
@@ -143,7 +144,7 @@ def test_create_configuration_adds_revision(storage_path: Path) -> None:
         "interpolation": "step",
         "points": [
             {"time": "08:00", "levels": _manual_levels()},
-            {"time": "12:00", "levels": {"R": 60, "G": 70, "B": 40}},
+            {"time": "12:00", "levels": {"0": 60, "1": 70, "2": 40, "3": 50}},
             {"time": "18:00", "levels": _manual_levels()},
         ],
     }
@@ -170,8 +171,8 @@ def test_add_revision_increments_revision(storage_path: Path) -> None:
     storage.upsert_device(_example_device())
 
     manual_update = deepcopy(_manual_levels())
-    manual_update["R"] = 55
-    manual_update["G"] = 60
+    manual_update["0"] = 55
+    manual_update["1"] = 60
 
     revision = storage.add_revision(
         "light-1",

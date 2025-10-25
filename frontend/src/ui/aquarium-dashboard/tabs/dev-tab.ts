@@ -3,7 +3,7 @@
  */
 
 import { deviceStore } from "../../../stores/deviceStore";
-import type { CachedStatus } from "../../../types/models";
+import type { DeviceStatus } from "../../../types/api";
 
 /**
  * Render the dev tab - shows raw payload data for debugging
@@ -12,9 +12,9 @@ export function renderDevTab(): string {
   const state = deviceStore.getState();
   
   // Convert device Map to array
-  const devices: (CachedStatus & { address: string })[] = Array.from(state.devices.values())
+  const devices: (DeviceStatus & { address: string })[] = Array.from(state.devices.values())
     .map(device => ({
-      ...(device.status as CachedStatus),
+      ...(device.status as DeviceStatus),
       address: device.address
     }))
     .filter(d => d.address); // Filter out devices without status
@@ -61,7 +61,7 @@ function renderCollapsibleDeviceRawData(device: any): string {
         <div style="display: flex; align-items: center; gap: 12px;">
           <div class="collapse-icon" id="${deviceId}-icon" style="transition: transform 0.2s ease;">▶</div>
           <h4 style="margin: 0; color: var(--gray-900); font-size: 16px; font-weight: 600;">
-            ${device.model_name || 'Unknown Device'} (${device.address})
+            ${device.address}
           </h4>
           <div class="badge badge-secondary" style="font-size: 11px;">${device.device_type}</div>
         </div>
@@ -76,17 +76,10 @@ function renderCollapsibleDeviceRawData(device: any): string {
 
       <!-- Collapsible Content -->
       <div class="device-raw-data-content" id="${deviceId}-content" style="display: none; padding: 16px; background: var(--bg-primary);">
-        ${device.parsed ? `
-          <div style="margin-bottom: 16px;">
-            <div style="font-size: 12px; color: var(--gray-500); margin-bottom: 8px; font-weight: 600;">Parsed Data</div>
-            <pre style="background: var(--gray-50); padding: 12px; border-radius: 6px; font-size: 12px; overflow-x: auto; margin: 0; border: 1px solid var(--gray-200);">${JSON.stringify(device.parsed, null, 2)}</pre>
-          </div>
-        ` : `
-          <div style="margin-bottom: 16px;">
-            <div style="font-size: 12px; color: var(--gray-500); margin-bottom: 4px; font-weight: 600;">Parsed Data</div>
-            <div style="color: var(--gray-500); font-style: italic; padding: 12px; background: var(--gray-50); border-radius: 6px; border: 1px solid var(--gray-200);">No parsed data available</div>
-          </div>
-        `}
+        <div style="margin-bottom: 16px;">
+          <div style="font-size: 12px; color: var(--gray-500); margin-bottom: 4px; font-weight: 600;">Status Info</div>
+          <div style="color: var(--gray-500); font-style: italic; padding: 12px; background: var(--gray-50); border-radius: 6px; border: 1px solid var(--gray-200);">Ultra-minimal DeviceStatus: only connection state. Parsed data available in device JSON files.</div>
+        </div>
 
         <div style="margin-bottom: 16px;">
           <div style="font-size: 12px; color: var(--gray-500); margin-bottom: 8px; font-weight: 600;">Raw Status</div>

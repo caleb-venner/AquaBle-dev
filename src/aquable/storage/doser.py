@@ -252,6 +252,7 @@ class DoserDevice(BaseModel):
     id: str
     name: str | None = None
     headNames: dict[int, str] | None = None  # Map of head index to name
+    autoReconnect: bool = False  # Auto-reconnect on service start
     configurations: list[DeviceConfiguration]
     activeConfigurationId: str | None = None
     createdAt: str | None = None
@@ -431,82 +432,156 @@ class DoserStorage(BaseDeviceStorage[DoserDevice]):
         return configuration
 
     def get_device_metadata(self, device_id: str) -> DoserMetadata | None:
-        """Get device metadata (names only) by id.
+        """DEPRECATED: Get device metadata (names only) by id.
 
-        Returns metadata stored in the metadata dictionary, which is the
-        authoritative source for head names and device names.
+        Metadata is now stored in the device configuration itself (device_data).
+        Use get_device() instead and access name/headNames/autoReconnect from the DoserDevice.
+
+        This method is kept for backward compatibility during migration.
         """
-        metadata_raw = self._metadata_dict.get(device_id)
-        if metadata_raw is None:
+        device = self.get_device(device_id)
+        if device is None:
             return None
 
         return DoserMetadata(
-            id=metadata_raw.get("id", device_id),
-            name=metadata_raw.get("name"),
-            headNames=metadata_raw.get("headNames"),
-            autoReconnect=metadata_raw.get("autoReconnect", False),
-            createdAt=metadata_raw.get("createdAt"),
-            updatedAt=metadata_raw.get("updatedAt"),
+            id=device.id,
+            name=device.name,
+            headNames=device.headNames,
+            autoReconnect=device.autoReconnect,
+            createdAt=device.createdAt,
+            updatedAt=device.updatedAt,
         )
 
-    def upsert_device_metadata(self, metadata: DoserMetadata) -> DoserMetadata:
-        """Create or update device metadata (names only).
+    def create_default_device(self, device_id: str) -> DoserDevice:
+        """Create a skeleton DoserDevice with one minimal configuration.
 
-        Stores metadata in the in-memory dictionary and persists to disk.
-        Also updates the device configuration's head labels if the device exists.
+        This is used when a device is discovered but has no saved configuration yet.
+        Creates a device with one empty configuration with 4 disabled heads.
+
+        Args:
+            device_id: Device MAC address (e.g., '58159AE1-5E0A-7915-3207-7868CBF2C600')
+
+        Returns:
+            DoserDevice with one default configuration
         """
-        current_time = _now_iso()
-        metadata.updatedAt = current_time
-        if not metadata.createdAt:
-            metadata.createdAt = current_time
+        now = _now_iso()
+        config_id = str(uuid4())
 
-        # Store in metadata dict (primary storage)
-        metadata_dict = metadata.model_dump()
-        self._metadata_dict[metadata.id] = metadata_dict
+        # Create 4 disabled heads with minimal schedules
+        heads = [
+            DoserHead(
+                index=1,
+                active=False,
+                label=None,
+                schedule=SingleSchedule(mode="single", dailyDoseMl=1.0, startTime="00:00"),
+                recurrence=Recurrence(days=["monday"]),
+                missedDoseCompensation=False,
+                calibration=Calibration(mlPerSecond=1.0, lastCalibratedAt=now),
+                stats=None,
+            ),
+            DoserHead(
+                index=2,
+                active=False,
+                label=None,
+                schedule=SingleSchedule(mode="single", dailyDoseMl=1.0, startTime="00:00"),
+                recurrence=Recurrence(days=["monday"]),
+                missedDoseCompensation=False,
+                calibration=Calibration(mlPerSecond=1.0, lastCalibratedAt=now),
+                stats=None,
+            ),
+            DoserHead(
+                index=3,
+                active=False,
+                label=None,
+                schedule=SingleSchedule(mode="single", dailyDoseMl=1.0, startTime="00:00"),
+                recurrence=Recurrence(days=["monday"]),
+                missedDoseCompensation=False,
+                calibration=Calibration(mlPerSecond=1.0, lastCalibratedAt=now),
+                stats=None,
+            ),
+            DoserHead(
+                index=4,
+                active=False,
+                label=None,
+                schedule=SingleSchedule(mode="single", dailyDoseMl=1.0, startTime="00:00"),
+                recurrence=Recurrence(days=["monday"]),
+                missedDoseCompensation=False,
+                calibration=Calibration(mlPerSecond=1.0, lastCalibratedAt=now),
+                stats=None,
+            ),
+        ]
 
-        # Persist to disk
-        self._write_metadata_file(metadata.id, metadata_dict)
+        revision = ConfigurationRevision(
+            revision=1,
+            savedAt=now,
+            heads=heads,
+            note="Default configuration created on first discovery",
+            savedBy="system",
+        )
 
-        # Check if device already exists and update it too
-        # This keeps the device configuration's head labels in sync
+        config = DeviceConfiguration(
+            id=config_id,
+            name="Default",
+            description="Default configuration created on first discovery",
+            revisions=[revision],
+            createdAt=now,
+            updatedAt=now,
+        )
+
+        device = DoserDevice(
+            id=device_id,
+            name=None,
+            headNames=None,
+            autoReconnect=False,
+            configurations=[config],
+            activeConfigurationId=config_id,
+            createdAt=now,
+            updatedAt=now,
+        )
+
+        return device
+
+    def upsert_device_metadata(self, metadata: DoserMetadata) -> DoserMetadata:
+        """DEPRECATED: Create or update device metadata (names only).
+
+        Metadata is now stored in the device configuration itself.
+        Use upsert_device() with a DoserDevice that has naming fields set.
+
+        This method is kept for backward compatibility during migration.
+        """
+        # Try to get existing device
         existing_device = self.get_device(metadata.id)
+
+        current_time = _now_iso()
+
         if existing_device:
             # Update existing device with new names
             existing_device.name = metadata.name
+            existing_device.headNames = metadata.headNames
+            existing_device.autoReconnect = metadata.autoReconnect
             existing_device.updatedAt = current_time
-
-            # Update head names in the latest revision
-            if metadata.headNames and existing_device.configurations:
-                latest_config = existing_device.configurations[-1]
-                if latest_config.revisions:
-                    latest_revision = latest_config.revisions[-1]
-                    for head in latest_revision.heads:
-                        if head.index in metadata.headNames:
-                            head.label = metadata.headNames[head.index]
-
             self.upsert_device(existing_device)
+            return metadata
+        else:
+            # Create new device with minimal config if it doesn't exist
+            # This shouldn't happen in practice (configurations should be created explicitly)
+            # Just for backward compat, don't actually persist
+            return metadata
 
-        return metadata
+    # Legacy method - no longer used internally
+    def _update_head_names_in_device(self, device_id: str, head_names: dict) -> None:
+        """INTERNAL: Update head names in the latest revision."""
+        pass
 
     def list_device_metadata(self) -> list[DoserMetadata]:
-        """List all device metadata from the metadata dictionary.
+        """DEPRECATED: List all device metadata from the metadata dictionary.
 
-        Returns metadata stored in the metadata dict, which is the
-        authoritative source for head names and device names.
+        Metadata is now stored in device configurations themselves.
+        This method is kept for backward compatibility but will be empty
+        as metadata is no longer maintained in a separate dictionary.
         """
-        metadata_list = []
-        for device_id, metadata_raw in self._metadata_dict.items():
-            metadata = DoserMetadata(
-                id=metadata_raw.get("id", device_id),
-                name=metadata_raw.get("name"),
-                headNames=metadata_raw.get("headNames"),
-                autoReconnect=metadata_raw.get("autoReconnect", False),
-                createdAt=metadata_raw.get("createdAt"),
-                updatedAt=metadata_raw.get("updatedAt"),
-            )
-            metadata_list.append(metadata)
-
-        return metadata_list
+        # Return empty list - metadata is now in device configurations
+        return []
 
 
 __all__ = [

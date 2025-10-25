@@ -30,18 +30,17 @@ class CommandExecutor:
         self._device_locks: Dict[str, asyncio.Lock] = {}
 
     def _get_device_channels(self, address: str) -> Optional[list[Dict[str, Any]]]:
-        """Get channel info for a device from cached status.
+        """Get channel info for a device from device_data.
 
-        Used for auto_setting to create channel levels dict.
+        Returns the channel definitions from the device's persistent configuration,
+        which is the canonical source of channel metadata.
         """
-        snapshot = self.ble_service.get_status_snapshot()
-        cached_status = snapshot.get(address)
-        if cached_status and hasattr(cached_status, "parsed"):
-            parsed = cached_status.parsed
-            if parsed and isinstance(parsed, dict) and "channels" in parsed:
-                channels = parsed.get("channels")
-                if isinstance(channels, list):
-                    return channels
+        # Get from light storage (device_data.channels)
+        light_device = self.ble_service._light_storage.get_device(address)
+        if light_device and hasattr(light_device, "channels") and light_device.channels:
+            return [ch.model_dump() for ch in light_device.channels]
+
+        # Doser devices don't have channels, but return None gracefully
         return None
 
     def _get_device_lock(self, address: str) -> asyncio.Lock:
@@ -165,6 +164,11 @@ class CommandExecutor:
                         exc_info=True,
                     )
 
+        except HTTPException:
+            # HTTPExceptions from lock acquisition or re-raised from inner handler
+            # Let these propagate unchanged since they contain important status codes
+            raise
+
         except Exception as exc:
             # Lock acquisition failed or unexpected error
             record.mark_failed(f"Lock acquisition failed: {exc}", ErrorCode.INTERNAL_ERROR)
@@ -219,10 +223,10 @@ class CommandExecutor:
                 hours, minutes = time_str.split(":")
                 return time(int(hours), int(minutes))
 
-            # Handle either single brightness or per-channel brightness
-            brightness_arg = args.get("brightness") or args.get("channels")
-            if brightness_arg is None:
-                raise ValueError("Either 'brightness' or 'channels' must be provided")
+            # Handle channels dict for per-channel brightness
+            channels_dict = args.get("channels")
+            if channels_dict is None:
+                raise ValueError("'channels' dict must be provided for auto settings")
 
             # Weekdays are already converted to LightWeekday enums by the validator
             weekdays_arg = args.get("weekdays")
@@ -231,7 +235,7 @@ class CommandExecutor:
                 address,
                 sunrise=parse_time(sunrise_str),
                 sunset=parse_time(sunset_str),
-                brightness=brightness_arg,
+                brightness=channels_dict,
                 ramp_up_minutes=args.get("ramp_up_minutes", 0),
                 weekdays=weekdays_arg,
             )
@@ -318,9 +322,10 @@ class CommandExecutor:
         try:
             from .helpers import add_light_auto_program, create_light_config_from_command
 
-            brightness_arg = args.get("brightness")
-            if brightness_arg is None:
-                raise ValueError("'brightness' must be provided")
+            # Auto settings always use channels dict format
+            channels_dict = args.get("channels")
+            if channels_dict is None:
+                raise ValueError("'channels' dict must be provided for auto settings")
 
             device = self.ble_service._light_storage.get_device(address)
 
@@ -344,7 +349,7 @@ class CommandExecutor:
                 )
                 return
 
-            # Convert brightness to levels dict for all channels
+            # Convert brightness argument to levels dict
             channels_info = self._get_device_channels(address)
             if not channels_info:
                 logger.warning(
@@ -352,11 +357,8 @@ class CommandExecutor:
                 )
                 return
 
-            # Build channel dict with brightness value for all channels
-            sorted_channels = sorted(channels_info, key=lambda ch: ch.get("index", 0))
-            channel_keys = [ch["name"].lower() for ch in sorted_channels]
-            brightness_val = int(brightness_arg) if isinstance(brightness_arg, int) else 50
-            levels = {key: brightness_val for key in channel_keys}
+            # Normalize channels dict keys to strings
+            levels = {str(k): int(v) for k, v in channels_dict.items()}
 
             # Normalize weekdays
             weekdays = args.get("weekdays")
@@ -410,10 +412,7 @@ class CommandExecutor:
             return
 
         try:
-            from .helpers import (
-                create_light_config_from_command,
-                update_light_manual_profile,
-            )
+            from .helpers import create_light_config_from_command, update_light_manual_profile
 
             brightness = args.get("brightness", 0)
             color_index = args.get("color", 0)
@@ -448,7 +447,7 @@ class CommandExecutor:
                 return
 
             sorted_channels = sorted(channels_info, key=lambda ch: ch.get("index", 0))
-            channel_keys = [ch["name"].lower() for ch in sorted_channels]
+            channel_keys = [str(ch["index"]) for ch in sorted_channels]  # Use channel indices
 
             # Set brightness for specified color, 0 for others
             levels = {}

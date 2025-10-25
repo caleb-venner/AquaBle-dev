@@ -5,45 +5,29 @@
 import { deviceStore } from "../../../stores/deviceStore";
 import { formatDateTime, getWeekdayName } from "../../../utils";
 import { getDoserHeadName, getHeadConfigData } from "../utils/device-utils";
-import type { CachedStatus } from "../../../types/models";
+import type { DeviceStatus } from "../../../types/api";
 
 /**
  * Render doser device status
  */
-export function renderDoserCardStatus(device: CachedStatus & { address: string }): string {
-  const parsed = device.parsed as any; // DoserParsed type
-  if (!parsed) {
-    return `
-      <div style="padding: 24px; text-align: center; color: var(--gray-500); font-size: 14px;">
-        No parsed data available
-      </div>
-    `;
-  }
-
-  const currentTime = parsed.hour !== null && parsed.minute !== null
-    ? `${String(parsed.hour).padStart(2, '0')}:${String(parsed.minute).padStart(2, '0')}`
-    : 'Unknown';
-
-  const weekdayName = parsed.weekday !== null ? getWeekdayName(parsed.weekday) : 'Unknown';
-
-  // Create combined date/time display
-  const dateTimeDisplay = currentTime !== 'Unknown' && weekdayName !== 'Unknown'
-    ? formatDateTime(parsed.hour, parsed.minute, parsed.weekday)
-    : 'Unknown';
-
-  const heads = parsed.heads || [];
-
-  // Count active heads: status != 4 (Disabled)
-  // Head status: {0,1,2,3,4} = {Daily, 24 Hourly, Custom, Timer, Disabled}
-  const activeHeads = heads.filter((head: any) => head.mode !== 4).length;
-
-  // Find the saved configuration for this device
+export function renderDoserCardStatus(device: DeviceStatus & { address: string }): string {
   const zustandState = deviceStore.getState();
-  const savedConfig = zustandState.configurations.dosers.get(device.address);
-
+  const config = zustandState.configurations.dosers.get(device.address);
+  
+  // If we have parsed status data, show the pump heads
+  if (config?.last_status?.parsed?.heads) {
+    return renderPumpHeads(config.last_status.parsed.heads, config, device.address);
+  }
+  
+  // Fallback: show simple connection state when parsed data isn't available yet
   return `
-    <div style="padding: 16px; background: var(--bg-secondary);">
-      ${renderPumpHeads(heads, savedConfig, device.address)}
+    <div style="padding: 24px; text-align: center; color: var(--gray-500); font-size: 14px;">
+      <div style="font-size: 16px; color: ${device.connected ? 'var(--success)' : 'var(--gray-400)'}; margin-bottom: 8px;">
+        ${device.connected ? '✓ Connected' : '○ Disconnected'}
+      </div>
+      <div style="font-size: 12px;">
+        Last update: ${new Date(device.updated_at * 1000).toLocaleTimeString()}
+      </div>
     </div>
   `;
 }
@@ -63,8 +47,8 @@ function renderPumpHeads(heads: any[], savedConfig?: any, deviceAddress?: string
     // Get configuration data for this head
     const configData = deviceAddress ? getHeadConfigData(headIndex, deviceAddress) : { setDose: 'N/A', schedule: 'N/A' };
 
-    // Get custom head name from metadata
-    const customName = deviceAddress ? getDoserHeadName(deviceAddress, i) : null;
+    // Get custom head name from metadata (pass 1-based index)
+    const customName = deviceAddress ? getDoserHeadName(deviceAddress, headIndex) : null;
 
     // Get dosed today from device head
     const dosedToday = deviceHead?.dosed_tenths_ml ? `${(deviceHead.dosed_tenths_ml / 10).toFixed(1)}mL` : 'N/A';

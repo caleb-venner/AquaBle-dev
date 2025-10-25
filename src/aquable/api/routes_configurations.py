@@ -12,22 +12,17 @@ Exception Handling Pattern:
 - Avoid broad 'except Exception' - catch specific exceptions for better debugging
 """
 
+import json
 import logging
-from typing import List
+from typing import Optional, Union
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, File, HTTPException, Request, UploadFile
+from pydantic import BaseModel, Field
 
-from ..storage import (
-    DoserDevice,
-    DoserMetadata,
-    DoserStorage,
-    LightDevice,
-    LightMetadata,
-    LightStorage,
-)
+from ..storage import DoserDevice, DoserStorage, LightDevice, LightStorage
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/api/configurations", tags=["configurations"])
+router = APIRouter(prefix="/api", tags=["configurations"])
 
 
 def get_doser_storage(request: Request) -> DoserStorage:
@@ -61,472 +56,379 @@ def get_light_storage(request: Request) -> LightStorage:
 
 
 # ============================================================================
-# Metadata Endpoints (Name-only storage)
+# Unified Endpoints Helper & Models
 # ============================================================================
 
 
-@router.get("/dosers/{address}/metadata", response_model=DoserMetadata)
-async def get_doser_metadata(
-    address: str,
-    storage: DoserStorage = Depends(get_doser_storage),
-):
-    """
-    Get device metadata (names only) for a doser.
-
-    This endpoint returns lightweight device information including
-    device name and head names without full configuration data.
-    Returns an empty metadata object if no metadata exists yet.
-    """
-    try:
-        metadata = storage.get_device_metadata(address)
-        if metadata is None:
-            # Return empty metadata for devices without existing metadata
-            metadata = DoserMetadata(id=address)
-        return metadata
-    except Exception as e:
-        logger.error(f"Error retrieving doser metadata: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to retrieve metadata: {str(e)}")
-
-
-@router.put("/dosers/{address}/metadata", response_model=DoserMetadata)
-async def update_doser_metadata(
-    address: str,
-    metadata: DoserMetadata,
-    storage: DoserStorage = Depends(get_doser_storage),
-):
-    """
-    Update or create device metadata (names only) for a doser.
-
-    This endpoint allows setting device name and head names without
-    creating full device configurations. Use this for server-side
-    name storage before sending any device commands.
-    """
-    if metadata.id != address:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Address mismatch: URL has {address}, body has {metadata.id}",
-        )
-
-    try:
-        updated_metadata = storage.upsert_device_metadata(metadata)
-        logger.info(f"Updated metadata for doser {address}")
-        return updated_metadata
-    except Exception as e:
-        logger.error(f"Error updating doser metadata: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to update metadata: {str(e)}")
-
-
-@router.get("/lights/{address}/metadata", response_model=LightMetadata)
-async def get_light_metadata(
-    address: str,
-    storage: LightStorage = Depends(get_light_storage),
-):
-    """
-    Get light metadata by device address.
+def get_device_storage(
+    request: Request, address: str
+) -> tuple[Union[DoserStorage, LightStorage], str]:
+    """Detect device type from storage and return appropriate storage instance.
 
     Args:
-        address: The MAC address of the light device
+        request: FastAPI request object containing app state
+        address: MAC address of the device
 
     Returns:
-        The light metadata, or empty metadata if not found yet
+        Tuple of (storage_instance, device_type) where device_type is 'doser' or 'light'
+
+    Raises:
+        HTTPException 404: If device not found in either storage
+        HTTPException 500: If device files are corrupted/invalid
     """
-    try:
-        metadata = storage.get_light_metadata(address)
-        if metadata is None:
-            # Return empty metadata for devices without existing metadata
-            metadata = LightMetadata(id=address)
-        else:
-            logger.info(f"Retrieved metadata for light {address}")
-        return metadata
-    except Exception as e:
-        logger.error(f"Error getting light metadata for {address}: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to get metadata: {str(e)}")
+    doser_storage = request.app.state.service._doser_storage
+    light_storage = request.app.state.service._light_storage
+
+    # Try to detect device type by calling get_device on both storages
+    # This is more reliable than checking the file directly since storage handles
+    # file path construction and format conversion
+    doser_device = doser_storage.get_device(address)
+    if doser_device:
+        return doser_storage, "doser"
+
+    light_device = light_storage.get_device(address)
+    if light_device:
+        return light_storage, "light"
+
+    # If device not found in either storage, raise 404
+    raise HTTPException(status_code=404, detail=f"Device not found: {address}")
 
 
-@router.put("/lights/{address}/metadata", response_model=LightMetadata)
-async def update_light_metadata(
-    address: str,
-    metadata: LightMetadata,
-    storage: LightStorage = Depends(get_light_storage),
-):
+class DeviceNamingUpdate(BaseModel):
+    """Request model for updating device naming fields only.
+
+    This model allows updating device name and head names independently
+    from configuration changes, without affecting other device fields.
     """
-    Update or create light metadata (name only, no schedules).
 
-    This endpoint allows updating just the display name and basic metadata
-    for a light device without creating or modifying any light schedules.
+    name: Optional[str] = Field(None, description="Device display name")
+    headNames: Optional[dict[int, str]] = Field(None, description="Head display names (doser only)")
+
+
+class DeviceSettingsUpdate(BaseModel):
+    """Request model for updating device settings/configurations.
+
+    This model encapsulates configuration changes for either doser or light devices.
+    The frontend sends updates specific to the device type that was detected.
+    """
+
+    # Doser-specific settings
+    configurations: Optional[list] = Field(None, description="Doser configurations")
+    activeConfigurationId: Optional[str] = Field(None, description="Active configuration ID")
+    autoReconnect: Optional[bool] = Field(None, description="Auto-reconnect setting")
+
+    # Light-specific settings (if added in future)
+
+
+# ============================================================================
+# Unified Endpoints (v2 API - simplified device management)
+# ============================================================================
+
+
+@router.get("/devices/{address}/configurations")
+async def get_device_configurations(request: Request, address: str):
+    """Get device configuration by address (detects device type automatically).
+
+    This unified endpoint works for both doser and light devices,
+    automatically detecting the device type from storage.
 
     Args:
-        address: The MAC address of the light device
-        metadata: Light metadata containing name and basic info
+        request: FastAPI request object
+        address: MAC address of the device
 
     Returns:
-        The updated metadata
+        DoserDevice or LightDevice configuration with last_status included
+
+    Raises:
+        404: Device not found
+        500: Device file corrupted or storage error
     """
     try:
-        # Ensure the address matches
-        metadata.id = address
+        storage, device_type = get_device_storage(request, address)
+        device = storage.get_device_with_status(address)
 
-        updated_metadata = storage.upsert_light_metadata(metadata)
-        logger.info(f"Updated metadata for light {address}: {updated_metadata.name}")
-        return updated_metadata
-    except Exception as e:
-        logger.error(f"Error updating light metadata for {address}: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to update metadata: {str(e)}")
+        if not device:
+            raise HTTPException(
+                status_code=404, detail=f"No configuration found for device {address}"
+            )
 
-
-# ============================================================================
-# Doser Configuration Endpoints
-# ============================================================================
-
-
-@router.get("/dosers", response_model=List[DoserDevice])
-async def list_doser_configurations(
-    storage: DoserStorage = Depends(get_doser_storage),
-):
-    """
-    Get all saved doser configurations.
-
-    Returns a list of all doser configurations stored in the system.
-    These configurations persist across device connections and can be
-    used to quickly restore or sync settings to devices.
-    """
-    try:
-        devices = storage.list_devices()
-        logger.info(f"Retrieved {len(devices)} doser configurations")
-        return devices
+        logger.info(f"Retrieved {device_type} configuration for {address}")
+        return device
+    except HTTPException:
+        raise
     except (OSError, IOError) as e:
-        logger.error(f"File I/O error listing doser configurations: {e}", exc_info=True)
+        logger.error(f"File I/O error retrieving device {address}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Storage error: {str(e)}")
     except ValueError as e:
-        logger.error(f"Validation error listing doser configurations: {e}", exc_info=True)
+        logger.error(f"Validation error retrieving device {address}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Configuration validation error: {str(e)}")
 
 
-@router.get("/dosers/{address}", response_model=DoserDevice)
-async def get_doser_configuration(address: str, storage: DoserStorage = Depends(get_doser_storage)):
-    """
-    Get a specific doser configuration by device address.
+@router.put("/devices/{address}/configurations")
+async def put_device_configurations(request: Request, address: str, device_data: dict):
+    """Replace entire device configuration (detects device type automatically).
+
+    This unified endpoint replaces the full configuration for a device,
+    automatically detecting the device type from storage.
 
     Args:
-        address: The MAC address of the doser device
+        request: FastAPI request object
+        address: MAC address of the device
+        device_data: Complete device configuration object
 
     Returns:
-        The doser configuration, or a default empty configuration if none exists yet.
-        This allows the frontend to display configuration UI for new devices.
+        Updated DoserDevice or LightDevice configuration
+
+    Raises:
+        404: Device not found
+        400: Invalid device data
+        500: Storage error
     """
-    device = storage.get_device(address)
-    if not device:
-        # Return a default configuration for new devices with minimal viable structure
-        from uuid import uuid4
-
-        from ..storage import (
-            Calibration,
-            ConfigurationRevision,
-            DeviceConfiguration,
-            DoserHead,
-            Recurrence,
-            SingleSchedule,
-            VolumeTracking,
-        )
-        from ..utils.time import now_iso
-
-        now = now_iso()
-        config_id = str(uuid4())
-
-        # Try to get existing metadata (device name and head names)
-        metadata = storage.get_device_metadata(address)
-
-        # Create default heads (all inactive with minimal valid data)
-        # Using explicit literals for type safety
-        default_heads = []
-        for head_index in [1, 2, 3, 4]:
-            default_heads.append(
-                DoserHead(
-                    index=head_index,  # type: ignore - literal type
-                    active=False,
-                    schedule=SingleSchedule(
-                        mode="single",
-                        dailyDoseMl=1.0,
-                        startTime="12:00",
-                    ),
-                    recurrence=Recurrence(
-                        days=[
-                            "monday",
-                            "tuesday",
-                            "wednesday",
-                            "thursday",
-                            "friday",
-                            "saturday",
-                            "sunday",
-                        ]
-                    ),
-                    missedDoseCompensation=False,
-                    calibration=Calibration(
-                        mlPerSecond=0.1,  # Default calibration value
-                        lastCalibratedAt=now,
-                    ),
-                    volumeTracking=VolumeTracking(
-                        enabled=False,
-                        capacityMl=None,
-                        currentMl=None,
-                        lowThresholdMl=None,
-                    ),
-                )
-            )
-
-        default_revision = ConfigurationRevision(
-            revision=1,
-            savedAt=now,
-            heads=default_heads,
-            note="Auto-generated default configuration",
-        )
-
-        default_config = DeviceConfiguration(
-            id=config_id,
-            name="Default Configuration",
-            revisions=[default_revision],
-            createdAt=now,
-            updatedAt=now,
-        )
-
-        device = DoserDevice(
-            id=address,
-            name=metadata.name if metadata else None,
-            headNames=metadata.headNames if metadata else None,
-            configurations=[default_config],
-            activeConfigurationId=config_id,
-            createdAt=now,
-            updatedAt=now,
-        )
-        logger.info(f"Returning default configuration for new doser {address}")
-    else:
-        logger.info(f"Retrieved configuration for doser {address}")
-    return device
-
-
-@router.put("/dosers/{address}", response_model=DoserDevice)
-async def update_doser_configuration(
-    address: str,
-    device: DoserDevice,
-    storage: DoserStorage = Depends(get_doser_storage),
-):
-    """
-    Update or create a doser configuration.
-
-    Args:
-        address: The MAC address of the doser device
-        device: The complete device configuration to save
-
-    Returns:
-        The updated configuration
-
-    Note:
-        The address in the URL must match the id in the device object.
-    """
-    if device.id != address:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Address mismatch: URL has {address}, body has {device.id}",
-        )
-
     try:
-        storage.upsert_device(device)
-        logger.info(f"Updated configuration for doser {address}")
+        storage, device_type = get_device_storage(request, address)
+
+        # Ensure address matches
+        device_data["id"] = address
+
+        # Validate and create device model
+        if device_type == "doser":
+            device = DoserDevice(**device_data)
+            doser_storage: DoserStorage = storage  # type: ignore
+            doser_storage.upsert_device(device)
+        else:  # light
+            device = LightDevice(**device_data)
+            light_storage: LightStorage = storage  # type: ignore
+            light_storage.upsert_device(device)
+
+        logger.info(f"Updated {device_type} configuration for {address}")
         return device
-    except (OSError, IOError) as e:
-        logger.error(f"File I/O error updating doser configuration: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Storage error: {str(e)}")
+    except HTTPException:
+        raise
     except ValueError as e:
-        logger.error(f"Validation error updating doser configuration: {e}", exc_info=True)
-        raise HTTPException(status_code=422, detail=f"Invalid configuration: {str(e)}")
+        logger.error(f"Validation error updating device {address}: {e}", exc_info=True)
+        raise HTTPException(status_code=422, detail=f"Invalid device data: {str(e)}")
+    except (OSError, IOError) as e:
+        logger.error(f"File I/O error updating device {address}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Storage error: {str(e)}")
 
 
-@router.delete("/dosers/{address}", status_code=204)
-async def delete_doser_configuration(
-    address: str, storage: DoserStorage = Depends(get_doser_storage)
-):
-    """
-    Delete a doser configuration.
+@router.patch("/devices/{address}/configurations/naming")
+async def patch_device_naming(request: Request, address: str, naming_update: DeviceNamingUpdate):
+    """Update device naming fields only (name, head names).
+
+    This PATCH endpoint allows updating device naming without affecting
+    other configuration fields. Useful for renaming devices without
+    triggering configuration version bumps.
 
     Args:
-        address: The MAC address of the doser device
+        request: FastAPI request object
+        address: MAC address of the device
+        naming_update: Naming fields to update
 
     Returns:
-        204 No Content on success
+        Updated DoserDevice or LightDevice configuration
 
     Raises:
-        404: If no configuration exists for this address
+        404: Device not found
+        400: Invalid update data
+        500: Storage error
     """
-    if not storage.get_device(address):
-        raise HTTPException(
-            status_code=404,
-            detail=f"No configuration found for doser {address}",
-        )
-
     try:
-        storage.delete_device(address)
-        logger.info(f"Deleted configuration for doser {address}")
-        return None
+        storage, device_type = get_device_storage(request, address)
+        device = storage.get_device(address)
+
+        if not device:
+            raise HTTPException(status_code=404, detail=f"Device not found: {address}")
+
+        # Apply name update
+        if naming_update.name is not None:
+            device.name = naming_update.name
+
+        # Apply head names update (doser only)
+        if naming_update.headNames is not None:
+            if device_type == "doser" and isinstance(device, DoserDevice):
+                device.headNames = naming_update.headNames
+            else:
+                logger.warning(f"Attempted to set headNames on light device {address}, ignoring")
+
+        # Save to storage - cast appropriately
+        if device_type == "doser":
+            doser_storage: DoserStorage = storage  # type: ignore
+            doser_storage.upsert_device(device)  # type: ignore
+        else:
+            light_storage: LightStorage = storage  # type: ignore
+            light_storage.upsert_device(device)  # type: ignore
+
+        logger.info(f"Updated naming for {device_type} {address}")
+        return device
+    except HTTPException:
+        raise
+    except ValueError as e:
+        logger.error(f"Validation error updating naming for {address}: {e}", exc_info=True)
+        raise HTTPException(status_code=422, detail=f"Invalid naming data: {str(e)}")
     except (OSError, IOError) as e:
-        logger.error(f"File I/O error deleting doser configuration: {e}", exc_info=True)
+        logger.error(f"File I/O error updating naming for {address}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Storage error: {str(e)}")
+
+
+@router.patch("/devices/{address}/configurations/settings")
+async def patch_device_settings(
+    request: Request, address: str, settings_update: DeviceSettingsUpdate
+):
+    """Update device settings/configurations (configurations, autoReconnect, etc).
+
+    This PATCH endpoint allows updating configuration-related fields
+    independently from naming updates. Useful for configuration changes
+    without affecting device identification.
+
+    Args:
+        request: FastAPI request object
+        address: MAC address of the device
+        settings_update: Settings/configuration fields to update
+
+    Returns:
+        Updated DoserDevice or LightDevice configuration
+
+    Raises:
+        404: Device not found
+        400: Invalid settings data
+        500: Storage error
+    """
+    try:
+        storage, device_type = get_device_storage(request, address)
+        device = storage.get_device(address)
+
+        if not device:
+            raise HTTPException(status_code=404, detail=f"Device not found: {address}")
+
+        # Apply settings updates (device-type specific)
+        if settings_update.autoReconnect is not None:
+            device.autoReconnect = settings_update.autoReconnect
+
+        # Doser-specific settings
+        if device_type == "doser" and isinstance(device, DoserDevice):
+            if settings_update.configurations is not None:
+                device.configurations = settings_update.configurations
+            if settings_update.activeConfigurationId is not None:
+                device.activeConfigurationId = settings_update.activeConfigurationId
+
+        # Save to storage - cast appropriately
+        if device_type == "doser":
+            doser_storage: DoserStorage = storage  # type: ignore
+            doser_storage.upsert_device(device)  # type: ignore
+        else:
+            light_storage: LightStorage = storage  # type: ignore
+            light_storage.upsert_device(device)  # type: ignore
+
+        logger.info(f"Updated settings for {device_type} {address}")
+        return device
+    except HTTPException:
+        raise
+    except ValueError as e:
+        logger.error(f"Validation error updating settings for {address}: {e}", exc_info=True)
+        raise HTTPException(status_code=422, detail=f"Invalid settings data: {str(e)}")
+    except (OSError, IOError) as e:
+        logger.error(f"File I/O error updating settings for {address}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Storage error: {str(e)}")
 
 
 # ============================================================================
-# Light Configuration Endpoints
+# Import/Export Endpoints
 # ============================================================================
 
 
-@router.get("/lights", response_model=List[LightDevice])
-async def list_light_configurations(
-    storage: LightStorage = Depends(get_light_storage),
-):
-    """
-    Get all saved light configurations.
+@router.get("/devices/{address}/configurations/export")
+async def export_device_configuration(request: Request, address: str):
+    """Export device configuration as JSON.
 
-    Returns a list of all light configurations stored in the system.
-    These configurations persist across device connections and can be
-    used to quickly restore or sync settings to devices.
-    """
-    try:
-        devices = storage.list_devices()
-        logger.info(f"Retrieved {len(devices)} light configurations")
-        return devices
-    except Exception as e:
-        logger.error(f"Error listing light configurations: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to list configurations: {str(e)}")
-
-
-@router.get("/lights/{address}", response_model=LightDevice)
-async def get_light_configuration(address: str, storage: LightStorage = Depends(get_light_storage)):
-    """
-    Get a specific light profile by device address.
+    Returns the complete device configuration (naming, settings, configurations)
+    as a JSON object that can be downloaded by the frontend and reimported later.
 
     Args:
-        address: The MAC address of the light device
+        request: FastAPI request object
+        address: MAC address of the device
 
     Returns:
-        The light profile, or a default empty configuration if none exists yet.
-        This allows the frontend to display configuration UI for new devices.
-    """
-    device = storage.get_device(address)
-    if not device:
-        # Return a default configuration for new devices with minimal viable structure
-        from uuid import uuid4
-
-        from ..storage import ChannelDef, LightConfiguration, LightProfileRevision, ManualProfile
-        from ..utils.time import now_iso
-
-        now = now_iso()
-        config_id = str(uuid4())
-
-        # Try to get existing metadata (device name)
-        metadata = storage.get_light_metadata(address)
-
-        # Create a default manual profile with a single white channel
-        default_profile = ManualProfile(
-            mode="manual",
-            levels={"white": 0},
-        )
-
-        default_revision = LightProfileRevision(
-            revision=1,
-            savedAt=now,
-            profile=default_profile,
-            note="Auto-generated default configuration",
-        )
-
-        default_config = LightConfiguration(
-            id=config_id,
-            name="Default Configuration",
-            revisions=[default_revision],
-            createdAt=now,
-            updatedAt=now,
-        )
-
-        # Create a single default channel (white)
-        default_channels = [
-            ChannelDef(
-                key="white",
-                label="White",
-                min=0,
-                max=100,
-                step=1,
-            )
-        ]
-
-        device = LightDevice(
-            id=address,
-            name=metadata.name if metadata else None,
-            channels=default_channels,
-            configurations=[default_config],
-            activeConfigurationId=config_id,
-            createdAt=now,
-            updatedAt=now,
-        )
-        logger.info(f"Returning default configuration for new light {address}")
-    else:
-        logger.info(f"Retrieved profile for light {address}")
-    return device
-
-
-@router.put("/lights/{address}", response_model=LightDevice)
-async def update_light_configuration(
-    address: str,
-    device: LightDevice,
-    storage: LightStorage = Depends(get_light_storage),
-):
-    """
-    Update or create a light profile.
-
-    Args:
-        address: The MAC address of the light device
-        device: The complete device profile to save
-
-    Returns:
-        The updated profile
-
-    Note:
-        The address in the URL must match the id in the device object.
-    """
-    if device.id != address:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Address mismatch: URL has {address}, body has {device.id}",
-        )
-
-    try:
-        storage.upsert_device(device)
-        logger.info(f"Updated profile for light {address}")
-        return device
-    except Exception as e:
-        logger.error(f"Error updating light profile: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to update profile: {str(e)}")
-
-
-@router.delete("/lights/{address}", status_code=204)
-async def delete_light_configuration(
-    address: str, storage: LightStorage = Depends(get_light_storage)
-):
-    """
-    Delete a light profile.
-
-    Args:
-        address: The MAC address of the light device
-
-    Returns:
-        204 No Content on success
+        DoserDevice or LightDevice configuration as JSON
 
     Raises:
-        404: If no profile exists for this address
+        404: Device not found
+        500: Storage error
     """
-    if not storage.get_device(address):
-        raise HTTPException(status_code=404, detail=f"No profile found for light {address}")
-
     try:
-        storage.delete_device(address)
-        logger.info(f"Deleted profile for light {address}")
-        return None
-    except Exception as e:
-        logger.error(f"Error deleting light profile: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to delete profile: {str(e)}")
+        storage, device_type = get_device_storage(request, address)
+        device = storage.get_device(address)
+
+        if not device:
+            raise HTTPException(status_code=404, detail=f"Device not found: {address}")
+
+        logger.info(f"Exported {device_type} configuration for {address}")
+        return device
+    except HTTPException:
+        raise
+    except (OSError, IOError) as e:
+        logger.error(f"File I/O error exporting device {address}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Storage error: {str(e)}")
+
+
+@router.post("/devices/{address}/configurations/import")
+async def import_device_configuration(request: Request, address: str, file: UploadFile = File(...)):
+    """Import device configuration from a JSON file.
+
+    Accepts a JSON file containing a device configuration and imports it,
+    replacing the current configuration. The file must be valid JSON and
+    compatible with either DoserDevice or LightDevice models.
+
+    Args:
+        request: FastAPI request object
+        address: MAC address of the device
+        file: JSON file containing device configuration
+
+    Returns:
+        Imported DoserDevice or LightDevice configuration
+
+    Raises:
+        404: Device not found
+        400: Invalid JSON or validation error
+        500: File I/O or storage error
+    """
+    try:
+        storage, device_type = get_device_storage(request, address)
+
+        # Read and parse the uploaded file
+        try:
+            content = await file.read()
+            device_data = json.loads(content)
+        except json.JSONDecodeError as e:
+            logger.error(f"Invalid JSON in uploaded file for {address}: {e}", exc_info=True)
+            raise HTTPException(status_code=400, detail=f"Invalid JSON format: {str(e)}")
+        except Exception as e:
+            logger.error(f"Error reading uploaded file for {address}: {e}", exc_info=True)
+            raise HTTPException(status_code=400, detail=f"Failed to read file: {str(e)}")
+
+        # Ensure address matches
+        device_data["id"] = address
+
+        # Validate and create device model
+        try:
+            if device_type == "doser":
+                device = DoserDevice(**device_data)
+                doser_storage: DoserStorage = storage  # type: ignore
+                doser_storage.upsert_device(device)
+            else:  # light
+                device = LightDevice(**device_data)
+                light_storage: LightStorage = storage  # type: ignore
+                light_storage.upsert_device(device)
+        except ValueError as e:
+            logger.error(
+                f"Validation error importing configuration for {address}: {e}", exc_info=True
+            )
+            raise HTTPException(status_code=422, detail=f"Invalid configuration data: {str(e)}")
+
+        logger.info(f"Imported {device_type} configuration for {address}")
+        return device
+    except HTTPException:
+        raise
+    except (OSError, IOError) as e:
+        logger.error(f"File I/O error importing device {address}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Storage error: {str(e)}")

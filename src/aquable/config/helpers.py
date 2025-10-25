@@ -146,11 +146,10 @@ def create_doser_config_from_command(address: str, args: Dict[str, Any]) -> Dose
             "sunday",
         ]
 
-    # Create only the head being configured (1-based index in storage)
-    head_storage_index = head_index + 1
+    # Create only the head being configured (head_index is already 1-based)
     head = DoserHead(
-        index=head_storage_index,  # type: ignore[arg-type]
-        label=f"Head {head_storage_index}",
+        index=head_index,  # type: ignore[arg-type]
+        label=f"Head {head_index}",
         active=True,
         schedule=SingleSchedule(
             mode="single",
@@ -168,7 +167,7 @@ def create_doser_config_from_command(address: str, args: Dict[str, Any]) -> Dose
         revision=1,
         savedAt=timestamp,
         heads=[head],
-        note=f"Created from set_schedule command for head {head_storage_index}",
+        note=f"Created from set_schedule command for head {head_index}",
         savedBy="system",
     )
 
@@ -195,7 +194,7 @@ def create_doser_config_from_command(address: str, args: Dict[str, Any]) -> Dose
     logger.info(
         "Created minimal doser config for %s from schedule command, head %s",
         address,
-        head_storage_index,
+        head_index,
     )
 
     return device
@@ -334,7 +333,13 @@ def create_light_config_from_command(
     # Create channel defs from device info
     sorted_channels = sorted(channels_info, key=lambda ch: ch.get("index", 0))
     channel_defs = [
-        ChannelDef(key=ch["name"].lower(), label=ch["name"].capitalize(), min=0, max=100, step=1)
+        ChannelDef(
+            key=str(ch["index"]),  # Use channel index as key
+            label=ch["name"].capitalize(),
+            min=0,
+            max=100,
+            step=1,
+        )
         for ch in sorted_channels
     ]
 

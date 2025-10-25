@@ -10,19 +10,10 @@ import { deviceStore } from "../../../stores/deviceStore";
 export function getDoserHeadName(deviceAddress: string, headIndex: number): string | null {
   const state = deviceStore.getState();
   
-  // Convert 0-based index to 1-based for metadata lookup
-  const metadataIndex = headIndex + 1;
-  
-  // First try configurations
+  // headIndex is 1-based (1-4)
   const config = state.configurations.dosers.get(deviceAddress);
-  if (config?.headNames && metadataIndex in config.headNames) {
-    return config.headNames[metadataIndex];
-  }
-  
-  // Then try device status metadata
-  const device = state.devices.get(deviceAddress);
-  if (device?.status?.metadata && 'headNames' in device.status.metadata && device.status.metadata.headNames) {
-    return device.status.metadata.headNames[metadataIndex] || null;
+  if (config?.headNames && headIndex in config.headNames) {
+    return config.headNames[headIndex];
   }
   
   return null;
@@ -30,45 +21,49 @@ export function getDoserHeadName(deviceAddress: string, headIndex: number): stri
 
 /**
  * Get the lifetime total for a doser head
+ * Note: With ultra-minimal DeviceStatus, parsed data is no longer in status.
+ * This would need to fetch from configuration API if needed.
  */
 export function getHeadLifetimeTotal(headIndex: number, deviceAddress?: string): string {
-  if (!deviceAddress) return 'N/A';
-
-  const state = deviceStore.getState();
-  const device = state.devices.get(deviceAddress);
-  const parsed = device?.status?.parsed as any;
-
-  if (!parsed || !parsed.lifetime_totals_tenths_ml || !Array.isArray(parsed.lifetime_totals_tenths_ml)) {
-    return 'N/A';
-  }
-
-  // Convert 1-based index to 0-based for array access
-  const lifetimeTotal = parsed.lifetime_totals_tenths_ml[headIndex - 1];
-
-  if (typeof lifetimeTotal !== 'number') {
-    return 'N/A';
-  }
-
-  // Convert tenths of mL to mL and format appropriately
-  const totalMl = lifetimeTotal / 10;
-
-  if (totalMl >= 1000) {
-    return `${(totalMl / 1000).toFixed(2)}L`;
-  }
-
-  return `${totalMl.toFixed(1)}ml`;
+  // Ultra-minimal DeviceStatus no longer includes parsed data
+  // Lifetime totals would need to be fetched from device configuration API
+  return 'N/A';
 }
 
 /**
  * Format schedule days for display
  */
-export function formatScheduleDays(weekdays: number[] | undefined): string {
+export function formatScheduleDays(weekdays: number[] | string[] | undefined): string {
   if (!weekdays || !Array.isArray(weekdays) || weekdays.length === 0) {
     return 'None';
   }
 
+  // If weekdays are strings (e.g., 'monday', 'tuesday'), convert to abbreviations
+  if (typeof weekdays[0] === 'string') {
+    const dayMap: Record<string, string> = {
+      'monday': 'Mon',
+      'tuesday': 'Tue',
+      'wednesday': 'Wed',
+      'thursday': 'Thu',
+      'friday': 'Fri',
+      'saturday': 'Sat',
+      'sunday': 'Sun'
+    };
+    const abbrevDays = (weekdays as string[]).map(day => dayMap[day.toLowerCase()]).filter(Boolean);
+    
+    if (abbrevDays.length === 7) return 'Everyday';
+    if (abbrevDays.length === 5 && ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'].every(d => abbrevDays.includes(d))) {
+      return 'Weekdays';
+    }
+    if (abbrevDays.length === 2 && abbrevDays.includes('Sat') && abbrevDays.includes('Sun')) {
+      return 'Weekends';
+    }
+    return abbrevDays.join(', ');
+  }
+
+  // If weekdays are numbers (0-6 indices), handle as before
   const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-  const validDays = weekdays.filter(day => typeof day === 'number' && day >= 0 && day <= 6);
+  const validDays = (weekdays as number[]).filter(day => typeof day === 'number' && day >= 0 && day <= 6);
 
   if (validDays.length === 0) {
     return 'None';
@@ -100,14 +95,13 @@ export function formatScheduleDays(weekdays: number[] | undefined): string {
  */
 export function getHeadConfigData(headIndex: number, deviceAddress: string): { setDose: string; schedule: string } {
   const state = deviceStore.getState();
-  const savedConfigs = Array.from(state.configurations.dosers.values());
-  const savedConfig = savedConfigs.find((config: any) => config.id === deviceAddress);
+  const config = state.configurations.dosers.get(deviceAddress);
 
-  if (!savedConfig || !savedConfig.configurations || savedConfig.configurations.length === 0) {
+  if (!config || !config.configurations || config.configurations.length === 0) {
     return { setDose: 'N/A', schedule: 'N/A' };
   }
 
-  const activeConfig = savedConfig.configurations.find((c: any) => c.id === savedConfig.activeConfigurationId);
+  const activeConfig = config.configurations.find((c: any) => c.id === config.activeConfigurationId) || config.configurations[0];
   if (!activeConfig || !activeConfig.revisions || activeConfig.revisions.length === 0) {
     return { setDose: 'N/A', schedule: 'N/A' };
   }
@@ -119,22 +113,14 @@ export function getHeadConfigData(headIndex: number, deviceAddress: string): { s
     return { setDose: 'N/A', schedule: 'N/A' };
   }
 
-  // Show configuration data even if head is not currently active on device
-  // This ensures configured heads always display their settings
+  // Extract dose from schedule
   let setDose = 'N/A';
   const schedule = configHead.schedule;
-  if (schedule) {
-    // Format dose amount
-    if (schedule.volume_ml !== undefined && schedule.volume_ml !== null) {
-      setDose = `${schedule.volume_ml}ml`;
-    } else if (schedule.volume_tenths_ml !== undefined && schedule.volume_tenths_ml !== null) {
-      setDose = `${schedule.volume_tenths_ml / 10}ml`;
-    }
-
-    // Format schedule days
-    const scheduleText = formatScheduleDays(configHead.recurrence?.days);
-    return { setDose, schedule: scheduleText };
+  if (schedule && schedule.dailyDoseMl !== undefined && schedule.dailyDoseMl !== null) {
+    setDose = `${schedule.dailyDoseMl}ml`;
   }
 
-  return { setDose: 'N/A', schedule: 'N/A' };
+  // Format schedule days from recurrence
+  const scheduleText = formatScheduleDays(configHead.recurrence?.days);
+  return { setDose, schedule: scheduleText };
 }

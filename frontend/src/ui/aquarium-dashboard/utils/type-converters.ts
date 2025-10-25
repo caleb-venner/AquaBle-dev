@@ -3,7 +3,7 @@
  */
 
 import type { DoserDevice as ApiDoserDevice, LightDevice as ApiLightDevice } from "../../../api/configurations";
-import type { DoserDevice as DomainDoserDevice, LightDevice as DomainLightDevice } from "../../../types/models";
+import type { DoserDevice as DomainDoserDevice, LightDevice as DomainLightDevice } from "../../../types/domain";
 
 /**
  * Convert API DoserDevice to Domain DoserDevice for UI components
@@ -68,9 +68,9 @@ export function apiToLightDevice(apiDevice: ApiLightDevice): DomainLightDevice {
     channels: apiDevice.channels.map(ch => ({
       key: ch.key,
       label: ch.label,
-      min: ch.min,
-      max: ch.max,
-      step: ch.step
+      min: ch.min ?? 0,
+      max: ch.max ?? 100,
+      step: ch.step ?? 1
     })),
     profile: {
       mode: 'manual' as const,
@@ -137,14 +137,14 @@ export function createDefaultLightDevice(address: string, name?: string): Domain
     id: address,
     name: name || `Light ${address.slice(-8)}`,
     channels: [
-      { key: 'red', label: 'Red', min: 0, max: 100, step: 1 },
-      { key: 'green', label: 'Green', min: 0, max: 100, step: 1 },
-      { key: 'blue', label: 'Blue', min: 0, max: 100, step: 1 },
-      { key: 'white', label: 'White', min: 0, max: 100, step: 1 }
+      { key: '0', label: 'Red', min: 0, max: 100, step: 1 },
+      { key: '1', label: 'Green', min: 0, max: 100, step: 1 },
+      { key: '2', label: 'Blue', min: 0, max: 100, step: 1 },
+      { key: '3', label: 'White', min: 0, max: 100, step: 1 }
     ],
     profile: {
       mode: 'manual' as const,
-      levels: { red: 0, green: 0, blue: 0, white: 0 }
+      levels: { '0': 0, '1': 0, '2': 0, '3': 0 }
     }
   };
 }

@@ -7,14 +7,14 @@ import { getTimeAgo } from "../../../utils";
 /* import { renderConnectionStatus } from "../utils/connection-utils"; */
 import { renderLightCardStatus/* , renderChannelLevels */ } from "./light-components";
 import { renderDoserCardStatus } from "./doser-components";
-import type { CachedStatus } from "../../../types/models";
+import type { DeviceStatus } from "../../../types/api";
 
 /**
  * Render a device section with device tiles
  */
 export function renderDeviceSection(
   title: string,
-  devices: Array<CachedStatus & { address: string }>
+  devices: Array<DeviceStatus & { address: string }>
 ): string {
   return `
     <div class="card">
@@ -33,21 +33,17 @@ export function renderDeviceSection(
  * Render an individual device tile with full device info
  * TODO: Simplified per dashboard cleanup - only showing header
  */
-function renderDeviceTile(device: CachedStatus & { address: string }): string {
+function renderDeviceTile(device: DeviceStatus & { address: string }): string {
   const statusColor = device.connected ? "var(--success)" : "var(--gray-400)";
   const statusText = device.connected ? "Connected" : "Disconnected";
   
-  // Get device display name from Zustand store
+  // Get device name from configuration (all devices have 'name' field)
   const zustandState = deviceStore.getState();
-  let deviceName = 'Unknown Device';
-  if (device.device_type === "doser") {
-    const config = zustandState.configurations.dosers.get(device.address);
-    deviceName = config?.name || device.metadata?.name || device.model_name || 'Unknown Device';
-  } else if (device.device_type === "light") {
-    const config = zustandState.configurations.lights.get(device.address);
-    deviceName = config?.name || device.metadata?.name || device.model_name || 'Unknown Device';
-  }
+  const config = device.device_type === "doser" 
+    ? zustandState.configurations.dosers.get(device.address)
+    : zustandState.configurations.lights.get(device.address);
   
+  const deviceName = config?.name || device.address;
   const timeAgo = getTimeAgo(device.updated_at);
 
   return `
@@ -63,7 +59,7 @@ function renderDeviceTile(device: CachedStatus & { address: string }): string {
  * Render device card header
  */
 function renderDeviceCardHeader(
-  device: CachedStatus & { address: string },
+  device: DeviceStatus & { address: string },
   deviceName: string,
   statusText: string,
   timeAgo: string
@@ -100,7 +96,7 @@ function renderDeviceCardHeader(
 /**
  * Render device card body (device info/status section)
  */
-function renderDeviceCardBody(device: CachedStatus & { address: string }): string {
+function renderDeviceCardBody(device: DeviceStatus & { address: string }): string {
   return `
     <div class="device-body" style="padding: 16px;">
       ${renderDeviceSpecificContent(device)}
@@ -111,7 +107,7 @@ function renderDeviceCardBody(device: CachedStatus & { address: string }): strin
 /**
  * Render device-specific content based on device type
  */
-function renderDeviceSpecificContent(device: CachedStatus & { address: string }): string {
+function renderDeviceSpecificContent(device: DeviceStatus & { address: string }): string {
   if (device.device_type === "light") {
     return renderLightCardStatus(device);
   } else if (device.device_type === "doser") {
@@ -131,7 +127,7 @@ function renderDeviceSpecificContent(device: CachedStatus & { address: string })
 /**
  * Render device card footer (Settings and Connect buttons)
  */
-function renderDeviceCardFooter(device: CachedStatus & { address: string }): string {
+function renderDeviceCardFooter(device: DeviceStatus & { address: string }): string {
   const connectButtonText = device.connected ? 'Disconnect' : 'Connect';
   const connectButtonClass = device.connected ? 'btn-danger' : 'btn-primary';
 

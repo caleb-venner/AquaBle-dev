@@ -106,9 +106,25 @@ class PollingService {
 
       // Update Zustand store
       const actions = deviceStore.getState().actions;
-      Object.entries(status).forEach(([address, deviceStatus]) => {
+      const state = deviceStore.getState();
+      const existingDevices = state.devices;
+      
+      for (const [address, deviceStatus] of Object.entries(status)) {
+        // Update device status
         actions.updateDevice(address, deviceStatus);
-      });
+        
+        // Fetch configuration if not already loaded
+        const isDoser = deviceStatus.device_type === 'doser';
+        const hasConfig = isDoser 
+          ? state.configurations.dosers.has(address)
+          : state.configurations.lights.has(address);
+        
+        if (!hasConfig) {
+          console.log(`📥 Fetching configuration for ${address}...`);
+          actions.refreshDeviceConfig(address, deviceStatus.device_type as 'doser' | 'light')
+            .catch(err => console.error(`Failed to load config for ${address}:`, err));
+        }
+      }
 
       // Notify subscribers
       this.subscribers.forEach(callback => callback(status));

@@ -3,7 +3,7 @@
  */
 
 import type { DoserDevice, LightDevice, DeviceMetadata, LightMetadata, ConfigurationSummary } from "../../api/configurations";
-import type { StatusResponse } from "../../types/models";
+import type { StatusResponse } from "../../types/api";
 
 export type DashboardTab = "overview" | "dev";
 

@@ -4,7 +4,8 @@
  */
 
 import { deviceStore } from "../../../stores/deviceStore";
-import { updateDoserMetadata, updateLightMetadata, getDoserMetadata, getLightMetadata } from "../../../api/configurations";
+import { updateDeviceNaming, getDeviceConfiguration } from "../../../api/configurations";
+import { showImportExportModal } from "./import-export-modal";
 
 type DeviceMetadata = {
   id: string;
@@ -30,20 +31,24 @@ export async function showDeviceConfigModal(address: string, deviceType: 'doser'
     return;
   }
 
-  // Load metadata (try to fetch regardless of whether config exists)
+  // Load device configuration (includes naming metadata)
   let metadata: DeviceMetadata | null = null;
   try {
-    if (deviceType === 'doser') {
-      metadata = await getDoserMetadata(address);
-    } else if (deviceType === 'light') {
-      metadata = await getLightMetadata(address);
-    }
+    const config = await getDeviceConfiguration(address);
+    metadata = {
+      id: config.id,
+      name: config.name,
+      autoReconnect: config.autoReconnect,
+      headNames: (config as any).headNames,
+      createdAt: config.createdAt,
+      updatedAt: config.updatedAt,
+    };
   } catch (error) {
-    console.error('Failed to load metadata:', error);
+    console.error('Failed to load device configuration:', error);
   }
 
-  // Get display name
-  const displayName = metadata?.name || deviceStatus.model_name || address;
+  // Get display name (metadata name or address)
+  const displayName = metadata?.name || address;
 
   modal.innerHTML = `
     <div class="modal-content device-config-modal" style="max-width: 600px; max-height: 90vh; overflow-y: auto;" data-device-id="${address}" data-device-type="${deviceType}">
@@ -53,7 +58,7 @@ export async function showDeviceConfigModal(address: string, deviceType: 'doser'
       </div>
 
       <div class="modal-body">
-        ${renderGeneralSettingsForm(address, deviceType, metadata, deviceStatus)}
+        ${renderGeneralSettingsForm(address, deviceType, metadata)}
       </div>
     </div>
   `;
@@ -71,6 +76,11 @@ export async function showDeviceConfigModal(address: string, deviceType: 'doser'
   (window as any).saveDeviceConfig = async () => {
     await handleSaveConfig(address, deviceType, modal);
   };
+
+  // Setup import/export handler
+  (window as any).showImportExportModal = async (addr: string, type: 'doser' | 'light') => {
+    await showImportExportModal(addr, type);
+  };
 }
 
 /**
@@ -79,8 +89,7 @@ export async function showDeviceConfigModal(address: string, deviceType: 'doser'
 function renderGeneralSettingsForm(
   address: string,
   deviceType: 'doser' | 'light',
-  metadata: DeviceMetadata | null,
-  deviceStatus: any
+  metadata: DeviceMetadata | null
 ): string {
   const nickname = metadata?.name || '';
   const autoReconnect = metadata?.autoReconnect || false;
@@ -96,7 +105,7 @@ function renderGeneralSettingsForm(
           id="device-nickname"
           class="form-control"
           value="${nickname}"
-          placeholder="${deviceStatus.model_name || 'Device Name'}"
+          placeholder="Device Name"
         />
         <small class="form-text">Custom name displayed in the interface</small>
       </div>
@@ -118,6 +127,9 @@ function renderGeneralSettingsForm(
       <div class="form-actions">
         <button class="btn btn-primary" onclick="saveDeviceConfig()">
           Save Settings
+        </button>
+        <button class="btn btn-secondary" onclick="showImportExportModal('${address}', '${deviceType}')">
+          Import/Export
         </button>
         <button class="btn btn-secondary" onclick="this.closest('.modal-overlay').remove();">
           Cancel
@@ -189,12 +201,11 @@ async function handleSaveConfig(
       }
     }
 
-    // Save via API
-    if (deviceType === 'doser') {
-      await updateDoserMetadata(address, metadata);
-    } else {
-      await updateLightMetadata(address, metadata);
-    }
+    // Save via unified API
+    await updateDeviceNaming(address, {
+      name: metadata.name,
+      headNames: metadata.headNames,
+    });
 
     // Show success notification
     deviceStore.getState().actions.addNotification({

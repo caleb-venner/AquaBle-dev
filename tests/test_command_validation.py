@@ -12,7 +12,7 @@ class TestDoserScheduleArgsValidation:
     def test_valid_schedule_args(self):
         """Test valid doser schedule arguments."""
         args = DoserScheduleArgs(
-            head_index=0,
+            head_index=1,
             volume_tenths_ml=1000,
             hour=12,
             minute=30,
@@ -20,7 +20,7 @@ class TestDoserScheduleArgsValidation:
             confirm=True,
             wait_seconds=2.0,
         )
-        assert args.head_index == 0
+        assert args.head_index == 1
         assert args.volume_tenths_ml == 1000
         assert args.hour == 12
         assert args.minute == 30
@@ -28,8 +28,8 @@ class TestDoserScheduleArgsValidation:
 
     def test_head_index_validation(self):
         """Test head index validation."""
-        # Valid indices
-        for i in range(4):
+        # Valid indices (1-based)
+        for i in range(1, 5):
             args = DoserScheduleArgs(
                 head_index=i,
                 volume_tenths_ml=100,
@@ -42,9 +42,9 @@ class TestDoserScheduleArgsValidation:
             assert args.head_index == i
 
         # Invalid indices
-        with pytest.raises(ValidationError, match="Head index must be 0-3"):
+        with pytest.raises(ValidationError, match="Head index must be 1-4"):
             DoserScheduleArgs(
-                head_index=-1,
+                head_index=0,
                 volume_tenths_ml=100,
                 hour=12,
                 minute=0,
@@ -53,9 +53,9 @@ class TestDoserScheduleArgsValidation:
                 wait_seconds=2.0,
             )
 
-        with pytest.raises(ValidationError, match="Head index must be 0-3"):
+        with pytest.raises(ValidationError, match="Head index must be 1-4"):
             DoserScheduleArgs(
-                head_index=4,
+                head_index=5,
                 volume_tenths_ml=100,
                 hour=12,
                 minute=0,
@@ -68,7 +68,7 @@ class TestDoserScheduleArgsValidation:
         """Test weekday validation."""
         # Valid weekdays using strings
         args = DoserScheduleArgs(
-            head_index=0,
+            head_index=1,
             volume_tenths_ml=100,
             hour=12,
             minute=0,
@@ -80,7 +80,7 @@ class TestDoserScheduleArgsValidation:
 
         # Valid weekdays using strings (new feature)
         args = DoserScheduleArgs(
-            head_index=0,
+            head_index=1,
             volume_tenths_ml=100,
             hour=12,
             minute=0,
@@ -95,7 +95,7 @@ class TestDoserScheduleArgsValidation:
 
         # Mixed case should be converted to lowercase
         args = DoserScheduleArgs(
-            head_index=0,
+            head_index=1,
             volume_tenths_ml=100,
             hour=12,
             minute=0,
@@ -108,7 +108,7 @@ class TestDoserScheduleArgsValidation:
 
         # Valid everyday using string
         args = DoserScheduleArgs(
-            head_index=0,
+            head_index=1,
             volume_tenths_ml=100,
             hour=12,
             minute=0,
@@ -120,7 +120,7 @@ class TestDoserScheduleArgsValidation:
 
         # Valid everyday using string
         args = DoserScheduleArgs(
-            head_index=0,
+            head_index=1,
             volume_tenths_ml=100,
             hour=12,
             minute=0,
@@ -133,7 +133,7 @@ class TestDoserScheduleArgsValidation:
         # Invalid weekday string
         with pytest.raises(ValidationError, match="Invalid weekday string"):
             DoserScheduleArgs(
-                head_index=0,
+                head_index=1,
                 volume_tenths_ml=100,
                 hour=12,
                 minute=0,
@@ -145,7 +145,7 @@ class TestDoserScheduleArgsValidation:
         # Empty weekdays should fail
         with pytest.raises(ValidationError, match="Weekdays list cannot be empty"):
             DoserScheduleArgs(
-                head_index=0,
+                head_index=1,
                 volume_tenths_ml=100,
                 hour=12,
                 minute=0,
@@ -160,7 +160,7 @@ class TestDoserScheduleArgsValidation:
             match="Cannot combine 'everyday' with specific weekdays",
         ):
             DoserScheduleArgs(
-                head_index=0,
+                head_index=1,
                 volume_tenths_ml=100,
                 hour=12,
                 minute=0,
@@ -172,7 +172,7 @@ class TestDoserScheduleArgsValidation:
         # Duplicates should fail
         with pytest.raises(ValidationError, match="Duplicate weekdays not allowed"):
             DoserScheduleArgs(
-                head_index=0,
+                head_index=1,
                 volume_tenths_ml=100,
                 hour=12,
                 minute=0,
@@ -199,10 +199,10 @@ class TestLightBrightnessArgsValidation:
             assert args.color == i
 
         # Invalid indices (negative values)
-        with pytest.raises(ValidationError, match="Color index must be non-negative"):
+        with pytest.raises(ValidationError, match=r"Input should be greater than or equal to 0"):
             LightBrightnessArgs(brightness=50, color=-1)
 
-        with pytest.raises(ValidationError, match="Color index must be non-negative"):
+        with pytest.raises(ValidationError, match=r"Input should be greater than or equal to 0"):
             LightBrightnessArgs(brightness=50, color=-5)
 
 

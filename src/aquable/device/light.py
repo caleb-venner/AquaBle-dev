@@ -99,70 +99,49 @@ class LightDevice(BaseDevice):
         """Turn off light."""
         await self.set_brightness(0)
 
-    async def add_setting(
+    async def add_auto_setting(
         self,
         sunrise,
         sunset,
-        max_brightness: int = 100,
+        brightness: int | tuple[int, ...] | dict[int, int] | None = None,
         ramp_up_in_minutes: int = 0,
         weekdays: Sequence[str] | None = None,
     ) -> None:
-        """Add an automation setting to the light."""
-        cmd = commands.create_add_auto_setting_command(
-            self.get_next_msg_id(),
-            sunrise,
-            sunset,
-            (max_brightness, 255, 255),
-            ramp_up_in_minutes,
-            commands.encode_weekdays(weekdays or ["everyday"]),
-        )
-        await self._send_command(cmd, 3)
+        """Add an automation setting to the light.
 
-    async def add_rgb_setting(
-        self,
-        sunrise,
-        sunset,
-        max_brightness: tuple[int, int, int] = (100, 100, 100),
-        ramp_up_in_minutes: int = 0,
-        weekdays: Sequence[str] | None = None,
-    ) -> None:
-        """Add an automation setting to the RGB light."""
-        cmd = commands.create_add_auto_setting_command(
-            self.get_next_msg_id(),
-            sunrise,
-            sunset,
-            max_brightness,
-            ramp_up_in_minutes,
-            commands.encode_weekdays(weekdays or ["everyday"]),
-        )
-        await self._send_command(cmd, 3)
-
-    async def add_multi_channel_setting(
-        self,
-        sunrise,
-        sunset,
-        channel_brightness: dict[str, int] | None = None,
-        ramp_up_in_minutes: int = 0,
-        weekdays: Sequence[str] | None = None,
-    ) -> None:
-        """Add an automation setting using all available channels.
+        Supports flexible brightness specification:
+        - Single int: Apply same brightness to all channels
+        - Tuple of ints: Apply brightness values in device channel order (by index)
+        - Dict[int, int]: Map channel indices (0-N) to brightness values (0-100)
+        - None: Default to 100 for all channels
 
         Args:
             sunrise: Sunrise time
             sunset: Sunset time
-            channel_brightness: Dict mapping color names to brightness values (0-100).
-                               If None, all channels default to 100.
+            brightness: Brightness configuration (int, tuple, dict, or None). Defaults to 100.
             ramp_up_in_minutes: Ramp up time in minutes
             weekdays: List of weekdays, defaults to everyday
         """
-        # Get brightness values for all channels
-        brightness_values = []
-        for color_name in sorted(self.colors.keys(), key=lambda x: self.colors[x]):
-            brightness = channel_brightness.get(color_name, 100) if channel_brightness else 100
-            brightness_values.append(brightness)
+        # Normalize brightness to tuple in device channel order
+        if brightness is None:
+            brightness = 100
 
-        # Convert to tuple
-        brightness_tuple = tuple(brightness_values)
+        if isinstance(brightness, int):
+            # Single brightness value: apply to all channels
+            num_channels = len(set(self._colors.values()))
+            brightness_tuple = tuple(brightness for _ in range(num_channels))
+
+        elif isinstance(brightness, dict):
+            # Dict mapping channel indices to brightness values
+            num_channels = len(set(self._colors.values()))
+            brightness_values = []
+            for i in range(num_channels):
+                brightness_values.append(brightness.get(i, 100))
+            brightness_tuple = tuple(brightness_values)
+
+        else:
+            # Assume tuple of brightness values in device channel order
+            brightness_tuple = brightness
 
         cmd = commands.create_add_auto_setting_command(
             self.get_next_msg_id(),

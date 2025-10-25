@@ -2,7 +2,7 @@
  * Connection status utilities
  */
 
-import type { CachedStatus } from "../../../types/models";
+import type { DeviceStatus } from "../../../types/api";
 import type { ConnectionStability } from "../types";
 
 export type ConnectionHealth = 'stable' | 'unstable' | 'disconnected' | 'reconnecting';
@@ -10,7 +10,7 @@ export type ConnectionHealth = 'stable' | 'unstable' | 'disconnected' | 'reconne
 /**
  * Determine overall connection health based on device status and stability tracking
  */
-export function getConnectionHealth(deviceStatus: CachedStatus | null): ConnectionHealth {
+export function getConnectionHealth(deviceStatus: DeviceStatus | null): ConnectionHealth {
   if (!deviceStatus) {
     return 'disconnected';
   }
@@ -57,7 +57,7 @@ export function getConnectionStatusDisplay(health: ConnectionHealth): {
 /**
  * Render connection status badge
  */
-export function renderConnectionStatus(deviceStatus: CachedStatus | null): string {
+export function renderConnectionStatus(deviceStatus: DeviceStatus | null): string {
   const health = getConnectionHealth(deviceStatus);
   const display = getConnectionStatusDisplay(health);
 
@@ -77,7 +77,7 @@ export function renderConnectionStatus(deviceStatus: CachedStatus | null): strin
 /**
  * Render larger connection status for modals (inline with close button)
  */
-export function renderModalConnectionStatus(deviceStatus: CachedStatus | null): string {
+export function renderModalConnectionStatus(deviceStatus: DeviceStatus | null): string {
   const health = getConnectionHealth(deviceStatus);
   const display = getConnectionStatusDisplay(health);
 
