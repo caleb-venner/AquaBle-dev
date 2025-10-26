@@ -685,6 +685,7 @@ class BLEService:
             raw_payload = getattr(status_obj, "raw_payload", None)
             raw_hex = raw_payload.hex() if isinstance(raw_payload, (bytes, bytearray)) else None
             model_name = getattr(device, "model_name", None)
+            device_name = getattr(device, "name", None)
 
             # Create ultra-minimal CachedStatus and persist full data
             timestamp = time.time()
@@ -697,6 +698,7 @@ class BLEService:
 
             # Persist full status details to device JSON file
             status_dict = {
+                "device_name": device_name,  # For cross-platform device matching
                 "model_name": model_name,
                 "raw_payload": raw_hex,
                 "parsed": parsed,

@@ -105,34 +105,23 @@ function renderLightAutoSchedule(device: DeviceStatus & { address: string }, dev
   const next = schedules.filter(s => s.status === 'next');
   const upcoming = schedules.filter(s => s.status === 'upcoming');
 
+  // Combine all schedules and show up to 3
+  const allSchedules = [...current, ...next, ...upcoming];
+  const topThree = allSchedules.slice(0, 3);
+
   return `
     <div style="padding: 16px; display: flex; flex-direction: column; gap: 12px;">
-      ${current.length > 0 ? `
+      ${topThree.length > 0 ? `
         <div>
-          <div style="font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-bottom: 8px;">ACTIVE</div>
           <div style="display: flex; flex-direction: column; gap: 6px;">
-            ${current.map(s => renderScheduleItem(s)).join('')}
+            ${topThree.map(s => renderScheduleItem(s)).join('')}
           </div>
         </div>
-      ` : ''}
-      
-      ${next.length > 0 ? `
-        <div>
-          <div style="font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-bottom: 8px;">NEXT</div>
-          <div style="display: flex; flex-direction: column; gap: 6px;">
-            ${next.slice(0, 2).map(s => renderScheduleItem(s)).join('')}
-          </div>
+      ` : `
+        <div style="text-align: center; color: var(--gray-500); font-size: 13px;">
+          No scheduled programs
         </div>
-      ` : ''}
-      
-      ${current.length === 0 && next.length === 0 && upcoming.length > 0 ? `
-        <div>
-          <div style="font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-bottom: 8px;">UPCOMING</div>
-          <div style="display: flex; flex-direction: column; gap: 6px;">
-            ${upcoming.slice(0, 2).map(s => renderScheduleItem(s)).join('')}
-          </div>
-        </div>
-      ` : ''}
+      `}
     </div>
   `;
 }
@@ -167,19 +156,24 @@ function renderScheduleItem(schedule: SequentialSchedule & { channels?: any[] })
   // Format channel levels in the order specified by device channels configuration
   let channelLevels = '';
   if (schedule.channels && Array.isArray(schedule.channels)) {
-    // Use the device channel order
+    // Use the device channel order with proper labels
     const levelStrings = schedule.channels
       .map(channel => {
         const value = schedule.program.levels[channel.key];
-        return `${channel.key.charAt(0).toUpperCase()}:${value}%`;
+        // Use label if available, otherwise fallback to key
+        const displayName = channel.label || channel.key.charAt(0).toUpperCase() + channel.key.slice(1);
+        return `${displayName}:${value}%`;
       })
       .filter(str => str); // Filter out undefined values
-    channelLevels = levelStrings.join(' ');
+    channelLevels = levelStrings.join(' '); // Single space between channels
   } else {
     // Fallback to alphabetical sorting if channels not provided
     channelLevels = Object.entries(schedule.program.levels)
-      .map(([channel, value]) => `${channel.charAt(0).toUpperCase()}:${value}%`)
-      .join(' ');
+      .map(([channel, value]) => {
+        const displayName = channel.charAt(0).toUpperCase() + channel.slice(1);
+        return `${displayName}:${value}%`;
+      })
+      .join(' '); // Single space between channels
   }
 
   // Format time range with day prefix if nextTime exists
@@ -199,9 +193,8 @@ function renderScheduleItem(schedule: SequentialSchedule & { channels?: any[] })
         <div style="font-size: 11px; color: var(--text-secondary);">
           ${statusText} • ${timeRange} • ${schedule.program.rampMinutes}min ramp
         </div>
-        <div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">
-          ${channelLevels}
-        </div>
+        <pre style="font-size: 11px; color: var(--text-secondary); margin-top: 2px; margin: 0; padding: 0; font-family: 'Courier New', Courier, monospace; background: transparent; border: none; white-space: pre-wrap; word-wrap: break-word;">
+${channelLevels}</pre>
       </div>
     </div>
   `;

@@ -359,6 +359,7 @@ class BaseDeviceStorage(ABC, Generic[TDevice]):
         Args:
             device_id: Device identifier (MAC address)
             status: Status dictionary to store (should match DeviceStatus format)
+                   Can optionally include 'device_name' for name-based matching
         """
         device_file = self._get_device_file_path(device_id)
 
@@ -376,6 +377,12 @@ class BaseDeviceStorage(ABC, Generic[TDevice]):
             "device_type": self.device_type,
             "device_id": device_id,
         }
+
+        # Extract and store device_name separately if provided in status
+        if "device_name" in status:
+            data["device_name"] = status["device_name"]
+            # Remove from status dict so it doesn't duplicate
+            status = {k: v for k, v in status.items() if k != "device_name"}
 
         # Update status and timestamp
         data["last_status"] = status
@@ -442,15 +449,106 @@ class BaseDeviceStorage(ABC, Generic[TDevice]):
                     "device_id": device_id,
                     "device_type": self.device_type,
                     "has_device_data": data.get("device_data") is not None,
+                    "device_name": data.get("device_name"),  # For name-based matching
                     "metadata": data.get("metadata"),
                     "last_status": data.get("last_status"),
                 }
                 devices.append(device_info)
             except (json.JSONDecodeError, OSError) as exc:
                 logger.warning(f"Could not read device file {device_file}: {exc}")
-                continue
 
         return devices
+
+    def export_device_config(self, device_id: str) -> Dict[str, Any] | None:
+        """Export a device's configuration for import on another machine.
+
+        Returns a portable configuration that includes device_name for matching
+        but excludes platform-specific addresses and status data.
+
+        Args:
+            device_id: Device identifier (MAC address)
+
+        Returns:
+            Exportable configuration dict or None if device not found
+        """
+        device_file = self._get_device_file_path(device_id)
+        if not device_file.exists():
+            return None
+
+        try:
+            data = json.loads(device_file.read_text(encoding="utf-8"))
+
+            # Build portable export format
+            export_data = {
+                "device_type": data.get("device_type"),
+                "device_name": data.get("device_name"),  # Key for matching
+                "device_data": data.get("device_data"),
+                "exported_at": _now_iso(),
+            }
+
+            return export_data
+        except (json.JSONDecodeError, OSError) as exc:
+            logger.error(f"Could not export device {device_id}: {exc}")
+            return None
+
+    def import_device_config(self, config: Dict[str, Any], target_device_id: str) -> TDevice | None:
+        """Import a device configuration from another machine.
+
+        Applies the configuration to a device identified by its current address.
+        Preserves existing status and updates device_data only.
+
+        Supports both old export format (address/deviceType/config) and new format
+        (device_type/device_data) for backwards compatibility.
+
+        Args:
+            config: Exported configuration dict (from export_device_config or old format)
+            target_device_id: Device address on this machine to apply config to
+
+        Returns:
+            Updated device model or None if import failed
+        """
+        # Support both old and new export formats
+        device_type = config.get("device_type") or config.get("deviceType")
+        device_data = config.get("device_data") or config.get("config")
+
+        if device_type != self.device_type:
+            logger.error(f"Cannot import {device_type} config " f"into {self.device_type} storage")
+            return None
+
+        if not device_data:
+            logger.error("No device_data or config in import configuration")
+            return None
+
+        try:
+            # Update the device ID to the target address
+            device_data["id"] = target_device_id
+
+            # Validate and create device instance
+            device = self._validate_device(device_data)
+
+            # Save the configuration (will preserve existing status)
+            return self.upsert_device(device)
+        except (ValueError, KeyError) as exc:
+            logger.error(f"Failed to import device config: {exc}")
+            return None
+
+    def find_device_by_name(self, device_name: str) -> str | None:
+        """Find a device's current address by its advertised name.
+
+        Args:
+            device_name: BLE advertised device name
+
+        Returns:
+            Device ID (address) if found, None otherwise
+        """
+        for device_file in self._list_device_files():
+            try:
+                data = json.loads(device_file.read_text(encoding="utf-8"))
+                if data.get("device_name") == device_name:
+                    return data.get("device_id")
+            except (json.JSONDecodeError, OSError):
+                continue
+        return None
 
 
 __all__ = ["BaseDeviceStorage"]

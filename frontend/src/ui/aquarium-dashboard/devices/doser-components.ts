@@ -82,6 +82,7 @@ function renderPumpHead(head: any): string {
   let statusText = 'Disabled';
   let statusColor = 'var(--gray-400)';
   let modeText = 'N/A';
+  let isDisabled = true;
 
   if (deviceHead) {
     // Head status: {0,1,2,3,4} = {Daily, 24 Hourly, Custom, Timer, Disabled}
@@ -91,32 +92,49 @@ function renderPumpHead(head: any): string {
         statusText = 'Active';
         statusColor = 'var(--success)';
         modeText = 'Daily';
+        isDisabled = false;
         break;
       case 1:
         statusText = 'Active';
         statusColor = 'var(--success)';
         modeText = '24H';
+        isDisabled = false;
         break;
       case 2:
         statusText = 'Active';
         statusColor = 'var(--success)';
         modeText = 'Custom';
+        isDisabled = false;
         break;
       case 3:
         statusText = 'Active';
         statusColor = 'var(--success)';
         modeText = 'Timer';
+        isDisabled = false;
         break;
       case 4:
       default:
         statusText = 'Disabled';
         statusColor = 'var(--gray-400)';
         modeText = 'Disabled';
+        isDisabled = true;
         break;
     }
   }
 
   const headName = customName || `Head ${index}`;
+
+  // If disabled, show simple view
+  if (isDisabled) {
+    return `
+      <div style="background: var(--gray-50); padding: 12px; border-radius: 6px; border-left: 3px solid ${statusColor};">
+        <div style="display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center;">
+          <div style="font-size: 13px; font-weight: 600; color: var(--gray-900);">${headName}</div>
+          <div style="font-size: 11px; color: ${statusColor}; font-weight: 600;">${statusText}</div>
+        </div>
+      </div>
+    `;
+  }
 
   return `
     <div style="background: var(--gray-50); padding: 12px; border-radius: 6px; border-left: 3px solid ${statusColor};">
