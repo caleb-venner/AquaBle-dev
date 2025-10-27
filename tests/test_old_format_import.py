@@ -1,7 +1,5 @@
 """Tests for backwards compatibility with old export format."""
 
-import json
-from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest

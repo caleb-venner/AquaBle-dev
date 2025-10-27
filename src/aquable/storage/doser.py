@@ -255,6 +255,7 @@ class DoserDevice(BaseModel):
     autoReconnect: bool = False  # Auto-reconnect on service start
     configurations: list[DeviceConfiguration]
     activeConfigurationId: str | None = None
+    model_code: str | None = None  # Device model code (e.g., "DYDOSE")
     createdAt: str | None = None
     updatedAt: str | None = None
 
@@ -452,7 +453,7 @@ class DoserStorage(BaseDeviceStorage[DoserDevice]):
             updatedAt=device.updatedAt,
         )
 
-    def create_default_device(self, device_id: str) -> DoserDevice:
+    def create_default_device(self, device_id: str, model_code: str | None = None) -> DoserDevice:
         """Create a skeleton DoserDevice with one minimal configuration.
 
         This is used when a device is discovered but has no saved configuration yet.
@@ -460,6 +461,7 @@ class DoserStorage(BaseDeviceStorage[DoserDevice]):
 
         Args:
             device_id: Device MAC address (e.g., '58159AE1-5E0A-7915-3207-7868CBF2C600')
+            model_code: Optional device model code (e.g., 'DYDOSE')
 
         Returns:
             DoserDevice with one default configuration
@@ -535,6 +537,7 @@ class DoserStorage(BaseDeviceStorage[DoserDevice]):
             autoReconnect=False,
             configurations=[config],
             activeConfigurationId=config_id,
+            model_code=model_code,
             createdAt=now,
             updatedAt=now,
         )

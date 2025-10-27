@@ -118,12 +118,6 @@ export interface StatusResponse {
   [address: string]: DeviceStatus;
 }
 
-/** Debug live status response */
-export interface LiveStatusResponse {
-  statuses: (DeviceStatus & { address: string })[];
-  errors: string[];
-}
-
 /** Device scan result */
 export interface ScanDevice {
   address: string;

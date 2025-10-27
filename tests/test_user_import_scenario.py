@@ -1,6 +1,5 @@
 """Test for user's specific old export file import scenario."""
 
-import json
 from unittest.mock import MagicMock
 
 import pytest
@@ -134,8 +133,6 @@ def test_user_scenario_import_old_export_to_new_device(storage, user_old_export)
 
     This is the core cross-platform workflow the name-based matching enables.
     """
-    # Old device on macOS
-    old_uuid = "58159AE1-5E0A-7915-3207-7868CBF2C600"
 
     # New device on Home Assistant (same physical Dosing Pump)
     new_mac = "E4:3A:D5:3A:D8:02"

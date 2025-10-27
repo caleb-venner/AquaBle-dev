@@ -4,7 +4,7 @@
  */
 
 import { deviceStore } from "../../../stores/deviceStore";
-import { updateDeviceNaming, getDeviceConfiguration } from "../../../api/configurations";
+import { updateDeviceNaming, updateDeviceSettings, getDeviceConfiguration } from "../../../api/configurations";
 import { showImportExportModal } from "./import-export-modal";
 
 type DeviceMetadata = {
@@ -201,10 +201,15 @@ async function handleSaveConfig(
       }
     }
 
-    // Save via unified API
+    // Save naming via unified API
     await updateDeviceNaming(address, {
       name: metadata.name,
       headNames: metadata.headNames,
+    });
+
+    // Save settings (autoReconnect) via separate endpoint
+    await updateDeviceSettings(address, {
+      autoReconnect: metadata.autoReconnect,
     });
 
     // Show success notification

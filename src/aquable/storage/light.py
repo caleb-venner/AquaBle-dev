@@ -222,6 +222,7 @@ class LightDevice(BaseModel):
     channels: list[ChannelDef]
     configurations: list[LightConfiguration]
     activeConfigurationId: str | None = None
+    model_code: str | None = None  # Device model code (e.g., "RGB165")
     createdAt: str | None = None
     updatedAt: str | None = None
 
@@ -333,7 +334,10 @@ class LightStorage(BaseDeviceStorage[LightDevice]):
         return LightDevice.model_validate(device)
 
     def create_default_device(
-        self, device_id: str, colors_order: dict[str, int] | None = None
+        self,
+        device_id: str,
+        colors_order: dict[str, int] | None = None,
+        model_code: str | None = None,
     ) -> LightDevice:
         """Create a skeleton LightDevice with device-specific channels and one manual profile.
 
@@ -346,6 +350,7 @@ class LightStorage(BaseDeviceStorage[LightDevice]):
             colors_order: Dict mapping color names to channel indices, ordered as defined
                          in the device model (e.g., {"red": 0, "green": 1, "blue": 2, "white": 3}).
                          If None, defaults to standard RGBW order (Red=0, Green=1, Blue=2, White=3).
+            model_code: Optional device model code (e.g., 'RGB165')
 
         Returns:
             LightDevice with device-specific channels and one default configuration
@@ -397,6 +402,7 @@ class LightStorage(BaseDeviceStorage[LightDevice]):
             channels=channels,
             configurations=[config],
             activeConfigurationId=config_id,
+            model_code=model_code,
             createdAt=now,
             updatedAt=now,
         )

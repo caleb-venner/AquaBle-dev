@@ -458,8 +458,13 @@ class BLEService:
         Args:
             address: Device MAC address
             device_kind: Type of device ('doser' or 'light')
-            device_model: Optional device model instance to extract color order
+            device_model: Optional device model instance to extract color order and model code
         """
+        # Extract model code from device if available
+        model_code = None
+        if device_model and hasattr(device_model, "_model_codes") and device_model._model_codes:
+            model_code = device_model._model_codes[0]  # Use first model code
+
         if device_kind == "doser":
             saved_config = self._doser_storage.get_device(address)
             if saved_config:
@@ -469,7 +474,9 @@ class BLEService:
                 )
             else:
                 # Create and save a default skeleton configuration
-                default_config = self._doser_storage.create_default_device(address)
+                default_config = self._doser_storage.create_default_device(
+                    address, model_code=model_code
+                )
                 self._doser_storage.upsert_device(default_config)
                 logger.info(
                     f"Created skeleton configuration for doser {address} "
@@ -491,7 +498,7 @@ class BLEService:
                     colors_order = device_model._colors
 
                 default_config = self._light_storage.create_default_device(
-                    address, colors_order=colors_order
+                    address, colors_order=colors_order, model_code=model_code
                 )
                 self._light_storage.upsert_device(default_config)
                 logger.info(
@@ -869,28 +876,6 @@ class BLEService:
             ramp_up_minutes=ramp_up_minutes,
             weekdays=weekdays,
         )
-
-    async def get_live_statuses(self) -> tuple[list[CachedStatus], list[str]]:
-        """Capture live statuses for known device kinds and return results.
-
-        Returns a tuple of (results, errors).
-        """
-        results: list[CachedStatus] = []
-        errors: list[str] = []
-
-        # Use the generic capture helper for both device kinds. This keeps a
-        # single patch point for tests and avoids duplicating collection logic.
-        for device_kind in ("doser", "light"):
-            try:
-                status = await self._refresh_device_status(device_kind, persist=False)
-            except HTTPException as exc:
-                if exc.status_code == 400:
-                    continue
-                errors.append(str(exc.detail))
-            else:
-                results.append(status)
-
-        return results, errors
 
     # Command persistence methods
 

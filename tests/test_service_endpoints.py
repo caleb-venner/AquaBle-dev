@@ -2,11 +2,7 @@
 
 from __future__ import annotations
 
-import asyncio
-from unittest.mock import AsyncMock
-
 import pytest
-from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
 from aquable.ble_service import CachedStatus
@@ -36,50 +32,6 @@ def test_client(monkeypatch: pytest.MonkeyPatch):
     # Note: _attempt_reconnect and _load_state methods no longer exist in the refactored BLEService
     with TestClient(app) as client:
         yield client
-
-
-def test_api_debug_live_status_returns_payload(
-    test_client: TestClient, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """Expose live payloads via the debug endpoint without persistence (HTTP)."""
-    statuses = [_cached("doser"), _cached("light")]
-    mocked = AsyncMock(return_value=(statuses, ["pump offline"]))
-    # Patch the service instance that the app uses (from app.state.service)
-    # Note: The test_client fixture uses the app with lifespan, which sets app.state.service
-    # We need to patch that instance, which is the same as the module-level service
-    monkeypatch.setattr(app.state.service, "get_live_statuses", mocked)
-    resp = test_client.post("/api/debug/live-status")
-    assert resp.status_code == 200
-    data = resp.json()
-    mocked.assert_awaited_once_with()
-    assert len(data["statuses"]) == 2
-    assert data["statuses"][0]["address"] == statuses[0].address
-    assert data["errors"] == ["pump offline"]
-
-
-def test_service_get_live_statuses_avoids_persistence(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Ensure live status collection does not touch the persisted cache."""
-    doser_status = _cached("doser")
-    doser_mock = AsyncMock(return_value=doser_status)
-    light_error = HTTPException(status_code=404, detail="Light not reachable")
-    light_mock = AsyncMock(side_effect=light_error)
-
-    monkeypatch.setattr(
-        service,
-        "_refresh_device_status",
-        lambda kind, persist=False: (
-            doser_mock(persist=persist) if kind == "doser" else light_mock(persist=persist)
-        ),
-    )
-
-    statuses, errors = asyncio.run(service.get_live_statuses())
-
-    doser_mock.assert_awaited_once_with(persist=False)
-    light_mock.assert_awaited_once_with(persist=False)
-    assert statuses == [doser_status]
-    assert errors == ["Light not reachable"]
 
 
 def test_removed_legacy_routes_return_404(test_client: TestClient) -> None:

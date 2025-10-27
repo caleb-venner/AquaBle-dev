@@ -23,17 +23,6 @@ async def get_status(request: Request) -> Dict[str, Any]:
     return results
 
 
-@router.post("/debug/live-status")
-async def debug_live_status(request: Request) -> Dict[str, Any]:
-    """Return live status snapshots without persisting."""
-    service = request.app.state.service
-    statuses, errors = await service.get_live_statuses()
-    return {
-        "statuses": [cached_status_to_dict(service, status) for status in statuses],
-        "errors": errors,
-    }
-
-
 @router.get("/scan")
 async def scan_devices(request: Request, timeout: float = 5.0) -> list[Dict[str, Any]]:
     """Scan for nearby supported devices."""

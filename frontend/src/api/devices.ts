@@ -4,7 +4,6 @@ import { fetchJson, postJson } from "./http";
 import type {
   DeviceStatus,
   StatusResponse,
-  LiveStatusResponse,
   ScanDevice
 } from "../types/api";
 
@@ -13,13 +12,6 @@ import type {
  */
 export async function getDeviceStatus(): Promise<StatusResponse> {
   return fetchJson<StatusResponse>("api/status");
-}
-
-/**
- * Get live status for all devices (debug endpoint)
- */
-export async function getLiveStatus(): Promise<LiveStatusResponse> {
-  return postJson<LiveStatusResponse>("api/debug/live-status");
 }
 
 /**

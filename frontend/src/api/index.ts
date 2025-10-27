@@ -13,7 +13,6 @@ export {
 // Device management
 export {
   getDeviceStatus,
-  getLiveStatus,
   connectDevice,
   disconnectDevice,
   refreshDeviceStatus,

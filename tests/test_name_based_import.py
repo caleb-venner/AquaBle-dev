@@ -8,9 +8,7 @@ import json
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-import pytest
-
-from aquable.storage import DoserDevice, DoserStorage, LightDevice, LightStorage
+from aquable.storage import DoserStorage, LightStorage
 
 
 class TestNameBasedExportImport:

@@ -343,13 +343,14 @@ async def export_device_configuration(request: Request, address: str):
 
     Returns the complete device configuration (naming, settings, configurations)
     as a JSON object that can be downloaded by the frontend and reimported later.
+    Includes device model_code for model-based import matching.
 
     Args:
         request: FastAPI request object
         address: MAC address of the device
 
     Returns:
-        DoserDevice or LightDevice configuration as JSON
+        DoserDevice or LightDevice configuration as JSON with model_code
 
     Raises:
         404: Device not found
@@ -375,13 +376,18 @@ async def export_device_configuration(request: Request, address: str):
 async def import_device_configuration(request: Request, address: str, file: UploadFile = File(...)):
     """Import device configuration from a JSON file.
 
-    Accepts a JSON file containing a device configuration and imports it,
-    replacing the current configuration. The file must be valid JSON and
-    compatible with either DoserDevice or LightDevice models.
+    Accepts a JSON file containing a device configuration and imports it to the
+    specified address. The file must be valid JSON and compatible with either
+    DoserDevice or LightDevice models.
+
+    Model code matching:
+    - If imported config has model_code and local device has model_code,
+      must match or import is rejected (prevents cross-device imports)
+    - If model_code is missing from either, import proceeds
 
     Args:
         request: FastAPI request object
-        address: MAC address of the device
+        address: MAC address of the target device
         file: JSON file containing device configuration
 
     Returns:
@@ -390,6 +396,7 @@ async def import_device_configuration(request: Request, address: str, file: Uplo
     Raises:
         404: Device not found
         400: Invalid JSON or validation error
+        409: Model code mismatch
         500: File I/O or storage error
     """
     try:
@@ -398,13 +405,41 @@ async def import_device_configuration(request: Request, address: str, file: Uplo
         # Read and parse the uploaded file
         try:
             content = await file.read()
-            device_data = json.loads(content)
+            raw_data = json.loads(content)
         except json.JSONDecodeError as e:
             logger.error(f"Invalid JSON in uploaded file for {address}: {e}", exc_info=True)
             raise HTTPException(status_code=400, detail=f"Invalid JSON format: {str(e)}")
         except Exception as e:
             logger.error(f"Error reading uploaded file for {address}: {e}", exc_info=True)
             raise HTTPException(status_code=400, detail=f"Failed to read file: {str(e)}")
+
+        # Extract config from export wrapper if present
+        if "config" in raw_data and "address" in raw_data:
+            # This is an exported file with wrapper structure
+            device_data = raw_data["config"]
+        else:
+            # This is a raw device configuration
+            device_data = raw_data
+
+        # Get current device to check model code
+        current_device = storage.get_device(address)
+        if not current_device:
+            raise HTTPException(status_code=404, detail=f"Device not found: {address}")
+
+        # Validate model code match if both have model_code
+        imported_model_code = device_data.get("model_code")
+        current_model_code = current_device.model_code
+
+        if imported_model_code and current_model_code and imported_model_code != current_model_code:
+            logger.error(
+                f"Model code mismatch for {address}: "
+                f"imported={imported_model_code}, current={current_model_code}"
+            )
+            raise HTTPException(
+                status_code=409,
+                detail=f"Model code mismatch: imported config is for {imported_model_code} "
+                f"but device is {current_model_code}",
+            )
 
         # Ensure address matches
         device_data["id"] = address
@@ -432,196 +467,3 @@ async def import_device_configuration(request: Request, address: str, file: Uplo
     except (OSError, IOError) as e:
         logger.error(f"File I/O error importing device {address}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Storage error: {str(e)}")
-
-
-@router.get("/export/{device_type}/{address}")
-async def export_device_config(request: Request, device_type: str, address: str):
-    """Export a device configuration for cross-platform import.
-
-    Returns a portable configuration that includes the device name for matching
-    devices across platforms (e.g., macOS UUID vs Linux MAC addresses).
-
-    Args:
-        device_type: Type of device ('doser' or 'light')
-        address: Device address
-
-    Returns:
-        Exportable configuration dict with device_name for matching
-    """
-    try:
-        if device_type == "doser":
-            storage = get_doser_storage(request)
-        elif device_type == "light":
-            storage = get_light_storage(request)
-        else:
-            raise HTTPException(status_code=400, detail=f"Unknown device type: {device_type}")
-
-        config = storage.export_device_config(address)
-        if config is None:
-            raise HTTPException(
-                status_code=404, detail=f"Device {address} not found or has no configuration"
-            )
-
-        return config
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error exporting device {address}: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Export error: {str(e)}")
-
-
-@router.post("/import-by-name")
-async def import_device_config_by_name(request: Request, file: UploadFile = File(...)):
-    """Import a device configuration using name-based matching.
-
-    Matches the imported configuration to a local device by its BLE advertised name,
-    allowing configurations to be transferred between platforms (macOS/Linux) where
-    device addresses differ.
-
-    Supports both new format (with device_name) and old format (address/deviceType/config).
-    For old format, returns the address from the file for user to manually select device.
-
-    Args:
-        file: JSON file containing exported device configuration
-
-    Returns:
-        Success message with matched device details, or instructions for old format
-    """
-    try:
-        content = await file.read()
-        config = json.loads(content)
-
-        # Support both old and new formats
-        device_type = config.get("device_type") or config.get("deviceType")
-        device_name = config.get("device_name")
-        old_address = config.get("address")
-
-        if not device_type:
-            raise HTTPException(
-                status_code=422,
-                detail="Configuration must include 'device_type' or 'deviceType' field",
-            )
-
-        # Get appropriate storage
-        if device_type == "doser":
-            storage = get_doser_storage(request)
-        elif device_type == "light":
-            storage = get_light_storage(request)
-        else:
-            raise HTTPException(status_code=400, detail=f"Unknown device type: {device_type}")
-
-        # Try new format first (with device_name)
-        if device_name:
-            target_device_id = storage.find_device_by_name(device_name)
-            if target_device_id is None:
-                raise HTTPException(
-                    status_code=404,
-                    detail=f"No {device_type} found with name '{device_name}'. "
-                    f"Make sure the device is connected and has been scanned on this system.",
-                )
-        # Fall back to old format
-        elif old_address:
-            # For old format, we need the user to specify the target device
-            raise HTTPException(
-                status_code=422,
-                detail=f"This is an old-format export from device {old_address}. "
-                f"Please specify the target device address. "
-                f"Use /import-by-name with a new format export, or /import-to-device for manual selection.",
-            )
-        else:
-            raise HTTPException(
-                status_code=422,
-                detail="Configuration must include 'device_name' (new format) or 'address' (old format)",
-            )
-
-        # Import configuration to the matched device
-        device = storage.import_device_config(config, target_device_id)
-        if device is None:
-            raise HTTPException(status_code=500, detail="Failed to import configuration")
-
-        logger.info(
-            f"Imported {device_type} configuration for '{device_name or old_address}' "
-            f"to device {target_device_id}"
-        )
-        return {
-            "success": True,
-            "device_type": device_type,
-            "device_name": device_name,
-            "device_id": target_device_id,
-            "message": f"Configuration imported successfully to {target_device_id}",
-        }
-    except HTTPException:
-        raise
-    except json.JSONDecodeError as e:
-        logger.error(f"Invalid JSON in uploaded file: {e}", exc_info=True)
-        raise HTTPException(status_code=422, detail="Invalid JSON file")
-    except Exception as e:
-        logger.error(f"Error importing device configuration: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Import error: {str(e)}")
-
-
-@router.post("/import-to-device/{device_type}/{device_id}")
-async def import_device_config_to_device(
-    device_type: str,
-    device_id: str,
-    request: Request,
-    file: UploadFile = File(...),
-):
-    """Import a device configuration to a specific device by address.
-
-    Useful for old-format exports that don't have device_name. Allows manually
-    specifying which local device to import the configuration to.
-
-    Args:
-        device_type: Device type ("doser" or "light")
-        device_id: BLE address of the target device
-        file: JSON file containing exported device configuration
-
-    Returns:
-        Success message with imported device details
-    """
-    try:
-        content = await file.read()
-        config = json.loads(content)
-
-        # Get appropriate storage
-        if device_type == "doser":
-            storage = get_doser_storage(request)
-        elif device_type == "light":
-            storage = get_light_storage(request)
-        else:
-            raise HTTPException(status_code=400, detail=f"Unknown device type: {device_type}")
-
-        # Verify the device exists
-        target_device = storage.get_device(device_id)
-        if target_device is None:
-            raise HTTPException(
-                status_code=404,
-                detail=f"Device {device_id} not found. Make sure it's been scanned and saved.",
-            )
-
-        # Import configuration to the specified device
-        device = storage.import_device_config(config, device_id)
-        if device is None:
-            raise HTTPException(status_code=500, detail="Failed to import configuration")
-
-        # Extract source info from config for logging
-        source_info = config.get("address") or config.get("device_name") or "unknown source"
-
-        logger.info(
-            f"Imported {device_type} configuration from {source_info} to device {device_id}"
-        )
-        return {
-            "success": True,
-            "device_type": device_type,
-            "device_id": device_id,
-            "message": f"Configuration imported successfully to {device_id}",
-        }
-    except HTTPException:
-        raise
-    except json.JSONDecodeError as e:
-        logger.error(f"Invalid JSON in uploaded file: {e}", exc_info=True)
-        raise HTTPException(status_code=422, detail="Invalid JSON file")
-    except Exception as e:
-        logger.error(f"Error importing device configuration: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Import error: {str(e)}")
