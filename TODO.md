@@ -13,6 +13,8 @@
 - Light device card; auto settings change colours --> green current, blue active, grey disabled.
 - Improve: Need to decide when/what triggers a payload status request from devies
 - Fix: Doser Heads not displayed correctly when in dark mode
+- Schedule overlap/collision detection for LED Auto Mode settings.
+- Light/Doser devices --> 'reapply' saved configs --> sends commands to device.
 
 ## Later
 
@@ -28,5 +30,7 @@
 
 ### Things to think about
 
+- It seems that if the WRGB II Pro is powered off for too long it looses it's programmed memory. Is it viable/possible to check if the device has been powered off for x amount of time, then connect & write settings to device when it comes back online.
+- Do we want to 'write'/send saved settings commands to device when connected to?
 - Reaching out to the community for BLE logs of various chihiros devices.
 - Potentially branch out to other manufacturers? Would also require community help.
