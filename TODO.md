@@ -2,19 +2,21 @@
 
 ## Urgent
 
-- Improve: Check dynamic loading of device cards for: connection, disconnection, settings modifications, and import config.
 - Fix: light status payload (keyframes); need to refine time-check logic. Placeholders inserted.
   [Lines 202 -> 336](src/aquable/storage/models.py#L204)
 - Fix: doser lifetime status payload; currently not correctly integrating to device state.
-- Implement: remaining doser payload decode. (0x22 (today's dose))
+- Implement: remaining doser payload decode. (0x22 (*today's dose*))
+- Improve: Darkmode text contrast. Increase contrast for UI elements overall.
 
 ## Soon
 
-- Light device card; auto settings change colours --> green current, blue active, grey disabled.
-- Improve: Need to decide when/what triggers a payload status request from devies
-- Fix: Doser Heads not displayed correctly when in dark mode
+- If device is already connected, should not display in scan return.
+- If **known device**, should display device card with a disconnected status indicator.
+- Implement: Add button within dashboard linking to addon settings page. (Possible?)
+- Improve: **Light** device card; **auto settings** change **colours** --> green current, blue active, grey disabled. --> Requires improved command settings logic.
+- Improve: Need to decide when/what triggers a payload **status request** from devices.
 - Schedule overlap/collision detection for LED Auto Mode settings.
-- Light/Doser devices --> 'reapply' saved configs --> sends commands to device.
+- Light/Doser devices --> **'reapply' saved configs** --> sends commands to device. *(Especially applies to recovery from power loss instances).*
 
 ## Later
 

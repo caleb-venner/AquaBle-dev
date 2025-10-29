@@ -10,6 +10,9 @@ Exception Handling Pattern:
 - ValueError: Validation errors from Pydantic models (422 status for user input, 500 for storage)
 - KeyError: Missing device/configuration (404 status)
 - Avoid broad 'except Exception' - catch specific exceptions for better debugging
+
+Error handling is provided by the @handle_storage_errors decorator, which automatically
+catches and formats exceptions consistently across all endpoints.
 """
 
 import json
@@ -20,6 +23,13 @@ from fastapi import APIRouter, File, HTTPException, Request, UploadFile
 from pydantic import BaseModel, Field
 
 from ..storage import DoserDevice, DoserStorage, LightDevice, LightStorage
+from .exceptions import (
+    device_not_found,
+    handle_storage_errors,
+    invalid_device_data,
+    model_code_mismatch,
+    storage_error,
+)
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api", tags=["configurations"])
@@ -91,7 +101,7 @@ def get_device_storage(
         return light_storage, "light"
 
     # If device not found in either storage, raise 404
-    raise HTTPException(status_code=404, detail=f"Device not found: {address}")
+    raise device_not_found(address)
 
 
 class DeviceNamingUpdate(BaseModel):
@@ -126,6 +136,7 @@ class DeviceSettingsUpdate(BaseModel):
 
 
 @router.get("/devices/{address}/configurations")
+@handle_storage_errors
 async def get_device_configurations(request: Request, address: str):
     """Get device configuration by address (detects device type automatically).
 
@@ -143,28 +154,20 @@ async def get_device_configurations(request: Request, address: str):
         404: Device not found
         500: Device file corrupted or storage error
     """
-    try:
-        storage, device_type = get_device_storage(request, address)
-        device = storage.get_device_with_status(address)
+    storage, device_type = get_device_storage(request, address)
+    device = storage.get_device_with_status(address)
 
-        if not device:
-            raise HTTPException(
-                status_code=404, detail=f"No configuration found for device {address}"
-            )
+    if not device:
+        raise HTTPException(
+            status_code=404, detail=f"No configuration found for device {address}"
+        )
 
-        logger.info(f"Retrieved {device_type} configuration for {address}")
-        return device
-    except HTTPException:
-        raise
-    except (OSError, IOError) as e:
-        logger.error(f"File I/O error retrieving device {address}: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Storage error: {str(e)}")
-    except ValueError as e:
-        logger.error(f"Validation error retrieving device {address}: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Configuration validation error: {str(e)}")
+    logger.info(f"Retrieved {device_type} configuration for {address}")
+    return device
 
 
 @router.put("/devices/{address}/configurations")
+@handle_storage_errors
 async def put_device_configurations(request: Request, address: str, device_data: dict):
     """Replace entire device configuration (detects device type automatically).
 
@@ -184,35 +187,27 @@ async def put_device_configurations(request: Request, address: str, device_data:
         400: Invalid device data
         500: Storage error
     """
-    try:
-        storage, device_type = get_device_storage(request, address)
+    storage, device_type = get_device_storage(request, address)
 
-        # Ensure address matches
-        device_data["id"] = address
+    # Ensure address matches
+    device_data["id"] = address
 
-        # Validate and create device model
-        if device_type == "doser":
-            device = DoserDevice(**device_data)
-            doser_storage: DoserStorage = storage  # type: ignore
-            doser_storage.upsert_device(device)
-        else:  # light
-            device = LightDevice(**device_data)
-            light_storage: LightStorage = storage  # type: ignore
-            light_storage.upsert_device(device)
+    # Validate and create device model
+    if device_type == "doser":
+        device = DoserDevice(**device_data)
+        doser_storage: DoserStorage = storage  # type: ignore
+        doser_storage.upsert_device(device)
+    else:  # light
+        device = LightDevice(**device_data)
+        light_storage: LightStorage = storage  # type: ignore
+        light_storage.upsert_device(device)
 
-        logger.info(f"Updated {device_type} configuration for {address}")
-        return device
-    except HTTPException:
-        raise
-    except ValueError as e:
-        logger.error(f"Validation error updating device {address}: {e}", exc_info=True)
-        raise HTTPException(status_code=422, detail=f"Invalid device data: {str(e)}")
-    except (OSError, IOError) as e:
-        logger.error(f"File I/O error updating device {address}: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Storage error: {str(e)}")
+    logger.info(f"Updated {device_type} configuration for {address}")
+    return device
 
 
 @router.patch("/devices/{address}/configurations/naming")
+@handle_storage_errors
 async def patch_device_naming(request: Request, address: str, naming_update: DeviceNamingUpdate):
     """Update device naming fields only (name, head names).
 
@@ -233,45 +228,37 @@ async def patch_device_naming(request: Request, address: str, naming_update: Dev
         400: Invalid update data
         500: Storage error
     """
-    try:
-        storage, device_type = get_device_storage(request, address)
-        device = storage.get_device(address)
+    storage, device_type = get_device_storage(request, address)
+    device = storage.get_device(address)
 
-        if not device:
-            raise HTTPException(status_code=404, detail=f"Device not found: {address}")
+    if not device:
+        raise HTTPException(status_code=404, detail=f"Device not found: {address}")
 
-        # Apply name update
-        if naming_update.name is not None:
-            device.name = naming_update.name
+    # Apply name update
+    if naming_update.name is not None:
+        device.name = naming_update.name
 
-        # Apply head names update (doser only)
-        if naming_update.headNames is not None:
-            if device_type == "doser" and isinstance(device, DoserDevice):
-                device.headNames = naming_update.headNames
-            else:
-                logger.warning(f"Attempted to set headNames on light device {address}, ignoring")
-
-        # Save to storage - cast appropriately
-        if device_type == "doser":
-            doser_storage: DoserStorage = storage  # type: ignore
-            doser_storage.upsert_device(device)  # type: ignore
+    # Apply head names update (doser only)
+    if naming_update.headNames is not None:
+        if device_type == "doser" and isinstance(device, DoserDevice):
+            device.headNames = naming_update.headNames
         else:
-            light_storage: LightStorage = storage  # type: ignore
-            light_storage.upsert_device(device)  # type: ignore
+            logger.warning(f"Attempted to set headNames on light device {address}, ignoring")
 
-        logger.info(f"Updated naming for {device_type} {address}")
-        return device
-    except HTTPException:
-        raise
-    except ValueError as e:
-        logger.error(f"Validation error updating naming for {address}: {e}", exc_info=True)
-        raise HTTPException(status_code=422, detail=f"Invalid naming data: {str(e)}")
-    except (OSError, IOError) as e:
-        logger.error(f"File I/O error updating naming for {address}: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Storage error: {str(e)}")
+    # Save to storage - cast appropriately
+    if device_type == "doser":
+        doser_storage: DoserStorage = storage  # type: ignore
+        doser_storage.upsert_device(device)  # type: ignore
+    else:
+        light_storage: LightStorage = storage  # type: ignore
+        light_storage.upsert_device(device)  # type: ignore
+
+    logger.info(f"Updated naming for {device_type} {address}")
+    return device
 
 
 @router.patch("/devices/{address}/configurations/settings")
+@handle_storage_errors
 async def patch_device_settings(
     request: Request, address: str, settings_update: DeviceSettingsUpdate
 ):
@@ -294,42 +281,33 @@ async def patch_device_settings(
         400: Invalid settings data
         500: Storage error
     """
-    try:
-        storage, device_type = get_device_storage(request, address)
-        device = storage.get_device(address)
+    storage, device_type = get_device_storage(request, address)
+    device = storage.get_device(address)
 
-        if not device:
-            raise HTTPException(status_code=404, detail=f"Device not found: {address}")
+    if not device:
+        raise HTTPException(status_code=404, detail=f"Device not found: {address}")
 
-        # Apply settings updates (device-type specific)
-        if settings_update.autoReconnect is not None:
-            device.autoReconnect = settings_update.autoReconnect
+    # Apply settings updates (device-type specific)
+    if settings_update.autoReconnect is not None:
+        device.autoReconnect = settings_update.autoReconnect
 
-        # Doser-specific settings
-        if device_type == "doser" and isinstance(device, DoserDevice):
-            if settings_update.configurations is not None:
-                device.configurations = settings_update.configurations
-            if settings_update.activeConfigurationId is not None:
-                device.activeConfigurationId = settings_update.activeConfigurationId
+    # Doser-specific settings
+    if device_type == "doser" and isinstance(device, DoserDevice):
+        if settings_update.configurations is not None:
+            device.configurations = settings_update.configurations
+        if settings_update.activeConfigurationId is not None:
+            device.activeConfigurationId = settings_update.activeConfigurationId
 
-        # Save to storage - cast appropriately
-        if device_type == "doser":
-            doser_storage: DoserStorage = storage  # type: ignore
-            doser_storage.upsert_device(device)  # type: ignore
-        else:
-            light_storage: LightStorage = storage  # type: ignore
-            light_storage.upsert_device(device)  # type: ignore
+    # Save to storage - cast appropriately
+    if device_type == "doser":
+        doser_storage: DoserStorage = storage  # type: ignore
+        doser_storage.upsert_device(device)  # type: ignore
+    else:
+        light_storage: LightStorage = storage  # type: ignore
+        light_storage.upsert_device(device)  # type: ignore
 
-        logger.info(f"Updated settings for {device_type} {address}")
-        return device
-    except HTTPException:
-        raise
-    except ValueError as e:
-        logger.error(f"Validation error updating settings for {address}: {e}", exc_info=True)
-        raise HTTPException(status_code=422, detail=f"Invalid settings data: {str(e)}")
-    except (OSError, IOError) as e:
-        logger.error(f"File I/O error updating settings for {address}: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Storage error: {str(e)}")
+    logger.info(f"Updated settings for {device_type} {address}")
+    return device
 
 
 # ============================================================================
@@ -338,6 +316,7 @@ async def patch_device_settings(
 
 
 @router.get("/devices/{address}/configurations/export")
+@handle_storage_errors
 async def export_device_configuration(request: Request, address: str):
     """Export device configuration as JSON.
 
@@ -356,23 +335,18 @@ async def export_device_configuration(request: Request, address: str):
         404: Device not found
         500: Storage error
     """
-    try:
-        storage, device_type = get_device_storage(request, address)
-        device = storage.get_device(address)
+    storage, device_type = get_device_storage(request, address)
+    device = storage.get_device(address)
 
-        if not device:
-            raise HTTPException(status_code=404, detail=f"Device not found: {address}")
+    if not device:
+        raise device_not_found(address)
 
-        logger.info(f"Exported {device_type} configuration for {address}")
-        return device
-    except HTTPException:
-        raise
-    except (OSError, IOError) as e:
-        logger.error(f"File I/O error exporting device {address}: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Storage error: {str(e)}")
+    logger.info(f"Exported {device_type} configuration for {address}")
+    return device
 
 
 @router.post("/devices/{address}/configurations/import")
+@handle_storage_errors
 async def import_device_configuration(request: Request, address: str, file: UploadFile = File(...)):
     """Import device configuration from a JSON file.
 
@@ -399,71 +373,55 @@ async def import_device_configuration(request: Request, address: str, file: Uplo
         409: Model code mismatch
         500: File I/O or storage error
     """
+    storage, device_type = get_device_storage(request, address)
+
+    # Read and parse the uploaded file
     try:
-        storage, device_type = get_device_storage(request, address)
+        content = await file.read()
+        raw_data = json.loads(content)
+    except json.JSONDecodeError as e:
+        logger.error(f"Invalid JSON in uploaded file for {address}: {e}", exc_info=True)
+        raise HTTPException(status_code=400, detail=f"Invalid JSON format: {str(e)}")
+    except Exception as e:
+        logger.error(f"Error reading uploaded file for {address}: {e}", exc_info=True)
+        raise HTTPException(status_code=400, detail=f"Failed to read file: {str(e)}")
 
-        # Read and parse the uploaded file
-        try:
-            content = await file.read()
-            raw_data = json.loads(content)
-        except json.JSONDecodeError as e:
-            logger.error(f"Invalid JSON in uploaded file for {address}: {e}", exc_info=True)
-            raise HTTPException(status_code=400, detail=f"Invalid JSON format: {str(e)}")
-        except Exception as e:
-            logger.error(f"Error reading uploaded file for {address}: {e}", exc_info=True)
-            raise HTTPException(status_code=400, detail=f"Failed to read file: {str(e)}")
+    # Extract config from export wrapper if present
+    if "config" in raw_data and "address" in raw_data:
+        # This is an exported file with wrapper structure
+        device_data = raw_data["config"]
+    else:
+        # This is a raw device configuration
+        device_data = raw_data
 
-        # Extract config from export wrapper if present
-        if "config" in raw_data and "address" in raw_data:
-            # This is an exported file with wrapper structure
-            device_data = raw_data["config"]
-        else:
-            # This is a raw device configuration
-            device_data = raw_data
+    # Get current device to check model code
+    current_device = storage.get_device(address)
+    if not current_device:
+        raise device_not_found(address)
 
-        # Get current device to check model code
-        current_device = storage.get_device(address)
-        if not current_device:
-            raise HTTPException(status_code=404, detail=f"Device not found: {address}")
+    # Validate model code match if both have model_code
+    imported_model_code = device_data.get("model_code")
+    current_model_code = current_device.model_code
 
-        # Validate model code match if both have model_code
-        imported_model_code = device_data.get("model_code")
-        current_model_code = current_device.model_code
+    if imported_model_code and current_model_code and imported_model_code != current_model_code:
+        logger.error(
+            f"Model code mismatch for {address}: "
+            f"imported={imported_model_code}, current={current_model_code}"
+        )
+        raise model_code_mismatch(imported_model_code, current_model_code)
 
-        if imported_model_code and current_model_code and imported_model_code != current_model_code:
-            logger.error(
-                f"Model code mismatch for {address}: "
-                f"imported={imported_model_code}, current={current_model_code}"
-            )
-            raise HTTPException(
-                status_code=409,
-                detail=f"Model code mismatch: imported config is for {imported_model_code} "
-                f"but device is {current_model_code}",
-            )
+    # Ensure address matches
+    device_data["id"] = address
 
-        # Ensure address matches
-        device_data["id"] = address
+    # Validate and create device model
+    if device_type == "doser":
+        device = DoserDevice(**device_data)
+        doser_storage: DoserStorage = storage  # type: ignore
+        doser_storage.upsert_device(device)
+    else:  # light
+        device = LightDevice(**device_data)
+        light_storage: LightStorage = storage  # type: ignore
+        light_storage.upsert_device(device)
 
-        # Validate and create device model
-        try:
-            if device_type == "doser":
-                device = DoserDevice(**device_data)
-                doser_storage: DoserStorage = storage  # type: ignore
-                doser_storage.upsert_device(device)
-            else:  # light
-                device = LightDevice(**device_data)
-                light_storage: LightStorage = storage  # type: ignore
-                light_storage.upsert_device(device)
-        except ValueError as e:
-            logger.error(
-                f"Validation error importing configuration for {address}: {e}", exc_info=True
-            )
-            raise HTTPException(status_code=422, detail=f"Invalid configuration data: {str(e)}")
-
-        logger.info(f"Imported {device_type} configuration for {address}")
-        return device
-    except HTTPException:
-        raise
-    except (OSError, IOError) as e:
-        logger.error(f"File I/O error importing device {address}: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Storage error: {str(e)}")
+    logger.info(f"Imported {device_type} configuration for {address}")
+    return device

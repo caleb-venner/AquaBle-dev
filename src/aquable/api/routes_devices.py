@@ -8,6 +8,16 @@ from fastapi import APIRouter, HTTPException, Request
 
 from ..device import get_device_from_address
 from ..utils import cached_status_to_dict
+from .exceptions import (
+    bluetooth_adapter_not_found,
+    bluetooth_disabled,
+    bluetooth_permission_denied,
+    bluetooth_unavailable,
+    connection_timeout,
+    device_not_found,
+    device_not_reachable,
+    unsupported_device_type,
+)
 
 router = APIRouter(prefix="/api", tags=["devices"])
 
@@ -30,31 +40,16 @@ async def scan_devices(request: Request, timeout: float = 5.0) -> list[Dict[str,
     try:
         return await service.scan_devices(timeout=timeout)
     except FileNotFoundError as e:
-        raise HTTPException(
-            status_code=503,
-            detail="Bluetooth not available: D-Bus socket not found. "
-            "Ensure Bluetooth hardware and drivers are properly configured.",
-        ) from e
+        raise bluetooth_unavailable() from e
     except PermissionError as e:
-        raise HTTPException(
-            status_code=403,
-            detail="Bluetooth permission denied. Check add-on permissions.",
-        ) from e
+        raise bluetooth_permission_denied() from e
     except Exception as e:
         # Catch BleakError and other Bluetooth-related errors
         error_msg = str(e).lower()
         if "bluetooth device is turned off" in error_msg or "not available" in error_msg:
-            raise HTTPException(
-                status_code=503,
-                detail="Bluetooth is disabled or not available on this device. "
-                "Enable Bluetooth to scan for devices.",
-            ) from e
+            raise bluetooth_disabled() from e
         elif "adapter" in error_msg or "controller" in error_msg:
-            raise HTTPException(
-                status_code=503,
-                detail="Bluetooth adapter not found. Ensure Bluetooth hardware "
-                "is present and enabled.",
-            ) from e
+            raise bluetooth_adapter_not_found() from e
         # Re-raise as generic 503 for other scan errors
         raise HTTPException(
             status_code=503,
@@ -92,7 +87,7 @@ async def connect_device(request: Request, address: str) -> Dict[str, Any]:
             return cached_status_to_dict(service, status)
         except asyncio.TimeoutError:
             logger.error(f"Connection timeout for cached device {address}")
-            raise HTTPException(status_code=504, detail="Connection timeout") from None
+            raise connection_timeout() from None
         except HTTPException:
             # HTTPException already logged by service, re-raise without duplication
             raise
@@ -106,12 +101,12 @@ async def connect_device(request: Request, address: str) -> Dict[str, Any]:
         logger.info(f"Discovered device at {address}")
     except Exception as exc:  # pragma: no cover - passthrough
         logger.error(f"Failed to get device from address {address}: {exc}")
-        raise HTTPException(status_code=404, detail="Device not found") from exc
+        raise device_not_found(address) from exc
 
     kind = getattr(device, "device_kind", None)
     if not kind:
         logger.error(f"Device at {address} has no device_kind")
-        raise HTTPException(status_code=400, detail="Unsupported device type")
+        raise unsupported_device_type()
 
     logger.info(f"Device kind: {kind}, connecting...")
     try:
@@ -120,7 +115,7 @@ async def connect_device(request: Request, address: str) -> Dict[str, Any]:
         return cached_status_to_dict(service, status)
     except asyncio.TimeoutError:
         logger.error(f"Connection timeout for device {address}")
-        raise HTTPException(status_code=504, detail="Connection timeout") from None
+        raise connection_timeout() from None
     except HTTPException:
         # HTTPException already logged by service, re-raise without duplication
         raise

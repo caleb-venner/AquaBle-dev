@@ -102,7 +102,7 @@ class BaseDeviceStorage(ABC, Generic[TDevice]):
     def _load_all_metadata_from_disk(self) -> None:
         """Load metadata from all device files on startup.
 
-        DEPRECATED: Metadata is now stored in device_data. This method is kept
+        Metadata is now stored in device_data. This method is kept
         for backward compatibility but is effectively a no-op.
         """
         # Metadata is now part of the device configuration (device_data)
@@ -191,19 +191,6 @@ class BaseDeviceStorage(ABC, Generic[TDevice]):
         tmp_file = device_file.with_suffix(".tmp")
         tmp_file.write_text(json.dumps(data, indent=2, sort_keys=True), encoding="utf-8")
         tmp_file.replace(device_file)
-
-    def _write_metadata_file(self, device_id: str, metadata: dict) -> None:
-        """DEPRECATED: Write metadata-only file for a device.
-
-        This method is deprecated as metadata is now stored within device_data.
-        It is kept for backward compatibility but does nothing.
-
-        Args:
-            device_id: Device identifier (MAC address)
-            metadata: Metadata dictionary to write (ignored)
-        """
-        # Metadata is now part of device_data. This method is deprecated.
-        pass
 
     def _list_device_files(self) -> list[Path]:
         """List all device JSON files in the storage directory.

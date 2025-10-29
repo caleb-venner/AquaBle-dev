@@ -11,6 +11,68 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 
 from .errors import ErrorCode
 
+
+# ============================================================================
+# Shared Validation Utilities
+# ============================================================================
+
+
+def validate_weekdays_helper(v: Optional[list]) -> Optional[list[str]]:
+    """Validate and normalize weekday selections.
+
+    Shared validation logic for both DoserScheduleArgs and LightAutoSettingArgs.
+    Converts to lowercase strings and validates against allowed values.
+
+    Args:
+        v: List of weekday strings (case-insensitive) or None
+
+    Returns:
+        Normalized list of lowercase weekday strings or None
+
+    Raises:
+        ValueError: If weekdays are invalid or improperly formatted
+    """
+    valid_days = {
+        "monday",
+        "tuesday",
+        "wednesday",
+        "thursday",
+        "friday",
+        "saturday",
+        "sunday",
+        "everyday",
+    }
+
+    if v is not None:
+        if not v:
+            raise ValueError("Weekdays list cannot be empty")
+
+        # Convert to lowercase strings
+        converted = []
+        for day in v:
+            if isinstance(day, str):
+                day_lower = day.lower()
+                if day_lower not in valid_days:
+                    raise ValueError(
+                        f"Invalid weekday string: '{day}'. "
+                        f"Expected one of: {', '.join(sorted(valid_days))}"
+                    )
+                converted.append(day_lower)
+            else:
+                raise ValueError(f"Invalid weekday type: {type(day)}. Expected str")
+
+        v = converted
+
+        # Check for invalid combinations
+        if "everyday" in v and len(v) > 1:
+            raise ValueError("Cannot combine 'everyday' with specific weekdays")
+
+        # Check for duplicates
+        if len(v) != len(set(v)):
+            raise ValueError("Duplicate weekdays not allowed")
+
+    return v
+
 # Command status types
 CommandStatus = Literal["pending", "running", "success", "failed", "timed_out", "cancelled"]
 
@@ -167,52 +229,8 @@ class DoserScheduleArgs(BaseModel):
     @field_validator("weekdays", mode="before")
     @classmethod
     def validate_weekdays(cls, v):
-        """Validate weekday selections and convert to lowercase strings.
-
-        Accepts:
-        - Lowercase weekday strings ('monday', 'tuesday', etc.)
-        - Mixed case strings (converted to lowercase)
-        """
-        valid_days = {
-            "monday",
-            "tuesday",
-            "wednesday",
-            "thursday",
-            "friday",
-            "saturday",
-            "sunday",
-            "everyday",
-        }
-
-        if v is not None:
-            if not v:
-                raise ValueError("Weekdays list cannot be empty")
-
-            # Convert to lowercase strings
-            converted = []
-            for day in v:
-                if isinstance(day, str):
-                    day_lower = day.lower()
-                    if day_lower not in valid_days:
-                        raise ValueError(
-                            f"Invalid weekday string: '{day}'. "
-                            f"Expected one of: {', '.join(sorted(valid_days))}"
-                        )
-                    converted.append(day_lower)
-                else:
-                    raise ValueError(f"Invalid weekday type: {type(day)}. Expected str")
-
-            v = converted
-
-            # Check for invalid combinations
-            if "everyday" in v and len(v) > 1:
-                raise ValueError("Cannot combine 'everyday' with specific weekdays")
-
-            # Check for duplicates
-            if len(v) != len(set(v)):
-                raise ValueError("Duplicate weekdays not allowed")
-
-        return v
+        """Validate weekday selections using shared validation logic."""
+        return validate_weekdays_helper(v)
 
 
 class LightAutoSettingArgs(BaseModel):
@@ -266,52 +284,8 @@ class LightAutoSettingArgs(BaseModel):
     @field_validator("weekdays", mode="before")
     @classmethod
     def validate_weekdays(cls, v: Optional[list]) -> Optional[list[str]]:
-        """Validate weekday selections and convert to lowercase strings.
-
-        Accepts:
-        - Lowercase weekday strings ('monday', 'tuesday', etc.)
-        - Mixed case strings (converted to lowercase)
-        """
-        valid_days = {
-            "monday",
-            "tuesday",
-            "wednesday",
-            "thursday",
-            "friday",
-            "saturday",
-            "sunday",
-            "everyday",
-        }
-
-        if v is not None:
-            if not v:
-                raise ValueError("Weekdays list cannot be empty")
-
-            # Convert to lowercase strings
-            converted = []
-            for day in v:
-                if isinstance(day, str):
-                    day_lower = day.lower()
-                    if day_lower not in valid_days:
-                        raise ValueError(
-                            f"Invalid weekday string: '{day}'. "
-                            f"Expected one of: {', '.join(sorted(valid_days))}"
-                        )
-                    converted.append(day_lower)
-                else:
-                    raise ValueError(f"Invalid weekday type: {type(day)}. Expected str")
-
-            v = converted
-
-            # Check for invalid combinations
-            if "everyday" in v and len(v) > 1:
-                raise ValueError("Cannot combine 'everyday' with specific weekdays")
-
-            # Check for duplicates
-            if len(v) != len(set(v)):
-                raise ValueError("Duplicate weekdays not allowed")
-
-        return v
+        """Validate weekday selections using shared validation logic."""
+        return validate_weekdays_helper(v)
 
     @field_validator("ramp_up_minutes")
     @classmethod

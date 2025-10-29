@@ -519,68 +519,7 @@ class LightStorage(BaseDeviceStorage[LightDevice]):
             return profile
         return _ProfileWrapper.model_validate({"profile": profile}).profile
 
-    def upsert_light_metadata(self, metadata: LightMetadata | dict) -> LightMetadata:
-        """DEPRECATED: Insert or update light metadata.
-
-        Metadata is now stored in the device configuration itself.
-        Use upsert_device() with a LightDevice that has naming fields set.
-
-        This method is kept for backward compatibility during migration.
-        """
-        if isinstance(metadata, dict):
-            model = LightMetadata.model_validate(metadata)
-        else:
-            model = metadata
-
-        # Try to get existing device
-        existing_device = self.get_device(model.id)
-
-        if existing_device:
-            # Update existing device with new names
-            existing_device.name = model.name
-            existing_device.autoReconnect = model.autoReconnect
-            existing_device.updatedAt = _now_iso()
-            self.upsert_device(existing_device)
-            return model
-        else:
-            # Create new device with minimal config if it doesn't exist
-            # This shouldn't happen in practice
-            return model
-
-    def get_light_metadata(self, device_id: str) -> LightMetadata | None:
-        """DEPRECATED: Get light metadata by device id.
-
-        Metadata is now stored in the device configuration itself (device_data).
-        Use get_device() instead and access name/autoReconnect from the LightDevice.
-
-        This method is kept for backward compatibility during migration.
-        """
-        device = self.get_device(device_id)
-        if device is None:
-            return None
-
-        return LightMetadata(
-            id=device.id,
-            name=device.name,
-            autoReconnect=device.autoReconnect,
-            createdAt=device.createdAt,
-            updatedAt=device.updatedAt,
-        )
-
-    def list_light_metadata(self) -> list[LightMetadata]:
-        """List all light metadata."""
-        metadata_list = []
-        for device_id, metadata_raw in self._metadata_dict.items():
-            try:
-                metadata = LightMetadata.model_validate(metadata_raw)
-                metadata_list.append(metadata)
-            except ValueError as exc:
-                import logging
-
-                logging.getLogger(__name__).error(
-                    f"Could not parse light metadata {device_id}: {exc}"
-                )
-        return metadata_list
+    # End of Light Storage public methods
 
 
 __all__ = [

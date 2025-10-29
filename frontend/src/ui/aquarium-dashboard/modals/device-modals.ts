@@ -237,11 +237,11 @@ function renderDoseHeadCard(head: DoserHeadData): string {
   const modeText = getModeText(head.schedule?.mode);
 
   return `
-    <div class="dose-head-card ${head.active ? 'active' : 'inactive'}" style="background: white; border: 1px solid var(--gray-200); border-radius: 8px; padding: 16px; cursor: pointer; transition: all 0.2s ease;" onclick="selectDoseHead(${head.index})">
+    <div class="dose-head-card ${head.active ? 'active' : 'inactive'}" style="background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 8px; padding: 16px; cursor: pointer; transition: all 0.2s ease;" onclick="selectDoseHead(${head.index})">
       <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 12px;">
         <div>
-          <div style="font-size: 16px; font-weight: 600; color: var(--gray-900); margin-bottom: 4px;">${headName}</div>
-          <div style="font-size: 13px; color: var(--gray-500);">${modeText}</div>
+          <div style="font-size: 16px; font-weight: 600; color: var(--text-primary); margin-bottom: 4px;">${headName}</div>
+          <div style="font-size: 13px; color: var(--text-secondary);">${modeText}</div>
         </div>
         <div style="text-align: right;">
           <div style="font-size: 12px; color: ${statusColor}; font-weight: 600; padding: 4px 8px; background: ${statusColor}20; border-radius: 12px;">${statusText}</div>
@@ -250,7 +250,7 @@ function renderDoseHeadCard(head: DoserHeadData): string {
 
       ${head.active ? `
         <div style="margin-bottom: 12px;">
-          <div style="font-size: 13px; color: var(--gray-700); margin-bottom: 4px;">
+          <div style="font-size: 13px; color: var(--text-primary); margin-bottom: 4px;">
             ${head.schedule?.mode === 'single' ?
               `Daily dose: ${head.schedule.dailyDoseMl || 0}ml at ${head.schedule.startTime || '00:00'}` :
               head.schedule?.mode === 'every_hour' ?
@@ -262,7 +262,7 @@ function renderDoseHeadCard(head: DoserHeadData): string {
       ` : ''}
 
       <div style="display: flex; justify-content: space-between; align-items: center;">
-        <div style="font-size: 12px; color: var(--gray-500);">
+        <div style="font-size: 12px; color: var(--text-secondary);">
           ${head.recurrence?.days?.length === 7 ? 'Daily' : `${head.recurrence?.days?.length || 0} days/week`}
         </div>
         <div style="font-size: 12px; color: var(--primary); font-weight: 500;">

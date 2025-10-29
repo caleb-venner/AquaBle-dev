@@ -67,29 +67,6 @@ class LightDevice(BaseDevice):
     # LED lighting control with color channel management
 ```
 
-**Status Caching Pattern**:
-- `CachedStatus` dataclass stores device state with `raw_payload` (hex string) and `parsed` (dict)
-- Status updates trigger cache refresh with configurable `AQUA_BLE_STATUS_WAIT` (default 1.5s)
-- Device status persists to unified device files: `~/.aquable/devices/{address}.json` containing metadata, last_status, and device_data
-- Each device file is self-contained with all device information in one place
-
-**Error Handling**:
-- BLE operations use `bleak_retry_connector` with exponential backoff
-- Device-specific exceptions: `DeviceNotFound`, `CharacteristicMissingError`, `BleakConnectionError`
-- API returns structured error responses with device context and timestamps
-
-**Configuration Management**:
-- Environment variables migrated from `CHIHIROS_*` to `AQUA_BLE_*` prefix with fallback support
-- Unified device files in `~/.aquable/devices/` directory containing metadata, status, and configurations
-- Global settings (timezone, etc.) stored in `~/.aquable/global_settings.json`
-- Automatic migration from legacy `state.json` format on first startup
-- Runtime config via `AQUA_BLE_CONFIG_DIR` (defaults to `~/.aqua-ble`)
-
-**Frontend State Management**:
-- Zustand store with `subscribeWithSelector` for efficient re-renders
-- Command queue with optimistic updates, retry logic, and error recovery
-- Device state Map with loading states, error handling, and command history
-
 **UI and Documentation Guidelines**:
 - No icons in documentation or coded UI elements - use plain text descriptions instead
 - Keep interfaces clean and text-based for accessibility and simplicity
@@ -142,21 +119,6 @@ return cached_status_to_dict(service, cached_status)
 const commandId = await actions.queueCommand(address, request);
 await actions.processCommandQueue(); // Processes queue sequentially
 ```
-
-## Key Files to Reference
-
-- `src/aquable/ble_service.py`: Main service orchestration and device management
-- `src/aquable/base_device_storage.py`: Abstract base class for device storage with unified file I/O operations
-- `src/aquable/doser_storage.py`: Doser-specific storage facade and models
-- `src/aquable/light_storage.py`: Light-specific storage facade and models
-- `src/aquable/global_settings.py`: Global settings management (timezone, etc.)
-- `src/aquable/storage_migration.py`: Automatic migration from legacy state.json format
-- `src/aquable/device/base_device.py`: BLE connection lifecycle and messaging
-- `src/aquable/commands/encoder.py`: Command encoding logic and message ID management
-- `frontend/src/stores/deviceStore.ts`: Frontend state management and command queue
-- `pyproject.toml`: Dependencies (Python 3.10+, bleak, fastapi) and build configuration
-- `Makefile`: Development workflow shortcuts (`make dev`, `make test`, `make lint`)
-- `~/.aquable/`: Configuration directory (global_settings.json, devices/, auto-created)
 
 ## Guidelines for AI Assistant
 

@@ -9,6 +9,7 @@ from fastapi import APIRouter, HTTPException, Request
 from ..commands_model import CommandRecord, CommandRequest
 from ..config import CommandExecutor
 from ..errors import ErrorCode
+from .exceptions import command_not_found, device_not_found
 
 router = APIRouter(prefix="/api", tags=["commands"])
 
@@ -23,7 +24,7 @@ async def execute_command(
     # Check if device exists in cache (basic validation)
     snapshot = service.get_status_snapshot()
     if address not in snapshot:
-        raise HTTPException(status_code=404, detail="Device not found")
+        raise device_not_found(address)
 
     # Check for device busy (concurrent command prevention)
     if hasattr(request.app.state, "command_executor"):
@@ -73,7 +74,7 @@ async def list_commands(request: Request, address: str, limit: int = 20) -> List
     # Check if device exists
     snapshot = service.get_status_snapshot()
     if address not in snapshot:
-        raise HTTPException(status_code=404, detail="Device not found")
+        raise device_not_found(address)
 
     commands = service.get_commands(address, limit)
     return commands
@@ -87,10 +88,10 @@ async def get_command(request: Request, address: str, command_id: str) -> Dict[s
     # Check if device exists
     snapshot = service.get_status_snapshot()
     if address not in snapshot:
-        raise HTTPException(status_code=404, detail="Device not found")
+        raise device_not_found(address)
 
     command = service.get_command(address, command_id)
     if not command:
-        raise HTTPException(status_code=404, detail="Command not found")
+        raise command_not_found(command_id)
 
     return command

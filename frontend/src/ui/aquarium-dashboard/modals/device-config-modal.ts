@@ -225,9 +225,8 @@ async function handleSaveConfig(
     const { loadAllDashboardData } = await import('../services/data-service');
     await loadAllDashboardData();
 
-    // Refresh the UI to show updated names
-    const { refreshDashboard } = await import('../render');
-    refreshDashboard();
+    // Device card updater will automatically update the affected card
+    // No need for full refreshDashboard() call
 
     // Close modal
     modal.remove();

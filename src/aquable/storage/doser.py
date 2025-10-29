@@ -432,27 +432,6 @@ class DoserStorage(BaseDeviceStorage[DoserDevice]):
         self.upsert_device(device)
         return configuration
 
-    def get_device_metadata(self, device_id: str) -> DoserMetadata | None:
-        """DEPRECATED: Get device metadata (names only) by id.
-
-        Metadata is now stored in the device configuration itself (device_data).
-        Use get_device() instead and access name/headNames/autoReconnect from the DoserDevice.
-
-        This method is kept for backward compatibility during migration.
-        """
-        device = self.get_device(device_id)
-        if device is None:
-            return None
-
-        return DoserMetadata(
-            id=device.id,
-            name=device.name,
-            headNames=device.headNames,
-            autoReconnect=device.autoReconnect,
-            createdAt=device.createdAt,
-            updatedAt=device.updatedAt,
-        )
-
     def create_default_device(self, device_id: str, model_code: str | None = None) -> DoserDevice:
         """Create a skeleton DoserDevice with one minimal configuration.
 
@@ -544,47 +523,7 @@ class DoserStorage(BaseDeviceStorage[DoserDevice]):
 
         return device
 
-    def upsert_device_metadata(self, metadata: DoserMetadata) -> DoserMetadata:
-        """DEPRECATED: Create or update device metadata (names only).
-
-        Metadata is now stored in the device configuration itself.
-        Use upsert_device() with a DoserDevice that has naming fields set.
-
-        This method is kept for backward compatibility during migration.
-        """
-        # Try to get existing device
-        existing_device = self.get_device(metadata.id)
-
-        current_time = _now_iso()
-
-        if existing_device:
-            # Update existing device with new names
-            existing_device.name = metadata.name
-            existing_device.headNames = metadata.headNames
-            existing_device.autoReconnect = metadata.autoReconnect
-            existing_device.updatedAt = current_time
-            self.upsert_device(existing_device)
-            return metadata
-        else:
-            # Create new device with minimal config if it doesn't exist
-            # This shouldn't happen in practice (configurations should be created explicitly)
-            # Just for backward compat, don't actually persist
-            return metadata
-
-    # Legacy method - no longer used internally
-    def _update_head_names_in_device(self, device_id: str, head_names: dict) -> None:
-        """INTERNAL: Update head names in the latest revision."""
-        pass
-
-    def list_device_metadata(self) -> list[DoserMetadata]:
-        """DEPRECATED: List all device metadata from the metadata dictionary.
-
-        Metadata is now stored in device configurations themselves.
-        This method is kept for backward compatibility but will be empty
-        as metadata is no longer maintained in a separate dictionary.
-        """
-        # Return empty list - metadata is now in device configurations
-        return []
+    # End of Doser Storage public methods
 
 
 __all__ = [

@@ -4,35 +4,21 @@
 // subscription system. The complex bridging logic has been removed since all
 // state is now managed by deviceStore.
 //
-// TODO: Migrate components to use deviceStore.subscribe() directly and remove this file.
+// Uses targeted DOM updates for device cards instead of full page refreshes.
 
 import { deviceStore } from "../stores/deviceStore";
 import { renderNotifications } from "./notifications";
+import { initializeDeviceCardUpdater } from "./aquarium-dashboard/utils/device-card-updater";
 
 let unsubscribeCallbacks: (() => void)[] = [];
 
 export function setupStateSubscriptions(): void {
-  console.log('Setting up state subscriptions (delegating to Zustand)');
+  console.log('Setting up state subscriptions with targeted device card updates');
   
-  // Track connected device count to trigger refreshes only when it changes
-  // This prevents full dashboard refreshes when devices are loading but not connected yet
-  let previousConnectedCount = 0;
+  // Initialize the dynamic device card updater
+  // This handles all device card additions/removals/updates without full page refresh
+  initializeDeviceCardUpdater();
   
-  const unsubscribeDevices = deviceStore.subscribe(
-    (state) => {
-      const currentConnectedCount = Array.from(state.devices.values()).filter(
-        device => device.status?.connected
-      ).length;
-      
-      // Only refresh if the connected count actually changed
-      if (currentConnectedCount !== previousConnectedCount) {
-        console.log(`📱 Connected devices changed to: ${currentConnectedCount}`);
-        previousConnectedCount = currentConnectedCount;
-        refreshDashboard();
-      }
-    }
-  );
-
   // Subscribe to notification changes only
   let previousNotificationCount = 0;
   const unsubscribeNotifications = deviceStore.subscribe(
@@ -45,10 +31,22 @@ export function setupStateSubscriptions(): void {
     }
   );
 
+  // Subscribe to view changes - these require full dashboard refresh
+  let previousView = deviceStore.getState().ui.currentView;
+  const unsubscribeView = deviceStore.subscribe(
+    (state) => {
+      if (state.ui.currentView !== previousView) {
+        previousView = state.ui.currentView;
+        console.log(`📱 View changed to: ${previousView}`);
+        refreshDashboard();
+      }
+    }
+  );
+
   // Store cleanup function
-  unsubscribeCallbacks = [unsubscribeDevices, unsubscribeNotifications];
+  unsubscribeCallbacks = [unsubscribeNotifications, unsubscribeView];
   
-  console.log('State subscriptions active');
+  console.log('State subscriptions active with targeted updates');
 }
 
 /**

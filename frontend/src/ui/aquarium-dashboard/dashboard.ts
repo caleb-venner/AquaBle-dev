@@ -66,13 +66,20 @@ export function initializeDashboardHandlers(): void {
   // Data refresh
   (window as any).handleRefreshAll = async () => {
     const { refreshDeviceStatusOnly } = await import('./services/data-service');
-    const { refreshDashboard } = await import('./render');
+
+    // Find the refresh button and update its state
+    const refreshButton = document.querySelector('[onclick*="handleRefreshAll"]') as HTMLButtonElement;
+    const originalContent = refreshButton?.innerHTML;
 
     try {
-      // Show refreshing state
-      refreshDashboard();
+      // Update button to show loading state
+      if (refreshButton) {
+        refreshButton.disabled = true;
+        refreshButton.innerHTML = '<span class="scan-spinner"></span> Refreshing...';
+      }
 
       // Only refresh device status, not all data
+      // The device card updater will automatically update cards when store changes
       await refreshDeviceStatusOnly();
 
       deviceStore.getState().actions.addNotification({
@@ -85,7 +92,11 @@ export function initializeDashboardHandlers(): void {
         message: `Failed to refresh device status: ${error instanceof Error ? error.message : String(error)}`
       });
     } finally {
-      refreshDashboard(); // Remove refreshing state
+      // Restore button state
+      if (refreshButton && originalContent) {
+        refreshButton.disabled = false;
+        refreshButton.innerHTML = originalContent;
+      }
     }
   };
 
@@ -159,16 +170,15 @@ export function initializeDashboardHandlers(): void {
         await disconnectDevice(address);
         await refreshDeviceStatusOnly();
 
-        // Refresh dashboard UI to reflect disconnection status
-        const { refreshDashboard } = await import('./render');
-        refreshDashboard();
+        // Device card updater will automatically update the card when store changes
+        // No need for refreshDashboard() - targeted update happens automatically
 
         deviceStore.getState().actions.addNotification({
           type: 'success',
           message: `Successfully disconnected from device`
         });
 
-        // Update button text to reflect new state
+        // Update button text to reflect new state (immediate feedback)
         if (connectButton) {
           connectButton.disabled = false;
           connectButton.classList.remove('connecting');
@@ -184,16 +194,15 @@ export function initializeDashboardHandlers(): void {
         // Also refresh all device statuses to get updated "connected" states for other devices
         await refreshDeviceStatusOnly();
 
-        // Refresh dashboard UI to reflect connection status
-        const { refreshDashboard } = await import('./render');
-        refreshDashboard();
+        // Device card updater will automatically update the card when store changes
+        // No need for refreshDashboard() - targeted update happens automatically
 
         deviceStore.getState().actions.addNotification({
           type: 'success',
           message: `Successfully connected to device`
         });
 
-        // Update button text to reflect new state
+        // Update button text to reflect new state (immediate feedback)
         if (connectButton) {
           connectButton.disabled = false;
           connectButton.innerHTML = 'Disconnect';

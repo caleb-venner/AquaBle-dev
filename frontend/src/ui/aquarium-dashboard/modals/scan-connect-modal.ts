@@ -166,9 +166,8 @@ async function handleDeviceConnection(address: string, modal: HTMLElement): Prom
     const { refreshDeviceStatusOnly } = await import('../services/data-service');
     await refreshDeviceStatusOnly();
 
-    // Refresh dashboard UI to reflect connection status
-    const { refreshDashboard } = await import('../render');
-    refreshDashboard();
+    // Device card updater will automatically show the new device
+    // No need for full refreshDashboard() call
 
     // Close modal after a brief delay
     setTimeout(() => {
