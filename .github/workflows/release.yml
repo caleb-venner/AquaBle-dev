@@ -30,7 +30,22 @@ jobs:
         with:
           repository: caleb-venner/AquaBle
           path: stable
-          token: ${{ secrets.PAT }}
+          token: ${{ secrets.PAT || secrets.GITHUB_TOKEN }}
+          ref: main
+        continue-on-error: true
+
+      - name: Initialize stable repository if needed
+        run: |
+          if [ ! -d "stable/.git" ]; then
+            echo "Initializing new stable repository..."
+            mkdir -p stable
+            cd stable
+            git init
+            git config user.name 'github-actions[bot]'
+            git config user.email 'github-actions[bot]@users.noreply.github.com'
+            git remote add origin https://x-access-token:${{ secrets.PAT }}@github.com/caleb-venner/AquaBle.git
+            git checkout -b main
+          fi
 
       - name: Sync files to stable repository
         run: |
@@ -66,4 +81,4 @@ jobs:
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
           git add .
           git commit -m "Release ${{ github.ref_name }}" || echo "No changes to commit"
-          git push origin main
+          git push -u origin main || git push --force origin main
