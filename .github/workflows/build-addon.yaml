@@ -66,4 +66,5 @@ jobs:
             --target aquable \
             --docker-hub ghcr.io/${{ github.repository_owner }} \
             --amd64 \
-            --tag latest-dev
+            --tag latest-dev \
+            --version ${{ steps.version.outputs.version }}
