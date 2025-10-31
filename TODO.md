@@ -3,7 +3,7 @@
 ## Test in Ingress
 
 - Config and function: ping(status update)
-- Button for addon settings page.
+- Button for addon settings page. Incorrect format. Should be: <https://address/hassio/addon/8d20ab73_aquable/config>
 
 ## Next
 

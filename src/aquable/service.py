@@ -16,6 +16,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 
+# Configure unified logging as early as possible
+# This ensures all log entries include timestamps
+try:
+    from .logging_config import configure_logging
+    configure_logging()
+except Exception:
+    # If logging config import fails, continue anyway
+    pass
+
 # Ensure the implementation module picks up any env override when this
 # module is reloaded during tests (the tests set AQUA_BLE_STATUS_WAIT
 # then reload this module expecting the constant to reflect the env var).
@@ -321,12 +330,7 @@ def main() -> None:  # pragma: no cover
 
     import uvicorn
 
-    # Configure logging with timezone support
-    # The TZ environment variable is set by the run script
-    # Note: Let uvicorn handle logging to avoid double output
-    logging.basicConfig(
-        level=logging.INFO, format="%(asctime)s %(levelname)s [%(name)s] %(message)s"
-    )
+    from .logging_config import get_uvicorn_log_config
 
     logger = logging.getLogger(__name__)
     tz = os.getenv("TZ", "UTC")
@@ -349,7 +353,7 @@ def main() -> None:  # pragma: no cover
             app,
             host="0.0.0.0",
             port=port,
-            log_level="info",
+            log_config=get_uvicorn_log_config(),
             access_log=True,
         )
     except Exception as e:

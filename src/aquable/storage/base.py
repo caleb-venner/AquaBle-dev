@@ -131,7 +131,7 @@ class BaseDeviceStorage(ABC, Generic[TDevice]):
 
             # Validate device type matches
             if data.get("device_type") != self.device_type:
-                logger.warning(
+                logger.debug(
                     f"Device file {device_file} has wrong type: "
                     f"expected {self.device_type}, got {data.get('device_type')}"
                 )
@@ -253,7 +253,7 @@ class BaseDeviceStorage(ABC, Generic[TDevice]):
 
             # Validate device type matches
             if data.get("device_type") != self.device_type:
-                logger.warning(
+                logger.debug(
                     f"Device file {device_file} has wrong type: "
                     f"expected {self.device_type}, got {data.get('device_type')}"
                 )

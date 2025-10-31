@@ -47,14 +47,16 @@ AUTO_SAVE_ENV = "AQUA_BLE_AUTO_SAVE"
 # Get status capture wait with fallback
 STATUS_CAPTURE_WAIT_SECONDS = get_env_float(STATUS_CAPTURE_WAIT_ENV, BLE_STATUS_CAPTURE_WAIT)
 
-# Module logger
+# Module logger - unified logging configuration applied at startup
 logger = logging.getLogger("aquable.service")
 _default_level = (os.getenv("AQUA_BLE_LOG_LEVEL", "INFO") or "INFO").upper()
+
+# Only configure basic logging if no handlers exist yet
+# The main service will configure unified logging at startup
 if not logging.getLogger().handlers:
-    logging.basicConfig(
-        level=getattr(logging, _default_level, logging.INFO),
-        format="%(asctime)s %(levelname)-5s [%(name)s] %(message)s",
-    )
+    from .logging_config import configure_logging
+    configure_logging()
+
 try:
     logger.setLevel(getattr(logging, _default_level, logging.INFO))
 except Exception:
