@@ -48,8 +48,15 @@ def get_logging_config() -> Dict[str, Any]:
     - Consistent format across application and uvicorn
     - Proper timezone handling (via logging module's localtime parameter)
     - Color-coded output for terminal
+    - Access logs (health/status checks) only shown in verbose mode or on errors
     """
     log_level = get_log_level()
+    
+    # Check for verbose logging flag (set by Home Assistant add-on config)
+    verbose_logging = os.getenv("AQUA_BLE_VERBOSE_LOGGING", "false").lower() in ("true", "1", "yes")
+    
+    # Set access log level: INFO for verbose mode, WARNING otherwise
+    access_log_level = log_level if verbose_logging else "WARNING"
     
     # Unified format with timestamp
     log_format = "%(asctime)s %(levelname)-5s [%(name)s] %(message)s"
@@ -94,7 +101,7 @@ def get_logging_config() -> Dict[str, Any]:
             },
             "uvicorn.access": {
                 "handlers": ["access"],
-                "level": log_level,
+                "level": access_log_level,  # WARNING by default, INFO if verbose_logging enabled
                 "propagate": False,
             },
             "aquable": {

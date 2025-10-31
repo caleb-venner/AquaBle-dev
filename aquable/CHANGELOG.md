@@ -27,4 +27,3 @@ All notable changes to AquaBle will be documented in this file.
 - Base tag injection for Ingress asset resolution
 - Address encoding in metadata API calls
 - Graceful handling of missing device metadata
-

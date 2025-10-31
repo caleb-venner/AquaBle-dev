@@ -7,6 +7,7 @@ bashio::log.info "Starting AquaBle service..."
 export AQUA_BLE_AUTO_RECONNECT=$(bashio::config 'auto_reconnect')
 export AQUA_BLE_AUTO_DISCOVER=$(bashio::config 'auto_discover')
 export AQUA_BLE_STATUS_WAIT=$(bashio::config 'status_wait_seconds')
+export AQUA_BLE_VERBOSE_LOGGING=$(bashio::config 'verbose_logging')
 
 # Handle timezone configuration
 TIMEZONE=$(bashio::config 'timezone')
