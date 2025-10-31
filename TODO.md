@@ -15,6 +15,8 @@
 
 ## Soon
 
+- Improve: appearance and UX of device command settings modals.
+- Fix: notification popups --> darkmode display.
 - If **known device**, should display device card with a disconnected status indicator.
 - Schedule overlap/collision detection for LED Auto Mode settings.
 - Light/Doser devices --> **'reapply' saved configs** --> sends commands to device. *(Especially applies to recovery from power loss instances).*

@@ -153,30 +153,30 @@ export function initializeDashboardHandlers(): void {
     showDeviceConfigModal(address, deviceType as 'doser' | 'light');
   };
 
-  // Legacy device settings (for command interface)
+  // Device command settings modal
   (window as any).openDeviceSettings = async (address: string, deviceType: string) => {
     const { showDoserDeviceSettingsModal, showLightDeviceSettingsModal } = await import('./modals/device-modals');
     
-    try {
-      // Refresh device configuration from API and update store
-      const device = await deviceStore.getState().actions.refreshDeviceConfig(
-        address, 
-        deviceType as 'doser' | 'light'
-      );
-      
-      // Show modal with fresh data from store
-      if (deviceType === 'doser') {
-        showDoserDeviceSettingsModal(device as any);
-      } else if (deviceType === 'light') {
-        showLightDeviceSettingsModal(device as any);
-      }
-    } catch (error) {
-      console.error(`Failed to load ${deviceType} configuration:`, error);
+    // Get device configuration from store
+    const state = deviceStore.getState();
+    const device = deviceType === 'doser' 
+      ? state.configurations.dosers.get(address)
+      : state.configurations.lights.get(address);
+
+    if (!device) {
       deviceStore.getState().actions.addNotification({
         type: 'error',
-        message: `Failed to load ${deviceType} settings`,
+        message: `Device configuration not found for ${deviceType}`,
         autoHide: true,
       });
+      return;
+    }
+
+    // Show modal with data from store
+    if (deviceType === 'doser') {
+      showDoserDeviceSettingsModal(device as any);
+    } else if (deviceType === 'light') {
+      showLightDeviceSettingsModal(device as any);
     }
   };
 
@@ -282,6 +282,67 @@ export function initializeDashboardHandlers(): void {
    * will be replaced with a new robust command system in Phase 3.
    * ====================================================================
    */
+
+  // Save device card settings and flip back
+  (window as any).saveDeviceCardSettings = async (address: string) => {
+    const { updateDeviceNaming, updateDeviceSettings } = await import('../../api/configurations');
+    
+    // Get the flip card and extract input values
+    const card = document.querySelector(`[data-device-address="${address}"]`);
+    if (!card) return;
+
+    const nameInput = card.querySelector('.device-name-input') as HTMLInputElement;
+    const headInputs = card.querySelectorAll('.head-name-input') as NodeListOf<HTMLInputElement>;
+    const autoReconnectCheckbox = card.querySelector('.auto-reconnect-checkbox') as HTMLInputElement;
+    
+    try {
+      const newName = nameInput?.value?.trim();
+      
+      // Build head names object if this is a doser
+      const headNames: Record<number, string> = {};
+      if (headInputs.length > 0) {
+        headInputs.forEach((input) => {
+          const headIndex = parseInt(input.dataset.head || '0');
+          const headName = input.value.trim();
+          if (headName) {
+            headNames[headIndex] = headName;
+          }
+        });
+      }
+
+      // Update device naming (name and head names)
+      const namingUpdate: any = {
+        name: newName || undefined,
+      };
+      if (Object.keys(headNames).length > 0) {
+        namingUpdate.headNames = headNames;
+      }
+
+      await updateDeviceNaming(address, namingUpdate);
+
+      // Update device settings (auto-reconnect)
+      if (autoReconnectCheckbox) {
+        await updateDeviceSettings(address, {
+          autoReconnect: autoReconnectCheckbox.checked,
+        });
+      }
+
+      // Flip card back and show success notification
+      (window as any).toggleDeviceCardFlip(address);
+      deviceStore.getState().actions.addNotification({
+        type: 'success',
+        message: 'Device settings saved',
+        autoHide: true,
+      });
+    } catch (error) {
+      console.error('Failed to save device settings:', error);
+      deviceStore.getState().actions.addNotification({
+        type: 'error',
+        message: 'Failed to save device settings',
+        autoHide: true,
+      });
+    }
+  };
 }
 
 // Auto-load data on module import

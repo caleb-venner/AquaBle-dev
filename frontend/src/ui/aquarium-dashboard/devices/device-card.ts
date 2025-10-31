@@ -10,6 +10,16 @@ import { renderDoserCardStatus } from "./doser-components";
 import type { DeviceStatus } from "../../../types/api";
 
 /**
+ * Toggle flip state on a device card
+ */
+(window as any).toggleDeviceCardFlip = (address: string) => {
+  const card = document.querySelector(`[data-device-address="${address}"]`);
+  if (card) {
+    card.classList.toggle('flipped');
+  }
+};
+
+/**
  * Render a device section with device tiles
  */
 export function renderDeviceSection(
@@ -20,7 +30,15 @@ export function renderDeviceSection(
     <div class="card">
       <div class="card-header">
         <h2 class="card-title">${title}</h2>
-        <div class="badge badge-info">${devices.length}</div>
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <div class="badge badge-info">${devices.length}</div>
+          <button class="toggle-icon-button" onclick="window.handleScanDevices()" title="Scan & Connect">
+            <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 24 24" class="toggle-icon" xmlns="http://www.w3.org/2000/svg">
+              <title>bluetooth-connect</title>
+              <path d="M19,10L17,12L19,14L21,12M14.88,16.29L13,18.17V14.41M13,5.83L14.88,7.71L13,9.58M17.71,7.71L12,2H11V9.58L6.41,5L5,6.41L10.59,12L5,17.58L6.41,19L11,14.41V22H12L17.71,16.29L13.41,12M7,12L5,10L3,12L5,14L7,12Z" />
+            </svg>
+          </button>
+        </div>
       </div>
       <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px; margin-top: 16px;">
         ${devices.map(device => renderDeviceTile(device)).join("")}
@@ -47,10 +65,21 @@ function renderDeviceTile(device: DeviceStatus & { address: string }): string {
   const timeAgo = getTimeAgo(device.updated_at);
 
   return `
-    <div class="card device-card ${device.device_type} ${device.connected ? 'connected' : 'disconnected'}" style="padding: 0; border-left: 4px solid ${statusColor};">
-      ${renderDeviceCardHeader(device, deviceName, statusText, timeAgo)}
-      ${renderDeviceCardBody(device)}
-      ${renderDeviceCardFooter(device)}
+    <div class="flip-card" data-device-address="${device.address}">
+      <div class="flip-card-inner">
+        <!-- Front of card -->
+        <div class="flip-card-front">
+          <div class="card device-card ${device.device_type} ${device.connected ? 'connected' : 'disconnected'}" style="padding: 0; border-left: 4px solid ${statusColor}; height: 100%;">
+            ${renderDeviceCardHeader(device, deviceName, statusText, timeAgo)}
+            ${renderDeviceCardBody(device)}
+            ${renderDeviceCardFooter(device)}
+          </div>
+        </div>
+        <!-- Back of card -->
+        <div class="flip-card-back">
+          ${renderDeviceCardSettings(device, deviceName)}
+        </div>
+      </div>
     </div>
   `;
 }
@@ -90,7 +119,7 @@ function renderDeviceCardHeader(
           </button>
           <button
             class="btn-icon"
-            onclick="window.handleDeviceSettings('${device.address}', '${device.device_type}')"
+            onclick="window.toggleDeviceCardFlip('${device.address}')"
             title="Device Settings"
             style="padding: 6px 10px; font-size: 16px; background: transparent; border: 1px solid var(--border-color); border-radius: 6px; cursor: pointer; color: var(--text-secondary); transition: all 0.2s;"
             onmouseover="this.style.background='var(--gray-100)'; this.style.borderColor='var(--gray-400)'; this.style.color='var(--text-primary)';"
@@ -151,6 +180,84 @@ function renderDeviceCardFooter(device: DeviceStatus & { address: string }): str
         </button>
         <button class="btn connect-button ${connectButtonClass}" onclick="window.toggleDeviceConnection('${device.address}')">
           ${connectButtonText}
+        </button>
+      </div>
+    </div>
+  `;
+}
+
+/**
+ * Render the back of the card (settings form)
+ */
+function renderDeviceCardSettings(device: DeviceStatus & { address: string }, deviceName: string): string {
+  const state = deviceStore.getState();
+  const config = device.device_type === "doser" 
+    ? state.configurations.dosers.get(device.address)
+    : state.configurations.lights.get(device.address);
+
+  return `
+    <div class="card device-card-settings" style="padding: 0; height: 100%; display: flex; flex-direction: column; border-left: 4px solid var(--primary);">
+      <div class="card-header" style="padding: 16px; border-bottom: 1px solid var(--border-color);">
+        <h3 style="font-size: 18px; font-weight: 600; margin: 0; color: var(--text-primary);">
+          ${deviceName}
+        </h3>
+      </div>
+      <div style="padding: 0; flex: 1; overflow-y: auto;">
+        <div style="padding: 0px 16px 16px 16px;">
+          <label style="display: block; font-size: 14px; font-weight: 600; color: var(--text-primary); margin-bottom: 8px;">Device Name</label>
+          <input 
+            type="text" 
+            class="form-input device-name-input"
+            value="${config?.name || deviceName}"
+            placeholder="Enter device name"
+            style="width: 100%; padding: 6px 12px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-primary); color: var(--text-primary); font-size: 14px;"
+          />
+        </div>
+
+        ${device.device_type === 'doser' ? `
+          <div style="padding: 0 16px 16px 16px;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+              ${[1, 2, 3, 4].map(headIndex => `
+                <div>
+                  <label style="display: block; font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;">Head ${headIndex}</label>
+                  <input 
+                    type="text" 
+                    class="form-input head-name-input"
+                    data-head="${headIndex}"
+                    value="${((config as any)?.headNames?.[headIndex] || '')}"
+                    placeholder="Enter name"
+                    style="width: 100%; padding: 6px 12px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-primary); color: var(--text-primary); font-size: 14px;"
+                  />
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        ` : ''}
+
+        <div style="padding: 0 16px 16px 16px;">
+          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+            <input 
+              type="checkbox" 
+              class="auto-reconnect-checkbox"
+              ${config?.autoReconnect ? 'checked' : ''}
+              style="cursor: pointer;"
+            />
+            <span style="font-size: 14px; color: var(--text-primary);">Auto-reconnect when available</span>
+          </label>
+        </div>
+      </div>
+      <div style="padding: 16px; border-top: 1px solid var(--border-color); background: var(--bg-secondary); display: flex; gap: 12px; justify-content: flex-end;">
+        <button 
+          class="btn btn-outline" 
+          onclick="window.toggleDeviceCardFlip('${device.address}')"
+        >
+          Cancel
+        </button>
+        <button 
+          class="btn btn-primary" 
+          onclick="window.saveDeviceCardSettings('${device.address}')"
+        >
+          Save
         </button>
       </div>
     </div>

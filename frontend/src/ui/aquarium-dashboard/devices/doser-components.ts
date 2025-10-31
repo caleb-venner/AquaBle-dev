@@ -124,9 +124,9 @@ function renderPumpHead(head: any): string {
   // If disabled, show simple view
   if (isDisabled) {
     return `
-      <div style="background: var(--gray-50); padding: 12px; border-radius: 6px; border-left: 3px solid ${statusColor};">
+      <div style="padding: 8px 12px; background: var(--bg-primary); border-radius: 4px; border-left: 3px solid ${statusColor};">
         <div style="display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center;">
-          <div style="font-size: 13px; font-weight: 600; color: var(--gray-900);">${headName}</div>
+          <div style="font-size: 13px; font-weight: 600; color: var(--text-primary);">${headName}</div>
           <div style="font-size: 11px; color: ${statusColor}; font-weight: 600;">${statusText}</div>
         </div>
       </div>
@@ -134,27 +134,27 @@ function renderPumpHead(head: any): string {
   }
 
   return `
-    <div style="background: var(--gray-50); padding: 12px; border-radius: 6px; border-left: 3px solid ${statusColor};">
+    <div style="padding: 8px 12px; background: var(--bg-primary); border-radius: 4px; border-left: 3px solid ${statusColor};">
       <!-- First Row: Head name, mode, status -->
       <div style="display: grid; grid-template-columns: 1fr auto auto; gap: 8px; align-items: center; margin-bottom: 8px;">
-        <div style="font-size: 13px; font-weight: 600; color: var(--gray-900);">${headName}</div>
-        <div style="font-size: 11px; color: var(--gray-500);">${modeText}</div>
+        <div style="font-size: 13px; font-weight: 600; color: var(--text-primary);">${headName}</div>
+        <div style="font-size: 11px; color: var(--text-secondary);">${modeText}</div>
         <div style="font-size: 11px; color: ${statusColor}; font-weight: 600;">${statusText}</div>
       </div>
 
       <!-- Second Row: Set Dose, Schedule, Dosed Today -->
       <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; font-size: 11px;">
         <div style="text-align: center;">
-          <div style="color: var(--gray-500); margin-bottom: 2px;">Set Dose</div>
-          <div style="font-weight: 600; color: var(--gray-900);">${configData.setDose}</div>
+          <div style="color: var(--text-secondary); margin-bottom: 2px;">Set Dose</div>
+          <div style="font-weight: 600; color: var(--text-primary);">${configData.setDose}</div>
         </div>
         <div style="text-align: center;">
-          <div style="color: var(--gray-500); margin-bottom: 2px;">Schedule</div>
-          <div style="font-weight: 600; color: var(--gray-900);">${configData.schedule}</div>
+          <div style="color: var(--text-secondary); margin-bottom: 2px;">Schedule</div>
+          <div style="font-weight: 600; color: var(--text-primary);">${configData.schedule}</div>
         </div>
         <div style="text-align: center;">
-          <div style="color: var(--gray-500); margin-bottom: 2px;">Dosed</div>
-          <div style="font-weight: 600; color: var(--gray-900);">${dosedToday}</div>
+          <div style="color: var(--text-secondary); margin-bottom: 2px;">Dosed</div>
+          <div style="font-weight: 600; color: var(--text-primary);">${dosedToday}</div>
         </div>
       </div>
     </div>
