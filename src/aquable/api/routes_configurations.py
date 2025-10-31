@@ -20,15 +20,15 @@ import logging
 from typing import Optional, Union
 
 from fastapi import APIRouter, File, HTTPException, Request, UploadFile
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from ..storage import DoserDevice, DoserStorage, LightDevice, LightStorage
-from .exceptions import (
+from ..utils.schedule import get_schedules_with_status
+from .exceptions import (  # invalid_device_data,; storage_error,
     device_not_found,
     handle_storage_errors,
-    invalid_device_data,
     model_code_mismatch,
-    storage_error,
 )
 
 logger = logging.getLogger(__name__)
@@ -138,32 +138,38 @@ class DeviceSettingsUpdate(BaseModel):
 @router.get("/devices/{address}/configurations")
 @handle_storage_errors
 async def get_device_configurations(request: Request, address: str):
-    """Get device configuration by address (detects device type automatically).
-
-    This unified endpoint works for both doser and light devices,
-    automatically detecting the device type from storage.
-
-    Args:
-        request: FastAPI request object
-        address: MAC address of the device
-
-    Returns:
-        DoserDevice or LightDevice configuration with last_status included
-
-    Raises:
-        404: Device not found
-        500: Device file corrupted or storage error
-    """
+    """Get device configuration by address (detects device type automatically)."""
+    headers = {"Cache-Control": "no-cache, no-store, must-revalidate"}
     storage, device_type = get_device_storage(request, address)
     device = storage.get_device_with_status(address)
 
     if not device:
-        raise HTTPException(
-            status_code=404, detail=f"No configuration found for device {address}"
-        )
+        raise HTTPException(status_code=404, detail=f"No configuration found for device {address}")
 
+    # For light devices, augment auto programs with live status
+    if device_type == "light" and device.get("activeConfigurationId") and device.get("configurations"):
+        active_config_id = device.get("activeConfigurationId")
+        configurations = device.get("configurations", [])
+        active_config = next(
+            (c for c in configurations if c.get("id") == active_config_id), None
+        )
+        if active_config and active_config.get("revisions"):
+            latest_revision = active_config["revisions"][-1]
+            if latest_revision.get("profile") and latest_revision["profile"].get("mode") == "auto":
+                programs = latest_revision["profile"].get("programs", [])
+                programs_with_status = get_schedules_with_status(programs)
+                
+                for config_dict in device.get("configurations", []):
+                    if config_dict.get("id") == active_config_id:
+                        if "revisions" in config_dict and config_dict["revisions"]:
+                            config_dict["revisions"][-1]["profile"]["programs"] = programs_with_status
+                
+                logger.info(f"Augmented light programs with status for {address}")
+                return JSONResponse(content=device, headers=headers)
+
+    # If not a light device or conditions not met, return the configuration as dict
     logger.info(f"Retrieved {device_type} configuration for {address}")
-    return device
+    return JSONResponse(content=device, headers=headers)
 
 
 @router.put("/devices/{address}/configurations")

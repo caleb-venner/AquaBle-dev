@@ -23,11 +23,13 @@ options:
   auto_discover: true
   status_wait_seconds: 1.5
   timezone: "auto"
+  ping_interval: 300
 schema:
   auto_reconnect: bool
   auto_discover: bool
   status_wait_seconds: float(0.5,5.0)?
   timezone: str?
+  ping_interval: int?
 bluetooth: true
 hassio_api: true
 hassio_role: default

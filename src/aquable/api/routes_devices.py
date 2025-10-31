@@ -8,14 +8,13 @@ from fastapi import APIRouter, HTTPException, Request
 
 from ..device import get_device_from_address
 from ..utils import cached_status_to_dict
-from .exceptions import (
+from .exceptions import (  # device_not_reachable,
     bluetooth_adapter_not_found,
     bluetooth_disabled,
     bluetooth_permission_denied,
     bluetooth_unavailable,
     connection_timeout,
     device_not_found,
-    device_not_reachable,
     unsupported_device_type,
 )
 

@@ -5,7 +5,7 @@ import asyncio
 import logging
 import time
 from abc import ABC
-from typing import ClassVar, Optional
+from typing import Any, ClassVar, Optional
 
 from bleak.backends.device import BLEDevice
 from bleak.backends.scanner import AdvertisementData
@@ -78,6 +78,10 @@ class BaseDevice(ABC):
         self._expected_disconnect = False
         self.loop = asyncio.get_running_loop()
         assert self._model_name is not None
+
+        # Status handling
+        self.last_status: Any | None = None
+        self._status_event = asyncio.Event()
 
         # Message ID session management
         self._session_start_time = time.time()
@@ -198,12 +202,34 @@ class BaseDevice(ABC):
             return self._advertisement_data.rssi
         return None
 
+    @property
+    def is_connected(self) -> bool:
+        """Return true if the device is connected."""
+        return self._client is not None and self._client.is_connected
+
     # Abstract methods for subclasses
 
     @abc.abstractmethod
     async def request_status(self) -> None:
         """Send a request to the device to get its current status."""
         pass
+
+    @abc.abstractmethod
+    def _parse_status(self, data: bytearray) -> Any:
+        """Parse raw status data from a notification.
+
+        Returns a parsed status object or None if the payload is not a status.
+        """
+        pass
+
+    async def wait_for_status(self, timeout: float) -> None:
+        """Clear and wait for the status event with a timeout."""
+        self._status_event.clear()
+        try:
+            await asyncio.wait_for(self._status_event.wait(), timeout=timeout)
+        except asyncio.TimeoutError:
+            # This is an expected condition; the service layer will handle it.
+            self._logger.warning("Timed out waiting for status update after %.2fs", timeout)
 
     # Command methods
 
@@ -306,8 +332,17 @@ class BaseDevice(ABC):
             )
 
     def _notification_handler(self, _sender: BleakGATTCharacteristic, data: bytearray) -> None:
-        """Handle notification responses."""
-        self._logger.warning("%s: Notification received: %s", self.name, data)
+        """Handle notification responses by parsing them and setting the status event."""
+        self._logger.debug("%s: Notification received: %s", self.name, data.hex())
+        try:
+            # Let the subclass parse the status.
+            # If it returns a truthy value, we consider it a valid status update.
+            status = self._parse_status(data)
+            if status:
+                self.last_status = status
+                self._status_event.set()
+        except Exception:
+            self._logger.exception("Failed to parse status notification")
 
     def _disconnected(self, client: BleakClientWithServiceCache) -> None:
         """Disconnected callback."""

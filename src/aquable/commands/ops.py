@@ -45,7 +45,7 @@ async def set_doser_schedule(
             )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    return await service._refresh_device_status("doser", persist=True)
+    return await service._refresh_device_status(address, persist=True)
 
 
 async def set_light_brightness(
@@ -74,42 +74,42 @@ async def set_light_brightness(
             await device.set_brightness(brightness_tuple)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    return await service._refresh_device_status("light", persist=True)
+    return await service._refresh_device_status(address, persist=True)
 
 
 async def turn_light_on(service: Any, address: str) -> "CachedStatus":
     """Turn the specified light device on."""
     async with device_operation(service, address, "light") as device:
         await device.turn_on()
-    return await service._refresh_device_status("light", persist=True)
+    return await service._refresh_device_status(address, persist=True)
 
 
 async def turn_light_off(service: Any, address: str) -> "CachedStatus":
     """Turn the specified light device off."""
     async with device_operation(service, address, "light") as device:
         await device.turn_off()
-    return await service._refresh_device_status("light", persist=True)
+    return await service._refresh_device_status(address, persist=True)
 
 
 async def enable_auto_mode(service: Any, address: str) -> "CachedStatus":
     """Enable auto mode on the light device."""
     async with device_operation(service, address, "light") as device:
         await device.enable_auto_mode()
-    return await service._refresh_device_status("light", persist=True)
+    return await service._refresh_device_status(address, persist=True)
 
 
 async def set_manual_mode(service: Any, address: str) -> "CachedStatus":
     """Switch the light device to manual control mode."""
     async with device_operation(service, address, "light") as device:
         await device.set_manual_mode()
-    return await service._refresh_device_status("light", persist=True)
+    return await service._refresh_device_status(address, persist=True)
 
 
 async def reset_auto_settings(service: Any, address: str) -> "CachedStatus":
     """Reset stored auto settings on the light device."""
     async with device_operation(service, address, "light") as device:
         await device.reset_settings()
-    return await service._refresh_device_status("light", persist=True)
+    return await service._refresh_device_status(address, persist=True)
 
 
 async def add_light_auto_setting(
@@ -180,4 +180,4 @@ async def add_light_auto_setting(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-    return await service._refresh_device_status("light", persist=True)
+    return await service._refresh_device_status(address, persist=True)

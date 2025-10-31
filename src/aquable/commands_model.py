@@ -11,7 +11,6 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 
 from .errors import ErrorCode
 
-
 # ============================================================================
 # Shared Validation Utilities
 # ============================================================================
@@ -72,6 +71,7 @@ def validate_weekdays_helper(v: Optional[list]) -> Optional[list[str]]:
             raise ValueError("Duplicate weekdays not allowed")
 
     return v
+
 
 # Command status types
 CommandStatus = Literal["pending", "running", "success", "failed", "timed_out", "cancelled"]

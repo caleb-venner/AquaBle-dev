@@ -63,11 +63,8 @@ function renderPumpHeads(heads: any[], savedConfig?: any, deviceAddress?: string
   }
 
   return `
-    <div style="background: var(--card-bg); padding: 16px; border-radius: 6px; border: 1px solid var(--border-color);">
-      <div style="font-size: 13px; font-weight: 600; color: var(--text-primary); margin-bottom: 12px;">Pump Heads</div>
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-        ${allHeads.map((head: any) => renderPumpHead(head)).join('')}
-      </div>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+      ${allHeads.map((head: any) => renderPumpHead(head)).join('')}
     </div>
   `;
 }

@@ -1,6 +1,11 @@
 # TODO
 
-## Urgent
+## Test in Ingress
+
+- Config and function: ping(status update)
+- Button for addon settings page.
+
+## Next
 
 - Fix: light status payload (keyframes); need to refine time-check logic. Placeholders inserted.
   [Lines 202 -> 336](src/aquable/storage/models.py#L204)
@@ -10,11 +15,7 @@
 
 ## Soon
 
-- If device is already connected, should not display in scan return.
 - If **known device**, should display device card with a disconnected status indicator.
-- Implement: Add button within dashboard linking to addon settings page. (Possible?)
-- Improve: **Light** device card; **auto settings** change **colours** --> green current, blue active, grey disabled. --> Requires improved command settings logic.
-- Improve: Need to decide when/what triggers a payload **status request** from devices.
 - Schedule overlap/collision detection for LED Auto Mode settings.
 - Light/Doser devices --> **'reapply' saved configs** --> sends commands to device. *(Especially applies to recovery from power loss instances).*
 
@@ -23,6 +24,8 @@
 - Test, Decode, Implement full dosing pump mode functionality:
   . Daily, Timer, 24hr, Custom, (Disabled)
 - Investigate: manual (single) dose; make-up dose flag; enable? flag; further status request command encoding.
+- Investiage: Priming and calibration process for doser.
+- New screenshots for sites.
 
 ### Nice to have
 

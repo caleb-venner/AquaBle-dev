@@ -31,8 +31,8 @@ async def device_operation(
         async def turn_light_on(service, address):
             async with device_operation(service, address, "light") as device:
                 await device.turn_on()
-            # Status automatically refreshed after context exits
-            return await service._refresh_device_status("light", persist=True)
+    # Status automatically refreshed after context exits
+    return await service._refresh_device_status(address, persist=True)
 
     Args:
         service: BLE service instance

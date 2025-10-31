@@ -42,7 +42,6 @@ def test_capture_wait_uses_env_override(monkeypatch: pytest.MonkeyPatch, patched
 
     # Set up the device in the new structure
     service._devices["doser"] = {"AA:BB": mock_doser}
-    service._addresses["doser"] = "AA:BB"
 
     # Provide a fake status object compatible with serializer expectations.
     # Minimal fake status object; we'll bypass real serialization by patching.
@@ -68,22 +67,23 @@ def test_capture_wait_uses_env_override(monkeypatch: pytest.MonkeyPatch, patched
         lambda s: {"ok": True},
     )
 
-    # Patch asyncio.sleep to record the requested delay
+    # Patch the device's wait_for_status method to record the timeout
     import asyncio as _asyncio
 
     recorded = {}
 
-    async def fake_sleep(delay):  # pragma: no cover - executed inside test
-        recorded["delay"] = delay
+    async def fake_wait_for_status(timeout=None):
+        recorded["timeout"] = timeout
 
-    monkeypatch.setattr(_asyncio, "sleep", fake_sleep)
+    mock_doser.wait_for_status = fake_wait_for_status
+
     # Run capture with persist=False so we don't need full serialization
     # path reload complexity
     # type: ignore[attr-defined]
-    target = "doser"
+    target_address = "AA:BB"
     persist_arg = False
-    result = _asyncio.run(service._refresh_device_status(target, persist=persist_arg))
+    result = _asyncio.run(service._refresh_device_status(target_address, persist=persist_arg))
     assert result is not None
     # Confirm we used the env override value, not the default 1.5
-    delay_val = recorded.get("delay", 0)
-    assert 0.009 <= delay_val <= 0.02, recorded
+    timeout_val = recorded.get("timeout", 0)
+    assert 0.009 <= timeout_val <= 0.02, recorded

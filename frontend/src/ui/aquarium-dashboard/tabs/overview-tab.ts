@@ -31,6 +31,6 @@ export function renderOverviewTab(): string {
   }
 
   return `
-    ${renderDeviceSection("Connected Devices", devices)}
+    ${renderDeviceSection("Devices", devices)}
   `;
 }

@@ -2,10 +2,7 @@
 
 from __future__ import annotations
 
-import asyncio
-from typing import ClassVar, Sequence
-
-from bleak.backends.characteristic import BleakGATTCharacteristic
+from typing import Any, ClassVar, Sequence
 
 from ..commands import encoder as doser_commands
 from ..storage.models import DoserStatus, parse_doser_payload
@@ -20,67 +17,39 @@ class Doser(BaseDevice):
     _model_name = "Dosing Pump"
     _model_codes = ["DYDOSE"]
 
-    _last_status: DoserStatus | None = None
-
     async def request_status(self) -> None:
         """Send a handshake to ask the pump for its latest status."""
         cmd = doser_commands.create_handshake_command(self.get_next_msg_id())
         await self._send_command(cmd, 3)
 
-    def _notification_handler(self, _sender: BleakGATTCharacteristic, data: bytearray) -> None:
-        """Capture raw notification bytes from the pump."""
-        self.handle_notification(bytes(data))
-
-    def handle_notification(self, payload: bytes) -> None:
-        """Handle an incoming UART notification from the pump.
-
-        Validates payload structure, discriminates by message type, and updates
-        status only on successful parsing. Parses two relevant payload types:
-        - Mode 0xFE: Current schedule and dosing data (includes time fields)
-        - Mode 0x1E: Lifetime dose totals (no time fields)
-
-        Mode 0x22 (today's dose amounts) received but not yet decoded.
-        """
-        if not payload:
-            return
+    def _parse_status(self, data: bytearray) -> Any:
+        """Handle an incoming UART notification from the pump."""
+        if not data:
+            return None
 
         # Validate basic structure: must start with 0x5B and be long enough
-        if payload[0] != 0x5B or len(payload) < 6:
-            self._logger.debug("%s: Invalid payload structure: %s", self.name, payload.hex())
-            return
+        if data[0] != 0x5B or len(data) < 6:
+            self._logger.debug("%s: Invalid payload structure: %s", self.name, data.hex())
+            return None
 
         # Discriminate by response mode
-        mode = payload[5]
+        mode = data[5]
 
         # Parse modes 0xFE (schedule/current data) and 0x1E (lifetime totals)
-        # Mode 0x22 (today's dose) received but not yet decoded
         if mode not in (0xFE, 0x1E):
             self._logger.debug(
-                "%s: Received payload (mode 0x%02X) - decoding pending: %s",
+                "%s: Received non-status payload (mode 0x%02X): %s",
                 self.name,
                 mode,
-                payload.hex(),
+                data.hex(),
             )
-            return
+            return None
 
         try:
-            parsed = parse_doser_payload(payload)
-        except Exception as e:
-            self._logger.debug(
-                "%s: Failed to parse payload (mode 0x%02X): %s",
-                self.name,
-                mode,
-                str(e),
-            )
-            return
-
-        self._last_status = parsed
-        self._logger.debug("%s: Status payload (mode 0x%02X): %s", self.name, mode, payload.hex())
-
-    @property
-    def last_status(self) -> DoserStatus | None:
-        """Return the most recent DoserStatus decoded from the pump."""
-        return self._last_status
+            return parse_doser_payload(data)
+        except Exception:
+            self._logger.exception("Failed to parse doser status payload (mode 0x%02X)", mode)
+            return None
 
     async def set_daily_dose(
         self,
@@ -162,8 +131,8 @@ class Doser(BaseDevice):
             return None
 
         await self.request_status()
-        await asyncio.sleep(max(0.0, wait_seconds))
-        return self._last_status
+        await self.wait_for_status(timeout=wait_seconds)
+        return self.last_status
 
 
 # Need to implement further commands.

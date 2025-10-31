@@ -125,7 +125,7 @@ def cached_status_to_dict(service, status) -> Dict[str, Any]:
     This ultra-minimal payload keeps the status endpoint extremely lightweight
     and focused purely on connection state polling.
     """
-    connected = service.current_device_address(status.device_type) == status.address
+    connected = status.address in service.get_devices_by_kind(status.device_type)
 
     return {
         "address": status.address,

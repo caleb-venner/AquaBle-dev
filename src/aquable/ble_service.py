@@ -28,7 +28,7 @@ from .constants import BLE_STATUS_CAPTURE_WAIT
 from .device import get_device_from_address, get_model_class_from_name
 from .device.base_device import BaseDevice
 from .errors import DeviceNotFoundError
-from .utils import get_config_dir, get_env_bool, get_env_float
+from .utils import get_config_dir, get_env_bool, get_env_float, get_env_int
 
 # Re-implement lightweight internal API functions (previously in core_api)
 SupportedDeviceInfo = Tuple[BLEDevice, Type[BaseDevice]]
@@ -64,11 +64,13 @@ except Exception:
 @asynccontextmanager
 async def device_session(address: str) -> AsyncIterator[BaseDevice]:
     """Connect to a device and ensure it is disconnected afterwards."""
-    device = await get_device_from_address(address)
+    device: Optional[BaseDevice] = None
     try:
+        device = await get_device_from_address(address)
         yield device
     finally:
-        await device.disconnect()
+        if device:
+            await device.disconnect()
 
 
 @dataclass(slots=True)
@@ -147,14 +149,15 @@ class BLEService:
         """Initialize the BLEService, device maps and runtime flags."""
         self._lock = asyncio.Lock()
         self._devices: Dict[str, Dict[str, BaseDevice]] = {}  # kind -> address -> device
-        self._addresses: Dict[str, str] = {}  # kind -> primary address for _refresh_device_status
         self._commands: Dict[str, list] = {}  # Per-device command history
         self._device_metadata: Dict[str, dict] = {}  # Per-device metadata
         self._auto_reconnect = get_env_bool(AUTO_RECONNECT_ENV, True)
         self._auto_discover_on_start = get_env_bool(AUTO_DISCOVER_ENV, False)
         self._reconnect_task: asyncio.Task | None = None
         self._discover_task: asyncio.Task | None = None
+        self._ping_task: asyncio.Task | None = None
         self._auto_save_config = get_env_bool(AUTO_SAVE_ENV, True)
+        self._ping_interval = get_env_int("AQUA_BLE_PING_INTERVAL", 300)
 
         # Ensure config directory exists
         CONFIG_DIR.mkdir(parents=True, exist_ok=True)
@@ -307,14 +310,18 @@ class BLEService:
     async def _ensure_device(self, address: str, device_type: Optional[str] = None) -> BaseDevice:
         expected_kind = device_type.lower() if device_type else None
         async with self._lock:
+            # First, check if the device is already connected and in our cache
             if expected_kind:
                 device_dict = self._devices.get(expected_kind, {})
-                current_device = device_dict.get(address)
-                if current_device:
-                    return current_device
-                # If we have a device of this kind but different address, keep it
-                # Only disconnect if we're replacing the same address
+                if address in device_dict:
+                    return device_dict[address]
+            else:
+                # If no type is specified, search all known device types
+                for kind_devices in self._devices.values():
+                    if address in kind_devices:
+                        return kind_devices[address]
 
+            # If not in cache, proceed to connect
             # Retry logic: try up to 3 times with delays
             # Device might not be advertising immediately after scan
             device = None
@@ -356,63 +363,50 @@ class BLEService:
                 self._devices[kind] = {}
             self._devices[kind][address] = device
 
-            # Update primary address for backward compatibility
-            self._addresses[kind] = address
-
             return device
 
-    async def _refresh_device_status(
-        self, device_type: str, *, persist: bool = True
-    ) -> CachedStatus:
-        normalized = device_type.lower()
-        device: BaseDevice | None = None
-        address: Optional[str] = None
-        async with self._lock:
-            address = self._addresses.get(normalized)
-            if address:
-                device_dict = self._devices.get(normalized, {})
-                device = device_dict.get(address)
-            if not device or not address:
-                raise HTTPException(
-                    status_code=400,
-                    detail=self._format_message(normalized, "not_connected"),
-                )
-            serializer_name = getattr(device.__class__, "status_serializer", None)
-            if serializer_name is None:
-                serializer_name = getattr(device, "status_serializer", None)
+    async def _refresh_device_status(self, address: str, *, persist: bool = True) -> CachedStatus:
+        device = await self._ensure_device(address)
+        device_type = self._get_device_kind(device)
+        if device_type is None:
+            raise HTTPException(status_code=400, detail="Unsupported device type")
+
+        serializer_name = getattr(device.__class__, "status_serializer", None)
+        if serializer_name is None:
+            serializer_name = getattr(device, "status_serializer", None)
 
         if serializer_name is None:
             raise HTTPException(
                 status_code=500,
-                detail=f"No serializer defined for {normalized}",
+                detail=f"No serializer defined for {device_type}",
             )
 
         serializer = getattr(_utils, serializer_name, None)
         if serializer is None:  # pragma: no cover - defensive guard
             raise HTTPException(
                 status_code=500,
-                detail=f"Missing serializer '{serializer_name}' for {normalized}",
+                detail=f"Missing serializer '{serializer_name}' for {device_type}",
             )
         try:
-            logger.debug("Requesting %s status from %s", normalized, address)
+            logger.debug("Requesting %s status from %s", device_type, address)
             await device.request_status()
+            await device.wait_for_status(timeout=STATUS_CAPTURE_WAIT_SECONDS)
         except (BleakNotFoundError, BleakConnectionError) as exc:
             logger.warning(
                 "%s not reachable %s: %s",
-                normalized.capitalize(),
+                device_type.capitalize(),
                 address,
                 exc,
             )
             raise HTTPException(
                 status_code=404,
-                detail=self._format_message(normalized, "not_reachable"),
+                detail=self._format_message(device_type, "not_reachable"),
             ) from exc
-        await asyncio.sleep(STATUS_CAPTURE_WAIT_SECONDS)
         status_obj = getattr(device, "last_status", None)
         if not status_obj:
             raise HTTPException(
                 status_code=500,
-                detail=f"No status received from {normalized}",
+                detail=f"No status received from {device_type}",
             )
         try:
             parsed = serializer(status_obj)
@@ -429,7 +423,7 @@ class BLEService:
         # Ultra-minimal CachedStatus for API responses
         cached = CachedStatus(
             address=address,
-            device_type=normalized,
+            device_type=device_type,
             connected=True,  # Device is connected if we got status
             updated_at=timestamp,
         )
@@ -442,7 +436,7 @@ class BLEService:
                 "parsed": parsed,
                 "updated_at": timestamp,
             }
-            storage = self._get_storage_for_type(normalized)
+            storage = self._get_storage_for_type(device_type)
             storage.update_device_status(address, status_dict)
             logger.debug(f"Updated device file for {address}")
         return cached
@@ -529,10 +523,6 @@ class BLEService:
         else:
             self._commands = {}
 
-    def current_device_address(self, device_type: str) -> Optional[str]:
-        """Return the current primary address for a device type, if known."""
-        return self._addresses.get(device_type.lower())
-
     def get_devices_by_kind(self, device_type: str) -> Dict[str, BaseDevice]:
         """Return all connected devices of the specified kind."""
         return self._devices.get(device_type.lower(), {}).copy()
@@ -566,6 +556,21 @@ class BLEService:
                     updated_at=last_status.get("updated_at", 0.0),
                 )
                 snapshot[device_info["device_id"]] = cached
+        
+        # Now, overlay the status of currently connected devices
+        for kind, device_dict in self._devices.items():
+            for address, device in device_dict.items():
+                if address in snapshot:
+                    snapshot[address].connected = device.is_connected
+                    snapshot[address].updated_at = time.time()
+                else:
+                    # This case is unlikely if storage is consistent, but handle it
+                    snapshot[address] = CachedStatus(
+                        address=address,
+                        device_type=kind,
+                        connected=device.is_connected,
+                        updated_at=time.time(),
+                    )
 
         return snapshot
 
@@ -597,6 +602,9 @@ class BLEService:
                 logger.info("Auto-reconnect enabled; attempting reconnect to cached devices")
                 self._reconnect_task = asyncio.create_task(self._reconnect_and_refresh())
                 logger.info("Reconnect worker scheduled in background")
+        if self._ping_interval > 0:
+            logger.info("Health check ping worker enabled with interval: %ds", self._ping_interval)
+            self._ping_task = asyncio.create_task(self._ping_worker())
 
     async def stop(self) -> None:
         """Stop background workers and persist current service state."""
@@ -613,19 +621,30 @@ class BLEService:
             except asyncio.CancelledError:
                 logger.debug("Auto-discover task cancelled during stop()")
 
+        if self._ping_task is not None:
+            self._ping_task.cancel()
+            try:
+                await self._ping_task
+            except asyncio.CancelledError:
+                logger.debug("Ping task cancelled during stop()")
+
         # Disconnect all devices
         async with self._lock:
             for kind_devices in self._devices.values():
                 for device in kind_devices.values():
                     await device.disconnect()
             self._devices.clear()
-            self._addresses.clear()
 
     async def scan_devices(self, timeout: float = 5.0) -> list[Dict[str, Any]]:
         """Scan for BLE devices and return those matching known models."""
         supported = await discover_supported_devices(timeout=timeout)
         result: list[Dict[str, Any]] = []
+        connected_addresses = {
+            addr for kind_devices in self._devices.values() for addr in kind_devices
+        }
         for device, model_class in supported:
+            if device.address in connected_addresses:
+                continue
             device_type = self._get_device_kind(model_class) or "unknown"
             result.append(
                 {
@@ -653,7 +672,7 @@ class BLEService:
         # Request and parse status to populate initial data
         try:
             await device.request_status()
-            await asyncio.sleep(STATUS_CAPTURE_WAIT_SECONDS)
+            await device.wait_for_status(timeout=STATUS_CAPTURE_WAIT_SECONDS)
 
             # Get the serializer for this device type
             serializer_name = getattr(device.__class__, "status_serializer", None)
@@ -749,13 +768,6 @@ class BLEService:
                     del device_dict[address]
                     if not device_dict:
                         del self._devices[kind]
-                    # Update primary address if we disconnected the primary device
-                    if self._addresses.get(kind) == address:
-                        # If there are other devices of this kind, pick one as primary
-                        if device_dict:
-                            self._addresses[kind] = next(iter(device_dict.keys()))
-                        else:
-                            self._addresses.pop(kind, None)
                     break
 
     async def request_status(self, address: str) -> CachedStatus:
@@ -902,6 +914,15 @@ class BLEService:
             if len(existing_commands) > 50:
                 existing_commands[:] = existing_commands[-50:]
 
+        # Persist command history
+        if self._auto_save_config:
+            try:
+                COMMAND_HISTORY_PATH.write_text(
+                    json.dumps(self._commands, indent=2), encoding="utf-8"
+                )
+            except Exception:
+                logger.exception("Failed to persist command history")
+
     def get_commands(self, address: str, limit: int = 20):
         """Get recent commands for a device."""
         commands = self._commands.get(address, [])
@@ -914,3 +935,37 @@ class BLEService:
             if cmd.get("id") == command_id:
                 return cmd
         return None
+
+    async def _ping_worker(self) -> None:
+        """Background worker that periodically pings connected devices."""
+        while True:
+            await asyncio.sleep(self._ping_interval)
+            logger.debug("Running periodic health check ping for connected devices")
+            # Create a copy of devices to avoid issues with concurrent modification
+            all_connected = []
+            async with self._lock:
+                for device_dict in self._devices.values():
+                    all_connected.extend(device_dict.values())
+
+            for device in all_connected:
+                try:
+                    await self.ping_device(device.address)
+                except Exception:
+                    # Errors are logged within ping_device
+                    continue
+
+    async def ping_device(self, address: str) -> None:
+        """Send a lightweight status request to a device to check connectivity."""
+        logger.debug("Pinging device %s", address)
+        try:
+            device = await self._ensure_device(address)
+            # A simple status request is a good way to check the connection
+            await device.request_status()
+            logger.debug("Ping successful for device %s", address)
+        except (BleakNotFoundError, BleakConnectionError) as exc:
+            logger.warning("Ping failed for %s, device not reachable: %s", address, exc)
+            # Device is not reachable, so disconnect it from our internal state
+            await self.disconnect_device(address)
+        except Exception as exc:
+            logger.error("An unexpected error occurred during ping for %s: %s", address, exc)
+            await self.disconnect_device(address)

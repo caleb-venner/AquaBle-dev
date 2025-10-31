@@ -123,6 +123,60 @@ body {
   align-items: center;
 }
 
+/* Theme toggle container with sun/moon icons */
+.theme-toggle-container {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.toggle-icon {
+  width: 24px;
+  height: 24px;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+/* Theme toggle pill */
+.theme-toggle {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  width: 50px;
+  height: 26px;
+  background: var(--gray-300);
+  border-radius: 9999px;
+  cursor: pointer;
+  transition: background 0.3s ease;
+  border: none;
+  padding: 0;
+  margin: 0;
+}
+
+.theme-toggle:hover {
+  opacity: 0.8;
+}
+
+html.dark-theme .theme-toggle {
+  background: var(--primary);
+}
+
+/* Knob that slides inside the toggle */
+.theme-knob {
+  position: absolute;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  background: white;
+  border-radius: 50%;
+  transition: left 0.3s ease;
+  box-shadow: var(--shadow-sm);
+}
+
+.theme-knob.on {
+  left: calc(100% - 23px);
+}
+
 /* Navigation Tabs */
 .prod-nav {
   background: var(--card-bg);
@@ -251,11 +305,21 @@ body {
   transition: var(--transition);
   text-decoration: none;
   white-space: nowrap;
+  font-family: inherit;
+  line-height: 1;
+  vertical-align: middle;
 }
 
 .btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+/* Ensure button and anchor tags render identically */
+button.btn,
+a.btn {
+  appearance: none;
+  -webkit-appearance: none;
 }
 
 .btn-primary {

@@ -100,6 +100,40 @@ export function initializeDashboardHandlers(): void {
     }
   };
 
+  (window as any).handleRefreshDevice = async (address: string) => {
+    const { refreshDeviceStatus } = await import("../../api/devices");
+    const { refreshDeviceStatusOnly } = await import('./services/data-service');
+
+    const refreshButton = document.querySelector(`[onclick*="handleRefreshDevice('${address}')"]`) as HTMLButtonElement;
+    const originalContent = refreshButton?.innerHTML;
+
+    try {
+      if (refreshButton) {
+        refreshButton.disabled = true;
+        refreshButton.innerHTML = '<span class="scan-spinner"></span>';
+      }
+
+      await refreshDeviceStatus(address);
+      await refreshDeviceStatusOnly(); // Refresh all statuses to keep UI consistent
+
+      deviceStore.getState().actions.addNotification({
+        type: 'success',
+        message: `Device ${address} status refreshed`,
+        autoHide: true,
+      });
+    } catch (error) {
+      deviceStore.getState().actions.addNotification({
+        type: 'error',
+        message: `Failed to refresh device status: ${error instanceof Error ? error.message : String(error)}`
+      });
+    } finally {
+      if (refreshButton && originalContent) {
+        refreshButton.disabled = false;
+        refreshButton.innerHTML = originalContent;
+      }
+    }
+  };
+
   // Initialize wattage calculator when dev tab is loaded
   setTimeout(() => {
     if (document.getElementById('watt-red')) {

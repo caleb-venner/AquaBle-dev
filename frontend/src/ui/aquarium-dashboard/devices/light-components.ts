@@ -4,7 +4,7 @@
 
 import { deviceStore } from "../../../stores/deviceStore";
 import { getWeekdayName, formatDateTime } from "../../../utils";
-import { getCurrentScheduleInfo, AutoProgram, getAllSchedulesInOrder, SequentialSchedule } from "../../../utils/schedule-utils";
+import type { AutoProgram } from "../../../utils/schedule-utils";
 import type { DeviceStatus } from "../../../types/api";
 
 /**
@@ -33,16 +33,11 @@ function getDeviceAutoPrograms(deviceAddress: string): (AutoProgram & { channels
     return [];
   }
 
+  // The backend now provides the 'status' field directly.
+  // We just need to merge the 'channels' for rendering.
   return profile.programs.map((program: any) => ({
-    id: program.id,
-    label: program.label,
-    enabled: program.enabled,
-    days: program.days,
-    sunrise: program.sunrise,
-    sunset: program.sunset,
-    rampMinutes: program.rampMinutes,
-    levels: program.levels,
-    channels: deviceConfig.channels // Pass channels for ordering
+    ...program,
+    channels: deviceConfig.channels,
   }));
 }
 
@@ -87,7 +82,7 @@ export function renderLightCardStatus(device: DeviceStatus & { address: string }
  * Render light auto mode schedule display
  */
 function renderLightAutoSchedule(device: DeviceStatus & { address: string }, deviceConfig: any): string {
-  const programs = getDeviceAutoPrograms(device.address);
+  const programs = getDeviceAutoPrograms(device.address) as (AutoProgram & { status: string })[];
   
   if (programs.length === 0) {
     return `
@@ -97,24 +92,34 @@ function renderLightAutoSchedule(device: DeviceStatus & { address: string }, dev
     `;
   }
 
-  // Get all schedules in order
-  const schedules = getAllSchedulesInOrder(programs);
+  // Define the sort order for statuses
+  const statusOrder: { [key: string]: number } = {
+    current: 0,
+    next: 1,
+    upcoming: 2,
+    disabled: 3,
+  };
 
-  // Group schedules by status
-  const current = schedules.filter(s => s.status === 'current');
-  const next = schedules.filter(s => s.status === 'next');
-  const upcoming = schedules.filter(s => s.status === 'upcoming');
+  // Sort programs based on the new status field from the backend
+  const sortedSchedules = [...programs].sort((a, b) => {
+    const orderA = statusOrder[a.status] ?? 99;
+    const orderB = statusOrder[b.status] ?? 99;
+    if (orderA !== orderB) {
+      return orderA - orderB;
+    }
+    // Fallback to sorting by sunrise time if statuses are the same
+    return a.sunrise.localeCompare(b.sunrise);
+  });
 
-  // Combine all schedules and show up to 3
-  const allSchedules = [...current, ...next, ...upcoming];
-  const topThree = allSchedules.slice(0, 3);
+  // Filter out disabled programs and take the top 3 for display
+  const topThree = sortedSchedules.filter(s => s.status !== 'disabled').slice(0, 3);
 
   return `
     <div style="padding: 16px; display: flex; flex-direction: column; gap: 12px;">
       ${topThree.length > 0 ? `
         <div>
           <div style="display: flex; flex-direction: column; gap: 6px;">
-            ${topThree.map(s => renderScheduleItem(s)).join('')}
+            ${topThree.map(p => renderScheduleItem(p)).join('')}
           </div>
         </div>
       ` : `
@@ -129,12 +134,12 @@ function renderLightAutoSchedule(device: DeviceStatus & { address: string }, dev
 /**
  * Render a single schedule item with color coding
  */
-function renderScheduleItem(schedule: SequentialSchedule & { channels?: any[] }): string {
+function renderScheduleItem(program: AutoProgram & { status: string, channels?: any[] }): string {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'current': return 'var(--success)'; // Green
-      case 'next': return 'var(--primary)'; // Blue
-      case 'upcoming': return 'var(--gray-400)'; // Grey
+      case 'next': 
+      case 'upcoming': return 'var(--primary)'; // Blue
       case 'disabled': return 'var(--error)'; // Red
       default: return 'var(--gray-400)';
     }
@@ -150,16 +155,16 @@ function renderScheduleItem(schedule: SequentialSchedule & { channels?: any[] })
     }
   };
 
-  const accentColor = getStatusColor(schedule.status);
-  const statusText = getStatusText(schedule.status);
+  const accentColor = getStatusColor(program.status);
+  const statusText = getStatusText(program.status);
 
   // Format channel levels in the order specified by device channels configuration
   let channelLevels = '';
-  if (schedule.channels && Array.isArray(schedule.channels)) {
+  if (program.channels && Array.isArray(program.channels)) {
     // Use the device channel order with proper labels
-    const levelStrings = schedule.channels
+    const levelStrings = program.channels
       .map(channel => {
-        const value = schedule.program.levels[channel.key];
+        const value = program.levels[channel.key];
         // Use label if available, otherwise fallback to key
         const displayName = channel.label || channel.key.charAt(0).toUpperCase() + channel.key.slice(1);
         return `${displayName}:${value}%`;
@@ -168,7 +173,7 @@ function renderScheduleItem(schedule: SequentialSchedule & { channels?: any[] })
     channelLevels = levelStrings.join(' '); // Single space between channels
   } else {
     // Fallback to alphabetical sorting if channels not provided
-    channelLevels = Object.entries(schedule.program.levels)
+    channelLevels = Object.entries(program.levels)
       .map(([channel, value]) => {
         const displayName = channel.charAt(0).toUpperCase() + channel.slice(1);
         return `${displayName}:${value}%`;
@@ -176,22 +181,14 @@ function renderScheduleItem(schedule: SequentialSchedule & { channels?: any[] })
       .join(' '); // Single space between channels
   }
 
-  // Format time range with day prefix if nextTime exists
-  let timeRange: string;
-  if (schedule.nextTime) {
-    // Extract day from nextTime (e.g., "today at 13:00" -> "today")
-    const dayPrefix = schedule.nextTime.split(' at ')[0];
-    timeRange = `${dayPrefix} ${schedule.program.sunrise} - ${schedule.program.sunset}`;
-  } else {
-    timeRange = `${schedule.program.sunrise} - ${schedule.program.sunset}`;
-  }
+  const timeRange = `${program.sunrise} - ${program.sunset}`;
 
   return `
     <div style="padding: 8px 12px; background: var(--bg-primary); border-radius: 4px; border-left: 3px solid ${accentColor};">
       <div style="flex: 1; min-width: 0;">
-        <div style="font-size: 13px; font-weight: 600; color: var(--text-primary); margin-bottom: 2px;">${schedule.program.label}</div>
+        <div style="font-size: 13px; font-weight: 600; color: var(--text-primary); margin-bottom: 2px;">${program.label}</div>
         <div style="font-size: 11px; color: var(--text-secondary);">
-          ${statusText} • ${timeRange} • ${schedule.program.rampMinutes}min ramp
+          ${statusText} • ${timeRange} • ${program.rampMinutes}min ramp
         </div>
         <pre style="font-size: 11px; color: var(--text-secondary); margin-top: 2px; margin: 0; padding: 0; font-family: 'Courier New', Courier, monospace; background: transparent; border: none; white-space: pre-wrap; word-wrap: break-word;">
 ${channelLevels}</pre>

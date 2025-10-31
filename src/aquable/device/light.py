@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
-from typing import ClassVar, Optional, Sequence
-
-from bleak.backends.characteristic import BleakGATTCharacteristic
+from typing import Any, ClassVar, Sequence
 
 from ..commands import encoder as commands
 from ..storage.models import LightStatus, parse_light_payload
+from ..utils.schedule import get_schedules_with_status
 from .base_device import BaseDevice
 
 
@@ -16,32 +15,44 @@ class LightDevice(BaseDevice):
 
     device_kind: ClassVar[str] = "light"
     status_serializer: ClassVar[str | None] = "serialize_light_status"
-    _last_status: Optional[LightStatus] = None
 
     async def request_status(self) -> None:
         """Trigger a status report from the light via the UART handshake."""
         cmd = commands.create_handshake_command(self.get_next_msg_id())
         await self._send_command(cmd, 3)
 
-    def _notification_handler(self, _sender: BleakGATTCharacteristic, data: bytearray) -> None:
-        """BLE notification callback: delegates to handle_notification."""
-        self.handle_notification(bytes(data))
+    def _parse_status(self, data: bytearray) -> Any:
+        """Parse an incoming UART notification from the light."""
+        if not data:
+            return None
 
-    def handle_notification(self, payload: bytes) -> None:
-        """Handle an incoming UART notification from the light."""
-        if not payload:
-            return
-
-        if payload[0] == 0x5B and len(payload) >= 6:
-            mode = payload[5]
+        if data[0] == 0x5B and len(data) >= 6:
+            mode = data[5]
             if mode == 0xFE:
                 try:
-                    parsed = parse_light_payload(payload)
+                    status = parse_light_payload(data)
+                    # If in auto mode, augment programs with live status
+                    if (
+                        status
+                        and hasattr(status, "profile")
+                        and status.profile
+                        and status.profile.mode == "auto"
+                        and status.profile.programs
+                    ):
+                        # Pydantic models are immutable, so we need to create a new profile
+                        programs_with_status = get_schedules_with_status(
+                            [p.dict() for p in status.profile.programs]
+                        )
+                        # Re-create program objects to match Pydantic model
+                        # This is a bit inefficient but necessary if we don't modify the model
+                        # For now, we assume the frontend can handle the dicts
+                        status.profile.programs = programs_with_status
+
+                    return status
                 except Exception:
-                    # Keep raw_payload available in the parsed-like structure
-                    # as a fallback so other parts of the code can still
-                    # access `raw_payload` even when parsing fails.
-                    parsed = LightStatus(
+                    self._logger.exception("Failed to parse light status payload")
+                    # Return a minimal object so raw payload is available
+                    return LightStatus(
                         message_id=None,
                         response_mode=None,
                         weekday=None,
@@ -50,21 +61,14 @@ class LightDevice(BaseDevice):
                         keyframes=[],
                         time_markers=[],
                         tail=b"",
-                        raw_payload=payload,
+                        raw_payload=bytes(data),
                     )
-                self._last_status = parsed
-                self._logger.debug("%s: Status payload: %s", self.name, payload.hex())
-                return
             if mode == 0x0A:
-                self._logger.debug("%s: Handshake ack: %s", self.name, payload.hex())
-                return
+                self._logger.debug("%s: Handshake ack: %s", self.name, data.hex())
+                return None  # Not a status update
 
-        self._logger.debug("%s: Notification received: %s", self.name, payload.hex())
-
-    @property
-    def last_status(self) -> Optional[LightStatus]:
-        """Return the most recent status payload captured from the light."""
-        return self._last_status
+        self._logger.debug("%s: Non-status notification: %s", self.name, data.hex())
+        return None
 
     async def set_brightness(self, brightness: int | tuple[int, ...]) -> None:
         """Set light brightness.
