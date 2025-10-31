@@ -1,0 +1,69 @@
+name: Release to Stable Repository
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout dev repository
+        uses: actions/checkout@v4
+        with:
+          path: dev
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Build frontend
+        run: |
+          cd dev/frontend
+          npm ci
+          npm run build
+
+      - name: Checkout stable repository
+        uses: actions/checkout@v4
+        with:
+          repository: caleb-venner/AquaBle
+          path: stable
+          token: ${{ secrets.PAT }}
+
+      - name: Sync files to stable repository
+        run: |
+          # Clear stable repo (but keep .git)
+          cd stable
+          git rm -rf . || true
+          cd ..
+          
+          # Copy add-on structure
+          mkdir -p stable/aquable
+          cp -r dev/aquable/* stable/aquable/
+          
+          # Copy built frontend to correct location
+          mkdir -p stable/aquable/frontend
+          cp -r dev/frontend/dist stable/aquable/frontend/
+          
+          # Copy root files
+          cp dev/pyproject.toml stable/
+          cp dev/README.md stable/
+          cp dev/LICENSE stable/
+          
+          # Create repository.yaml for stable repo
+          cat > stable/repository.yaml << EOF
+          name: AquaBle Add-on
+          url: https://github.com/caleb-venner/AquaBle
+          maintainer: Caleb Venner <caleb.venner@gmail.com>
+          EOF
+
+      - name: Commit and push to stable repository
+        run: |
+          cd stable
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          git add .
+          git commit -m "Release ${{ github.ref_name }}" || echo "No changes to commit"
+          git push origin main
