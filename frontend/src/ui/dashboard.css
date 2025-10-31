@@ -2125,6 +2125,7 @@ input:checked + .slider:before {
   margin: 20px 0;
 }
 
+
 .time-controls-row .form-group {
   margin: 0;
 }

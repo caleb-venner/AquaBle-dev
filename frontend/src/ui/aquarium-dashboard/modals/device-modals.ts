@@ -74,7 +74,7 @@ export function showDoserDeviceSettingsModal(device: APIDoserDevice): void {
   modal.className = 'modal-overlay';
 
   modal.innerHTML = `
-    <div class="modal-content doser-config-modal" style="max-width: 1000px; max-height: 90vh; overflow-y: auto;" data-device-id="${device.id}">
+    <div class="modal-content doser-config-modal" style="max-width: 600px; max-height: 90vh; overflow-y: auto;" data-device-id="${device.id}">
       <div class="modal-header">
         <h2>Doser Settings: ${device.name || device.id}</h2>
         <button class="modal-close" onclick="this.closest('.modal-overlay').remove();">×</button>
@@ -110,7 +110,7 @@ export function showLightDeviceSettingsModal(device: APILightDevice): void {
   modal.className = 'modal-overlay';
 
   modal.innerHTML = `
-    <div class="modal-content light-settings-modal" style="max-width: 900px; max-height: 90vh; overflow-y: auto;" data-device-id="${device.id}" data-address="${device.id}">
+    <div class="modal-content light-settings-modal" style="max-width: 540px; max-height: 90vh; overflow-y: auto;" data-device-id="${device.id}" data-address="${device.id}">
       <div class="modal-header">
         <h2>Light Settings: ${device.name || device.id}</h2>
         <button class="modal-close" onclick="this.closest('.modal-overlay').remove();">×</button>
@@ -145,9 +145,6 @@ function renderDoserDeviceSettingsInterface(device: APIDoserDevice): string {
     <div class="doser-config-interface">
       <!-- Head Selector Section -->
       <div class="config-section">
-        <h3>Dosing Heads</h3>
-        <p class="section-description">Select a head to configure its schedule and settings.</p>
-
         <div class="heads-grid">
           ${renderHeadSelector(device)}
         </div>
@@ -221,7 +218,7 @@ function renderHeadSelector(device: APIDoserDevice): string {
   }
 
   return `
-    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px;">
+    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;">
       ${allHeads.map(head => renderDoseHeadCard(head)).join('')}
     </div>
   `;
@@ -237,37 +234,25 @@ function renderDoseHeadCard(head: DoserHeadData): string {
   const modeText = getModeText(head.schedule?.mode);
 
   return `
-    <div class="dose-head-card ${head.active ? 'active' : 'inactive'}" style="background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 8px; padding: 16px; cursor: pointer; transition: all 0.2s ease;" onclick="selectDoseHead(${head.index})">
-      <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 12px;">
-        <div>
-          <div style="font-size: 16px; font-weight: 600; color: var(--text-primary); margin-bottom: 4px;">${headName}</div>
-          <div style="font-size: 13px; color: var(--text-secondary);">${modeText}</div>
+    <div class="dose-head-card ${head.active ? 'active' : 'inactive'}" style="background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 8px; padding: 8px 12px; cursor: pointer; transition: all 0.2s ease;" onclick="selectDoseHead(${head.index})">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+        <div style="display: flex; align-items: center; gap: 6px;">
+          <div style="font-size: 14px; font-weight: 600; color: var(--text-primary);">${headName}</div>
+          <div style="font-size: 11px; color: ${statusColor}; font-weight: 600; padding: 3px 6px; background: ${statusColor}20; border-radius: 12px; white-space: nowrap;">${statusText}</div>
         </div>
-        <div style="text-align: right;">
-          <div style="font-size: 12px; color: ${statusColor}; font-weight: 600; padding: 4px 8px; background: ${statusColor}20; border-radius: 12px;">${statusText}</div>
-        </div>
+        <div style="font-size: 11px; color: var(--primary); font-weight: 500; white-space: nowrap;">Configure →</div>
       </div>
 
-      ${head.active ? `
-        <div style="margin-bottom: 12px;">
-          <div style="font-size: 13px; color: var(--text-primary); margin-bottom: 4px;">
-            ${head.schedule?.mode === 'single' ?
-              `Daily dose: ${head.schedule.dailyDoseMl || 0}ml at ${head.schedule.startTime || '00:00'}` :
-              head.schedule?.mode === 'every_hour' ?
-              `24H mode: ${head.schedule.dailyDoseMl || 0}ml total` :
-              `Custom schedule configured`
-            }
-          </div>
-        </div>
-      ` : ''}
-
-      <div style="display: flex; justify-content: space-between; align-items: center;">
-        <div style="font-size: 12px; color: var(--text-secondary);">
-          ${head.recurrence?.days?.length === 7 ? 'Daily' : `${head.recurrence?.days?.length || 0} days/week`}
-        </div>
-        <div style="font-size: 12px; color: var(--primary); font-weight: 500;">
-          Configure →
-        </div>
+      <div style="font-size: 12px; color: var(--text-secondary);">
+        ${head.active ? 
+          `${modeText} • ${head.schedule?.mode === 'single' ?
+            `${head.schedule.dailyDoseMl || 0}ml at ${head.schedule.startTime || '00:00'}` :
+            head.schedule?.mode === 'every_hour' ?
+            `${head.schedule.dailyDoseMl || 0}ml total` :
+            `Custom schedule`
+          }` :
+          `${modeText}${head.recurrence?.days?.length === 7 ? ' • Daily' : head.recurrence?.days?.length ? ` • ${head.recurrence.days.length}d/w` : ''}`
+        }
       </div>
     </div>
   `;
@@ -386,17 +371,17 @@ function renderLightDeviceSettingsInterface(device: APILightDevice): string {
     <div class="light-config-interface">
       <!-- Tab Navigation -->
       <div class="modal-tabs">
-        <button class="tab-button active" onclick="switchLightSettingsTab('manual')">
+        <button class="tab-button" onclick="switchLightSettingsTab('manual')">
           Manual Mode
         </button>
-        <button class="tab-button" onclick="switchLightSettingsTab('auto')">
+        <button class="tab-button active" onclick="switchLightSettingsTab('auto')">
           Auto Mode
         </button>
       </div>
 
       <!-- Tab Content -->
-      <div id="light-settings-tab-content">
-        ${renderLightManualModeTab(device)}
+      <div id="light-settings-tab-content" style="min-height: 600px;">
+        ${renderLightAutoModeTab(device)}
       </div>
     </div>
   `;
@@ -411,9 +396,6 @@ function renderLightManualModeTab(device: APILightDevice): string {
 
   return `
     <div class="settings-section">
-      <h3>Manual Brightness Control</h3>
-      <p>Set individual channel brightness levels (device will switch to manual mode)</p>
-
       <div class="channel-controls">
         ${channelNames.map((channelName, index) => `
           <div class="form-group">
@@ -471,53 +453,15 @@ function renderLightAutoModeTab(device: APILightDevice): string {
 
   return `
     <div class="settings-section">
-      <h3>Auto Mode Schedule</h3>
-      <p>Configure sunrise/sunset times and brightness levels (device will switch to auto mode)</p>
-
       <div class="form-group">
         <label for="schedule-label">Schedule Label</label>
         <input
           type="text"
           id="schedule-label"
           class="form-control"
-          placeholder="e.g., Morning Schedule, Weekend Lighting"
+          placeholder="e.g., Morning, Weekend"
           maxlength="50"
         />
-        <small class="form-text">Optional: Give this schedule a descriptive name</small>
-      </div>
-
-      <div class="time-controls-row">
-        <div class="form-group">
-          <label for="sunrise-time">Sunrise Time (24h)</label>
-          <input
-            type="time"
-            id="sunrise-time"
-            class="form-control"
-            value="08:00"
-          />
-        </div>
-
-        <div class="form-group">
-          <label for="sunset-time">Sunset Time (24h)</label>
-          <input
-            type="time"
-            id="sunset-time"
-            class="form-control"
-            value="20:00"
-          />
-        </div>
-
-        <div class="form-group">
-          <label for="ramp-time">Ramp Time (minutes)</label>
-          <input
-            type="number"
-            id="ramp-time"
-            class="form-control"
-            value="60"
-            min="1"
-            max="300"
-          />
-        </div>
       </div>
 
       <div class="form-group">
@@ -540,7 +484,40 @@ function renderLightAutoModeTab(device: APILightDevice): string {
         </div>
       </div>
 
-      <h4>Peak Brightness Levels</h4>
+      <div class="time-controls-row">
+        <div class="form-group">
+          <label for="sunrise-time">Sunrise</label>
+          <input
+            type="time"
+            id="sunrise-time"
+            class="form-control"
+            value="08:00"
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="sunset-time">Sunset</label>
+          <input
+            type="time"
+            id="sunset-time"
+            class="form-control"
+            value="20:00"
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="ramp-time">Ramp</label>
+          <input
+            type="number"
+            id="ramp-time"
+            class="form-control"
+            value="60"
+            min="1"
+            max="300"
+          />
+        </div>
+      </div>
+
       <div class="channel-controls ${gridClass}">
         ${channelNames.map((channelName, index) => `
           <div class="form-group channel-item">
@@ -585,17 +562,7 @@ export function renderHeadCommandInterface(headIndex: number, head: DoserHeadDat
 
   return `
     <div class="head-command-interface">
-      <div class="command-header">
-        <h4>Configure Head ${headIndex}</h4>
-        <div class="head-status-indicator ${head.active ? 'active' : 'inactive'}">
-          ${head.active ? 'Active' : 'Inactive'}
-        </div>
-      </div>
-
-      <!-- Schedule Configuration -->
       <div class="form-section">
-        <h5>Schedule Configuration</h5>
-
         <div class="form-group">
           <label for="schedule-mode-${headIndex}">Mode:</label>
           <select id="schedule-mode-${headIndex}" class="form-select">

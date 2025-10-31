@@ -197,10 +197,18 @@ function renderDeviceCardSettings(device: DeviceStatus & { address: string }, de
 
   return `
     <div class="card device-card-settings" style="padding: 0; height: 100%; display: flex; flex-direction: column; border-left: 4px solid var(--primary);">
-      <div class="card-header" style="padding: 16px; border-bottom: 1px solid var(--border-color);">
+      <div class="card-header" style="padding: 16px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
         <h3 style="font-size: 18px; font-weight: 600; margin: 0; color: var(--text-primary);">
           ${deviceName}
         </h3>
+        <button 
+          class="btn btn-outline" 
+          style="font-size: 13px; padding: 6px 12px; white-space: nowrap;"
+          onclick="window.handleExportDeviceConfig('${device.address}')"
+          title="Import/Export device configuration"
+        >
+          Import/Export
+        </button>
       </div>
       <div style="padding: 0; flex: 1; overflow-y: auto;">
         <div style="padding: 0px 16px 16px 16px;">
@@ -246,19 +254,21 @@ function renderDeviceCardSettings(device: DeviceStatus & { address: string }, de
           </label>
         </div>
       </div>
-      <div style="padding: 16px; border-top: 1px solid var(--border-color); background: var(--bg-secondary); display: flex; gap: 12px; justify-content: flex-end;">
-        <button 
-          class="btn btn-outline" 
-          onclick="window.toggleDeviceCardFlip('${device.address}')"
-        >
-          Cancel
-        </button>
-        <button 
-          class="btn btn-primary" 
-          onclick="window.saveDeviceCardSettings('${device.address}')"
-        >
-          Save
-        </button>
+      <div style="padding: 16px; border-top: 1px solid var(--border-color); background: var(--bg-secondary);">
+        <div style="display: flex; gap: 12px; justify-content: flex-end;">
+          <button 
+            class="btn btn-outline" 
+            onclick="window.toggleDeviceCardFlip('${device.address}')"
+          >
+            Cancel
+          </button>
+          <button 
+            class="btn btn-primary" 
+            onclick="window.saveDeviceCardSettings('${device.address}')"
+          >
+            Save
+          </button>
+        </div>
       </div>
     </div>
   `;

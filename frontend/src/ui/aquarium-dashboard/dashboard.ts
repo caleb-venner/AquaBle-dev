@@ -343,6 +343,28 @@ export function initializeDashboardHandlers(): void {
       });
     }
   };
+
+  // Export device configuration
+  (window as any).handleExportDeviceConfig = async (address: string) => {
+    const { showImportExportModal } = await import('./modals/import-export-modal');
+    const state = deviceStore.getState();
+    const doserConfig = state.configurations.dosers.get(address);
+    const lightConfig = state.configurations.lights.get(address);
+    const deviceType = doserConfig ? 'doser' : 'light';
+    
+    await showImportExportModal(address, deviceType);
+  };
+
+  // Import device configuration
+  (window as any).handleImportDeviceConfig = async (address: string) => {
+    const { showImportExportModal } = await import('./modals/import-export-modal');
+    const state = deviceStore.getState();
+    const doserConfig = state.configurations.dosers.get(address);
+    const lightConfig = state.configurations.lights.get(address);
+    const deviceType = doserConfig ? 'doser' : 'light';
+    
+    await showImportExportModal(address, deviceType);
+  };
 }
 
 // Auto-load data on module import

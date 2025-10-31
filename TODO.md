@@ -7,6 +7,7 @@
 
 ## Next
 
+- Deprecate: device-config-modal.ts; functionality refactored to flip-side of device card.
 - Fix: light status payload (keyframes); need to refine time-check logic. Placeholders inserted.
   [Lines 202 -> 336](src/aquable/storage/models.py#L204)
 - Fix: doser lifetime status payload; currently not correctly integrating to device state.
