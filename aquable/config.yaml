@@ -16,7 +16,7 @@ privileged:
 # Ingress provides seamless access via Home Assistant UI
 ingress: true
 ingress_port: 8099
-panel_icon: mdi:aquarium
+panel_icon: mdi:zodiac-aquarius
 panel_title: AquaBle
 map:
   - config:rw
