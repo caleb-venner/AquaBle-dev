@@ -1,5 +1,5 @@
 name: AquaBle
-version: "2.1.0"
+version: "2.1.2"
 slug: aquable
 description: Control Chihiros aquarium lights and dosing pumps over Bluetooth Low Energy
 url: https://github.com/caleb-venner/aquable

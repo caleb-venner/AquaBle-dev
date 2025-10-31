@@ -2,6 +2,38 @@
 
 All notable changes to AquaBle will be documented in this file.
 
+
+## [2.1.2] - 2025-10-31
+
+### Added (2.1.2)
+
+- Created dedicated README for stable repository deployments
+
+### Changed (2.1.2)
+
+- Updated release workflow to ensure correct README is deployed to stable repository
+
+### Fixed (2.1.2)
+
+- Fixed stable repository README being overwritten with empty file during releases
+
+
+## [2.1.1] - 2025-10-31
+
+### Added (2.1.1)
+
+- Added verbose log option in add-on config
+- Added mdi icon for Home Assistant sidebar Ingress
+
+### Changed (2.1.1)
+
+- Reduced log output for status calls
+- Adjusted release version deployment workflow
+
+### Fixed (2.1.1)
+
+- (no user-facing bug fixes in this patch)
+
 ## [2.1.0] - 2025-10-31
 
 ### Added

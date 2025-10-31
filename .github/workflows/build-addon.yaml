@@ -28,6 +28,7 @@ jobs:
           cp -r frontend/dist aquable/frontend/
           cp -r src aquable/
           cp pyproject.toml aquable/
+          cp aquable/README.stable.md aquable/README.md
 
       - name: Get version from tag
         id: version

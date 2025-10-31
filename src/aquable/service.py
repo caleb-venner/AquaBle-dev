@@ -170,7 +170,7 @@ async def health_check():
         return {
             "status": "healthy",
             "service": "aquable",
-            "version": "2.1.0",
+            "version": "2.1.2",
             "devices": {
                 "cached": device_count,
                 "status": "available" if device_count > 0 else "no_devices",

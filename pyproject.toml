@@ -8,7 +8,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "aquable"
-version = "2.1.0"
+version = "2.1.2"
 description = "Python service for controlling aquarium devices over Bluetooth Low Energy"
 readme = "README.md"
 
