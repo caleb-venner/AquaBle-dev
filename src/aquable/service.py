@@ -198,12 +198,36 @@ async def _proxy_dev_server(path: str) -> Response | None:
     return await spa._proxy_dev_server(path)
 
 
+def _extract_addon_slug_from_ingress(ingress_path: str) -> str | None:
+    """Extract addon slug from Ingress path.
+    
+    Ingress path format: /api/hassio_ingress/{INSTANCE_ID}_{ADDON_SLUG}/
+    Example: /api/hassio_ingress/8d20ab73_aquable/ -> 8d20ab73_aquable
+    
+    Returns:
+        The full addon slug (instance_id + _ + addon_slug) or None if not found
+    """
+    if not ingress_path:
+        return None
+    
+    # Remove trailing slash if present
+    path = ingress_path.rstrip("/")
+    
+    # Extract the last segment after /api/hassio_ingress/
+    parts = path.split("/")
+    if len(parts) >= 4 and parts[1] == "api" and parts[2] == "hassio_ingress":
+        return parts[3]
+    
+    return None
+
+
 def _inject_base_tag_if_needed(request: Request, html_content: str) -> str:
-    """Inject <base> tag into HTML if serving through Ingress.
+    """Inject <base> tag and addon slug into HTML if serving through Ingress.
 
     When Home Assistant Ingress proxies requests, it adds X-Ingress-Path header
     containing the base path (e.g., '/api/hassio_ingress/xyz123'). We need to
-    inject a <base> tag so that relative asset paths resolve correctly.
+    inject a <base> tag so that relative asset paths resolve correctly, and
+    also inject the addon slug as a window variable for frontend use.
     """
     # Check if request came through Ingress
     ingress_path = request.headers.get("X-Ingress-Path", "")
@@ -214,19 +238,27 @@ def _inject_base_tag_if_needed(request: Request, html_content: str) -> str:
     if not ingress_path.endswith("/"):
         ingress_path += "/"
 
-    # Inject base tag after <head> opening tag
+    # Extract addon slug for frontend
+    addon_slug = _extract_addon_slug_from_ingress(ingress_path)
+    
+    # Inject base tag and addon slug after <head> opening tag
     base_tag = f'<base href="{ingress_path}">'
+    
+    # Inject addon slug as window variable (with fallback for dev mode)
+    slug_value = addon_slug if addon_slug else "aquable"
+    slug_script = f'<script>window.ADDON_SLUG = "{slug_value}";</script>'
 
-    # Find <head> tag and inject base tag right after it
+    # Find <head> tag and inject both tags right after it
     import re
 
     head_pattern = re.compile(r"(<head[^>]*>)", re.IGNORECASE)
     match = head_pattern.search(html_content)
 
     if match:
-        # Insert base tag right after <head>
+        # Insert base tag and slug script right after <head>
         insert_pos = match.end()
-        html_content = html_content[:insert_pos] + "\n    " + base_tag + html_content[insert_pos:]
+        injection = "\n    " + base_tag + "\n    " + slug_script
+        html_content = html_content[:insert_pos] + injection + html_content[insert_pos:]
 
     return html_content
 
