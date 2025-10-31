@@ -4,7 +4,7 @@
 AQUA_BLE_AUTO_DISCOVER ?= 0
 export AQUA_BLE_AUTO_DISCOVER
 
-.PHONY: help dev dev-front dev-back build front-build lint test precommit clean local
+.PHONY: help dev dev-front dev-back build front-build lint test precommit clean local bump-version
 
 help:
 	@echo "make dev        # run frontend (vite) and backend (uvicorn)"
@@ -18,6 +18,7 @@ help:
 	@echo "make local      # test HA add-on build locally"
 	@echo "make clean      # delete all saved device state and configs"
 	@echo "make clean-dev  # clean then start dev servers"
+	@echo "make bump-version VERSION=x.y.z # bump version across all files"
 
 VENV?=.venv
 PY?=python3
@@ -94,3 +95,13 @@ clean:
 
 # Convenience target: clean then dev
 clean-dev: clean dev
+
+# Release management
+
+bump-version:
+	@if [ -z "$(VERSION)" ]; then \
+		echo "Error: VERSION not specified"; \
+		echo "Usage: make bump-version VERSION=x.y.z"; \
+		exit 1; \
+	fi
+	@bash scripts/bump_version.sh $(VERSION)

@@ -34,8 +34,10 @@ jobs:
         run: |
           if [[ $GITHUB_REF == refs/tags/v* ]]; then
             echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+            echo "tag_type=release" >> $GITHUB_OUTPUT
           else
             echo "version=dev" >> $GITHUB_OUTPUT
+            echo "tag_type=dev" >> $GITHUB_OUTPUT
           fi
 
       - name: Login to GitHub Container Registry
@@ -46,11 +48,22 @@ jobs:
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build add-on
+      - name: Build add-on (release)
+        if: steps.version.outputs.tag_type == 'release'
         uses: home-assistant/builder@master
         with:
           args: |
             --target aquable \
             --docker-hub ghcr.io/${{ github.repository_owner }} \
             --amd64 \
-            --no-latest
+            --version ${{ steps.version.outputs.version }}
+
+      - name: Build add-on (dev)
+        if: steps.version.outputs.tag_type == 'dev'
+        uses: home-assistant/builder@master
+        with:
+          args: |
+            --target aquable \
+            --docker-hub ghcr.io/${{ github.repository_owner }} \
+            --amd64 \
+            --tag latest-dev
