@@ -64,8 +64,8 @@ jobs:
           
           # Copy root files
           cp dev/pyproject.toml stable/
-          cp dev/README.md stable/
           cp dev/LICENSE stable/
+          # Note: README.md is managed separately in the stable repo
           
           # Create repository.yaml for stable repo
           cat > stable/repository.yaml << EOF
