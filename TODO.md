@@ -1,12 +1,8 @@
 # TODO
 
-## Test in Ingress
-
-- Config and function: ping(status update)
-- Button for addon settings page. Incorrect format. Should be: <https://address/hassio/addon/8d20ab73_aquable/config>
-
 ## Next
 
+- If **known device**, should display device card with a disconnected status indicator; known devices (with JSON files) always displayed on dash.
 - Deprecate: device-config-modal.ts; functionality refactored to flip-side of device card.
 - Fix: light status payload (keyframes); need to refine time-check logic. Placeholders inserted.
   [Lines 202 -> 336](src/aquable/storage/models.py#L204)
@@ -16,9 +12,7 @@
 
 ## Soon
 
-- Improve: appearance and UX of device command settings modals.
 - Fix: notification popups --> darkmode display.
-- If **known device**, should display device card with a disconnected status indicator.
 - Schedule overlap/collision detection for LED Auto Mode settings.
 - Light/Doser devices --> **'reapply' saved configs** --> sends commands to device. *(Especially applies to recovery from power loss instances).*
 

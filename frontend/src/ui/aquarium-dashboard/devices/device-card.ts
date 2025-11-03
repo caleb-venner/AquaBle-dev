@@ -40,9 +40,16 @@ export function renderDeviceSection(
           </button>
         </div>
       </div>
-      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px; margin-top: 16px;">
-        ${devices.map(device => renderDeviceTile(device)).join("")}
-      </div>
+      ${devices.length === 0 ? `
+        <div style="padding: 60px 20px; text-align: center; color: var(--gray-500);">
+          <h3 style="margin: 0 0 8px 0; color: var(--gray-700);">No Devices Connected</h3>
+          <p style="margin: 0 0 20px 0; color: var(--gray-500);">Click the Bluetooth button above to scan for nearby devices.</p>
+        </div>
+      ` : `
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px; margin-top: 16px;">
+          ${devices.map(device => renderDeviceTile(device)).join("")}
+        </div>
+      `}
     </div>
   `;
 }

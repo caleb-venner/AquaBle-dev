@@ -20,16 +20,8 @@ export function renderOverviewTab(): string {
       address: device.address
     }));
 
-  // Show empty state if no devices
-  if (devices.length === 0) {
-    return `
-      <div class="empty-state">
-        <h2>No Devices Connected</h2>
-        <p>This dashboard shows the status of connected aquarium devices. Devices must be connected externally to the backend service.</p>
-      </div>
-    `;
-  }
-
+  // Always render the device section, even if empty
+  // This ensures the scan button is always accessible
   return `
     ${renderDeviceSection("Devices", devices)}
   `;

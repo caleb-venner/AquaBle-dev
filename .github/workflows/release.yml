@@ -49,12 +49,11 @@ jobs:
 
       - name: Sync files to stable repository
         run: |
-          # Clear stable repo (but keep .git)
-          cd stable
-          git rm -rf . || true
-          cd ..
+          # Selectively sync only the add-on files we maintain from dev
+          # This preserves any stable-repo-specific files (docs, configs, etc.)
           
-          # Copy add-on structure
+          # Copy add-on structure (remove old aquable/ dir first to clean stale files)
+          rm -rf stable/aquable
           mkdir -p stable/aquable
           cp -r dev/aquable/* stable/aquable/
           
@@ -62,17 +61,22 @@ jobs:
           mkdir -p stable/aquable/frontend
           cp -r dev/frontend/dist stable/aquable/frontend/
           
-          # Copy root files
+          # Copy root files that should be synced from dev
           cp dev/pyproject.toml stable/
           cp dev/LICENSE stable/
-          # Note: README.md is managed separately in the stable repo
           
-          # Create repository.yaml for stable repo
-          cat > stable/repository.yaml << EOF
+          # Copy README to root for GitHub display (overwrite is intentional)
+          cp dev/aquable/README.stable.md stable/README.md
+          
+          # Create repository.yaml ONLY if it doesn't exist
+          # This allows the stable repo to maintain its own repository.yaml
+          if [ ! -f stable/repository.yaml ]; then
+            cat > stable/repository.yaml << EOF
           name: AquaBle Add-on
           url: https://github.com/caleb-venner/AquaBle
           maintainer: Caleb Venner <caleb.venner@gmail.com>
           EOF
+          fi
 
       - name: Commit and push to stable repository
         run: |
