@@ -13,10 +13,14 @@
 # Node / frontend builds
 node_modules/
 frontend/node_modules/
-frontend/dist/
+/frontend/dist/
 frontend/.vite/
 *.tsbuildinfo
 .eslintcache
+
+# Exception: track built frontend in aquable add-on directory
+!aquable/frontend/
+!aquable/frontend/dist/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
