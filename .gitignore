@@ -13,10 +13,13 @@
 # Node / frontend builds
 node_modules/
 frontend/node_modules/
-# frontend/dist/ is tracked in dev repo for HA add-on deployment
+frontend/dist/
 frontend/.vite/
 *.tsbuildinfo
 .eslintcache
+
+# Track built frontend in aquable add-on directory
+!aquable/frontend/dist/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

@@ -6,6 +6,9 @@ on:
       - main
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -24,10 +27,16 @@ jobs:
           npm ci
           npm run build
 
-      - name: Commit and push built frontend
+      - name: Copy built frontend to aquable add-on directory
+        run: |
+          mkdir -p aquable/frontend
+          rm -rf aquable/frontend/dist
+          cp -r frontend/dist aquable/frontend/
+
+      - name: Commit and push add-on structure
         run: |
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-          git add frontend/dist
-          git commit -m "Build frontend [skip ci]" || echo "No changes to commit"
+          git add aquable/frontend/dist
+          git commit -m "Build and deploy frontend to add-on [skip ci]" || echo "No changes to commit"
           git push
