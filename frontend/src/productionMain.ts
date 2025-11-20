@@ -107,6 +107,14 @@ async function init() {
       console.log("Home Assistant available, loading entities...");
       await useHAStore.getState().fetchConfig();
     }
+    
+    // Subscribe to HA store changes to trigger re-renders
+    useHAStore.subscribe(() => {
+      const currentView = deviceStore.getState().ui.currentView;
+      if (currentView === 'ha') {
+        refreshDashboard();
+      }
+    });
 
     // Initialize centralized polling for device status (replaces component-level polling)
     console.log("Starting centralized device status polling...");

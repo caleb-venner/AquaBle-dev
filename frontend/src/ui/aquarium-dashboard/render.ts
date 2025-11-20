@@ -144,5 +144,13 @@ export function refreshDashboard(): void {
   const dashboardElement = document.querySelector('.production-dashboard');
   if (dashboardElement) {
     dashboardElement.outerHTML = renderProductionDashboard();
+    
+    // Attach HA handlers if the HA tab is visible
+    const haContainer = document.getElementById('ha-controls-root');
+    if (haContainer) {
+      import('../ha-controls').then(({ attachHAHandlers }) => {
+        attachHAHandlers(haContainer);
+      });
+    }
   }
 }

@@ -21,7 +21,7 @@ export { calculateWattageFromInputs, setWattageTestCase };
 // Initialize global handlers
 export function initializeDashboardHandlers(): void {
   // Tab switching
-  (window as any).switchTab = async (tab: "overview" | "dev") => {
+  (window as any).switchTab = async (tab: "overview" | "ha" | "dev") => {
     deviceStore.getState().actions.setCurrentView(tab);
     refreshDashboard();
   };

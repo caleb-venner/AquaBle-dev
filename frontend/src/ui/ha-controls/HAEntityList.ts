@@ -15,10 +15,26 @@ export function renderHAControls(): string {
   if (!available) {
     return `
       <div class="ha-controls-container">
+        <div class="ha-header">
+          <h2>Home Assistant Controls</h2>
+          <button id="refresh-ha-button" class="btn-refresh">Check Connection</button>
+        </div>
+        
         <div class="ha-unavailable">
-          <h2>Home Assistant Integration</h2>
-          <p>Home Assistant integration is not available.</p>
-          <p class="note">This feature requires running as a Home Assistant add-on.</p>
+          <p>⚠️ Home Assistant integration is not available.</p>
+          <p class="note">This feature requires running as a Home Assistant add-on with SUPERVISOR_TOKEN.</p>
+          <p class="note">In development mode, the UI is still accessible below for testing purposes.</p>
+        </div>
+        
+        <div class="ha-content">
+          <div class="ha-empty">
+            <p>No entities configured yet.</p>
+            <p class="note">Add your first Home Assistant entity below (UI only - won't work without HA connection).</p>
+          </div>
+          
+          <div class="ha-config-section">
+            ${renderEntityConfig()}
+          </div>
         </div>
       </div>
     `;
@@ -94,7 +110,12 @@ export function attachHAHandlers(container: HTMLElement) {
     refreshButton.addEventListener('click', async () => {
       refreshButton.disabled = true;
       try {
-        await useHAStore.getState().fetchConfig();
+        // First check availability
+        await useHAStore.getState().checkAvailability();
+        // Then fetch config if available
+        if (useHAStore.getState().available) {
+          await useHAStore.getState().fetchConfig();
+        }
       } finally {
         refreshButton.disabled = false;
       }
