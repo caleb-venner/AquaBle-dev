@@ -4,7 +4,7 @@
  * Manages state and actions for Home Assistant entity control and configuration.
  */
 
-import { create } from 'zustand';
+import { createStore } from 'zustand/vanilla';
 
 // ============================================================================
 // Types
@@ -49,7 +49,7 @@ interface HAStore {
 // Store Implementation
 // ============================================================================
 
-export const useHAStore = create<HAStore>((set, get) => ({
+export const haStore = createStore<HAStore>((set, get) => ({
   // Initial state
   available: false,
   loading: false,
@@ -244,3 +244,6 @@ export const useHAStore = create<HAStore>((set, get) => ({
     set({ error });
   }
 }));
+
+// Export a convenience function to match the previous API
+export const useHAStore = haStore;
