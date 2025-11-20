@@ -6,7 +6,53 @@ on:
       - 'v*'
 
 jobs:
-  release:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Extract version from tag
+        id: version
+        run: echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Build frontend
+        run: |
+          cd frontend
+          npm ci
+          npm run build
+
+      - name: Prepare build context
+        run: |
+          mkdir -p aquable/frontend
+          cp -r frontend/dist aquable/frontend/
+          cp -r src aquable/
+          cp pyproject.toml aquable/
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push multi-arch images
+        uses: home-assistant/builder@master
+        with:
+          args: |
+            --target aquable \
+            --docker-hub ghcr.io/${{ github.repository_owner }} \
+            --all \
+            --cache-from ghcr.io/${{ github.repository_owner }}/amd64-aquable:latest \
+            --version ${{ steps.version.outputs.version }}
+
+  sync-to-stable:
+    needs: build-and-push
     runs-on: ubuntu-latest
     steps:
       - name: Checkout dev repository
@@ -57,9 +103,12 @@ jobs:
           mkdir -p stable/aquable
           cp -r dev/aquable/* stable/aquable/
           
-          # Copy built frontend to correct location
+          # Copy built frontend to add-on directory
           mkdir -p stable/aquable/frontend
           cp -r dev/frontend/dist stable/aquable/frontend/
+          
+          # Copy source code to add-on directory (needed for Dockerfile build context)
+          cp -r dev/src stable/aquable/
           
           # Copy root files that should be synced from dev
           cp dev/pyproject.toml stable/

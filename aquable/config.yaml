@@ -6,6 +6,10 @@ url: https://github.com/caleb-venner/aquable
 image: ghcr.io/caleb-venner/{arch}-aquable
 arch:
   - amd64
+  - armv7
+  - aarch64
+  - armhf
+  - i386
 startup: application
 boot: auto
 init: false
