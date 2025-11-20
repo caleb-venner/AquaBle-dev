@@ -16,7 +16,6 @@ export function renderSwitchControl(entity: HAEntity, state: EntityState | undef
     <div class="ha-entity-card switch-control" data-entity-id="${entity.entity_id}">
       <div class="entity-header">
         <h3>${entity.label}</h3>
-        <span class="entity-id">${entity.entity_id}</span>
       </div>
       <div class="entity-content">
         <div class="state-display ${stateClass}">
