@@ -60,7 +60,7 @@ export const haStore = createStore<HAStore>((set, get) => ({
   // Check if Home Assistant integration is available
   checkAvailability: async () => {
     try {
-      const response = await fetch('/api/ha/status');
+      const response = await fetch('api/ha/status');
       const data = await response.json();
       set({ available: data.available, error: null });
     } catch (error) {
@@ -73,7 +73,7 @@ export const haStore = createStore<HAStore>((set, get) => ({
   fetchConfig: async () => {
     set({ loading: true, error: null });
     try {
-      const response = await fetch('/api/ha/config');
+      const response = await fetch('api/ha/config');
       if (!response.ok) {
         throw new Error(`Failed to fetch config: ${response.statusText}`);
       }
@@ -98,7 +98,7 @@ export const haStore = createStore<HAStore>((set, get) => ({
   // Fetch state for a specific entity
   fetchEntityState: async (entityId: string) => {
     try {
-      const response = await fetch(`/api/ha/entity/${encodeURIComponent(entityId)}`);
+      const response = await fetch(`api/ha/entity/${encodeURIComponent(entityId)}`);
       if (!response.ok) {
         if (response.status === 404) {
           console.warn(`Entity not found: ${entityId}`);
@@ -122,7 +122,7 @@ export const haStore = createStore<HAStore>((set, get) => ({
   toggleSwitch: async (entityId: string) => {
     set({ error: null });
     try {
-      const response = await fetch('/api/ha/switch/toggle', {
+      const response = await fetch('api/ha/switch/toggle', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ entity_id: entityId })
@@ -158,7 +158,7 @@ export const haStore = createStore<HAStore>((set, get) => ({
   executeScript: async (entityId: string) => {
     set({ error: null });
     try {
-      const response = await fetch('/api/ha/script/execute', {
+      const response = await fetch('api/ha/script/execute', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ entity_id: entityId })
@@ -181,7 +181,7 @@ export const haStore = createStore<HAStore>((set, get) => ({
   addEntity: async (entityId: string, label: string, type: EntityType) => {
     set({ error: null });
     try {
-      const response = await fetch('/api/ha/config/entity', {
+      const response = await fetch('api/ha/config/entity', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ entity_id: entityId, label, type })
@@ -205,7 +205,7 @@ export const haStore = createStore<HAStore>((set, get) => ({
   removeEntity: async (entityId: string) => {
     set({ error: null });
     try {
-      const response = await fetch(`/api/ha/config/entity/${encodeURIComponent(entityId)}`, {
+      const response = await fetch(`api/ha/config/entity/${encodeURIComponent(entityId)}`, {
         method: 'DELETE'
       });
       

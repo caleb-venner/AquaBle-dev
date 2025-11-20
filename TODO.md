@@ -26,8 +26,6 @@
 
 ### Nice to have
 
-- Allow users to reverse integrate hassio plugs/switches etc. Can control them from aquable scenes.
-  i.e., control co2 solenoid.
 - 'Scenes'; Saved (inactive) device settings; better/more descriptive error handling
 
 ### Things to think about
