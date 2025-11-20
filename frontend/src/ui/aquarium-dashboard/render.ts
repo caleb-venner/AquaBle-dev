@@ -4,6 +4,7 @@
 
 import { deviceStore } from "../../stores/deviceStore";
 import { renderOverviewTab } from "./tabs/overview-tab";
+import { renderHATab } from "./tabs/ha-tab";
 import { renderDevTab } from "./tabs/dev-tab";
 
 /**
@@ -78,6 +79,12 @@ function renderNavigation(): string {
         >
           Overview
         </button>
+        <button
+          class="nav-tab ${zustandState.ui.currentView === "ha" ? "active" : ""}"
+          onclick="window.switchTab('ha')"
+        >
+          Home Assistant
+        </button>
       </div>
     </nav>
   `;
@@ -105,6 +112,9 @@ function renderContent(): string {
   return `
     <div class="tab-panel ${zustandState.ui.currentView === "overview" ? "active" : ""}" id="overview-panel">
       ${renderOverviewTab()}
+    </div>
+    <div class="tab-panel ${zustandState.ui.currentView === "ha" ? "active" : ""}" id="ha-panel">
+      ${renderHATab()}
     </div>
     <div class="tab-panel ${zustandState.ui.currentView === "dev" ? "active" : ""}" id="dev-panel">
       ${renderDevTab()}

@@ -47,7 +47,7 @@ export interface QueuedCommand {
 
 /** Application-wide UI state */
 export interface UIState {
-  currentView: "dashboard" | "overview" | "dev";
+  currentView: "dashboard" | "overview" | "ha" | "dev";
   globalError: string | null;
   notifications: Notification[];
 }

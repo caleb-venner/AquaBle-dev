@@ -33,6 +33,7 @@ from . import spa
 from .api.routes_commands import router as commands_router
 from .api.routes_configurations import router as configurations_router
 from .api.routes_devices import router as devices_router
+from .api.routes_ha import router as ha_router
 from .ble_service import BLEService
 from .utils import get_env_float
 
@@ -265,10 +266,11 @@ async def serve_spa(request: Request) -> Response:
 
 # Startup/shutdown handled by lifespan above
 
-# Include API routers for devices, commands, and configurations.
+# Include API routers for devices, commands, configurations, and Home Assistant.
 app.include_router(devices_router)
 app.include_router(commands_router)
 app.include_router(configurations_router)
+app.include_router(ha_router)
 
 
 @app.get("/{spa_path:path}", include_in_schema=False)

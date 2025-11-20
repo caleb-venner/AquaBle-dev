@@ -14,6 +14,7 @@ import { createNotificationSystem } from "./ui/notifications";
 import { setupStateSubscriptions } from "./ui/stateSubscriptions";
 import { initializePolling, cleanupPolling } from "./ui/aquarium-dashboard/services/polling-service";
 import "./ui/dashboard.css";
+import "./ui/ha-controls/styles.css";
 
 // Guard against double initialization (e.g., from Vite HMR)
 let isInitializing = false;
@@ -97,6 +98,15 @@ async function init() {
     // Setup state subscriptions for automatic updates AFTER initial load completes
     console.log("Setting up state subscriptions...");
     setupStateSubscriptions();
+
+    // Initialize Home Assistant integration
+    console.log("Initializing Home Assistant integration...");
+    const { useHAStore } = await import("./stores/haStore");
+    await useHAStore.getState().checkAvailability();
+    if (useHAStore.getState().available) {
+      console.log("Home Assistant available, loading entities...");
+      await useHAStore.getState().fetchConfig();
+    }
 
     // Initialize centralized polling for device status (replaces component-level polling)
     console.log("Starting centralized device status polling...");

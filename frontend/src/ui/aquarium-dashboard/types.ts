@@ -5,7 +5,7 @@
 import type { DoserDevice, LightDevice } from "../../api/configurations";
 import type { StatusResponse } from "../../types/api";
 
-export type DashboardTab = "overview" | "dev";
+export type DashboardTab = "overview" | "ha" | "dev";
 
 export interface ConnectionStability {
   isStable: boolean;
