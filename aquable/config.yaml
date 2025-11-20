@@ -39,6 +39,6 @@ schema:
   ping_interval: int?
   verbose_logging: bool?
 bluetooth: true
-hassio_api: true
+hassio_api: false
 hassio_role: default
-homeassistant_api: false
+homeassistant_api: true
