@@ -18,9 +18,6 @@ frontend/.vite/
 *.tsbuildinfo
 .eslintcache
 
-# Track built frontend in aquable add-on directory
-!aquable/frontend/dist/
-
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
