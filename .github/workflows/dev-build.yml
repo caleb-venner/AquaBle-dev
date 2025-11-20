@@ -40,5 +40,4 @@ jobs:
           args: |
             --target aquable \
             --docker-hub ghcr.io/${{ github.repository_owner }} \
-            --amd64 \
-            --cache-from ghcr.io/${{ github.repository_owner }}/amd64-aquable:latest
+            --amd64

@@ -48,7 +48,6 @@ jobs:
             --target aquable \
             --docker-hub ghcr.io/${{ github.repository_owner }} \
             --all \
-            --cache-from ghcr.io/${{ github.repository_owner }}/amd64-aquable:latest \
             --version ${{ steps.version.outputs.version }}
 
   sync-to-stable:
