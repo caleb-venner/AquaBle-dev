@@ -102,6 +102,7 @@ async function init() {
     // Initialize Home Assistant integration
     console.log("Initializing Home Assistant integration...");
     const { useHAStore } = await import("./stores/haStore");
+    const { deviceStore } = await import("./stores/deviceStore");
     await useHAStore.getState().checkAvailability();
     if (useHAStore.getState().available) {
       console.log("Home Assistant available, loading entities...");
