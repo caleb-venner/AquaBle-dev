@@ -4,7 +4,6 @@
 
 import { deviceStore } from "../../../stores/deviceStore";
 import { getTimeAgo } from "../../../utils";
-/* import { renderConnectionStatus } from "../utils/connection-utils"; */
 import { renderLightCardStatus/* , renderChannelLevels */ } from "./light-components";
 import { renderDoserCardStatus } from "./doser-components";
 import type { DeviceStatus } from "../../../types/api";

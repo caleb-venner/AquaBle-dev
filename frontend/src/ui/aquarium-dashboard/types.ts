@@ -2,7 +2,7 @@
  * Dashboard-specific type definitions
  */
 
-import type { DoserDevice, LightDevice, DeviceMetadata, LightMetadata, ConfigurationSummary } from "../../api/configurations";
+import type { DoserDevice, LightDevice } from "../../api/configurations";
 import type { StatusResponse } from "../../types/api";
 
 export type DashboardTab = "overview" | "dev";
@@ -19,9 +19,6 @@ export interface DashboardState {
   currentTab: DashboardTab;
   doserConfigs: DoserDevice[];
   lightConfigs: LightDevice[];
-  doserMetadata: DeviceMetadata[];
-  lightMetadata: LightMetadata[];
-  summary: ConfigurationSummary | null;
   deviceStatus: StatusResponse | null;
   error: string | null;
   connectingDevices: Set<string>; // Track devices currently being connected

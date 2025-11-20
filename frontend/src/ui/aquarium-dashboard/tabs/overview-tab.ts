@@ -14,8 +14,8 @@ export function renderOverviewTab(): string {
 
   // Convert device Map to array of connected devices
   const devices: (DeviceStatus & { address: string })[] = Array.from(state.devices.values())
-    .filter(device => device.status?.connected)
-    .map(device => ({
+    .filter((device: any) => device.status?.connected)
+    .map((device: any) => ({
       ...(device.status as DeviceStatus),
       address: device.address
     }));

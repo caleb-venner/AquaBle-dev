@@ -3,7 +3,6 @@
  */
 
 import { deviceStore } from "../../../stores/deviceStore";
-import { formatDateTime, getWeekdayName } from "../../../utils";
 import { getDoserHeadName, getHeadConfigData } from "../utils/device-utils";
 import type { DeviceStatus } from "../../../types/api";
 

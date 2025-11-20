@@ -3,14 +3,7 @@
  */
 
 import { getDeviceStatus } from "../../../api/devices";
-import type { StatusResponse } from "../../../types/api";
 import { deviceStore } from "../../../stores/deviceStore";
-import {
-  cacheService,
-  CACHE_KEYS,
-  CACHE_TTL,
-  invalidateMetadataCache,
-} from "./cache-service";
 
 /**
  * Load all dashboard data from APIs
@@ -39,7 +32,7 @@ export async function loadAllDashboardData(): Promise<void> {
         // Fetch configuration for each device
         console.log(`📥 Fetching configuration for ${address}...`);
         const configPromise = actions.refreshDeviceConfig(address, status.device_type as 'doser' | 'light')
-          .catch(err => console.error(`Failed to load config for ${address}:`, err));
+          .catch((err: any) => console.error(`Failed to load config for ${address}:`, err));
         configPromises.push(configPromise);
       }
       
@@ -100,7 +93,7 @@ export async function debouncedRefreshConfigurations(): Promise<void> {
     const remainingWait = CONFIG_FETCH_DEBOUNCE_MS - timeSinceLastFetch;
     configFetchTimeout = window.setTimeout(() => {
       console.log("🔄 Running deferred configuration fetch");
-      debouncedRefreshConfigurations().catch(err =>
+      debouncedRefreshConfigurations().catch((err: any) =>
         console.error("Failed to refresh configs:", err)
       );
     }, remainingWait);

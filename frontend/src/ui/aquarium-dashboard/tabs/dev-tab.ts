@@ -13,7 +13,7 @@ export function renderDevTab(): string {
   
   // Convert device Map to array
   const devices: (DeviceStatus & { address: string })[] = Array.from(state.devices.values())
-    .map(device => ({
+    .map((device: any) => ({
       ...(device.status as DeviceStatus),
       address: device.address
     }))
@@ -48,7 +48,7 @@ export function renderDevTab(): string {
 /**
  * Render collapsible raw data for a single device
  */
-function renderCollapsibleDeviceRawData(device: any): string {
+function renderCollapsibleDeviceRawData(device: DeviceStatus & { address: string }): string {
   const deviceId = `device-${device.address.replace(/:/g, '-')}`;
   const lastUpdate = device.updated_at ? new Date(device.updated_at * 1000).toLocaleString() : 'Unknown';
 

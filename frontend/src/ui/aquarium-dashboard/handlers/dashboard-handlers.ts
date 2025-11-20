@@ -3,7 +3,6 @@
  */
 
 import { deviceStore } from "../../../stores/deviceStore";
-import type { DashboardTab } from "../types";
 import { loadAllDashboardData } from "../services/data-service";
 
 // Dashboard refresh handler

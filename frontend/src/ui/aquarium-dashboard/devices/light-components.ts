@@ -3,7 +3,6 @@
  */
 
 import { deviceStore } from "../../../stores/deviceStore";
-import { getWeekdayName, formatDateTime } from "../../../utils";
 import type { AutoProgram } from "../../../utils/schedule-utils";
 import type { DeviceStatus } from "../../../types/api";
 
