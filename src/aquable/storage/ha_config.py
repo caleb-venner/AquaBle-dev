@@ -10,6 +10,8 @@ from pathlib import Path
 from typing import List, Dict, Any, Optional, Literal
 from pydantic import BaseModel, Field
 
+from ..utils.env import get_config_dir
+
 logger = logging.getLogger(__name__)
 
 # Entity types supported
@@ -36,10 +38,10 @@ class HAConfigStorage:
         Initialize storage.
 
         Args:
-            base_path: Base directory for storage (defaults to ~/.aquable)
+            base_path: Base directory for storage (defaults to config dir from get_config_dir())
         """
         if base_path is None:
-            base_path = Path.home() / ".aquable"
+            base_path = get_config_dir()
         
         self.base_path = base_path
         self.config_file = base_path / "ha_entities.json"
