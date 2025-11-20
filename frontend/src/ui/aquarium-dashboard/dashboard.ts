@@ -6,7 +6,6 @@ import { renderProductionDashboard, refreshDashboard } from "./render";
 import { loadAllDashboardData } from "./services/data-service";
 import { deviceStore } from "../../stores/deviceStore";
 import { calculateWattageFromInputs, setWattageTestCase } from "./components/wattage-calculator";
-import "./modals/device-config-modal"; // Import the new unified device config modal
 import "./modals/scan-connect-modal"; // Import the scan and connect modal
 
 // Export the main render function
@@ -144,12 +143,6 @@ export function initializeDashboardHandlers(): void {
   (window as any).handleDeleteDevice = async (address: string, deviceType: string) => {
     console.log('Delete device:', address, deviceType);
     // TODO: Implement device deletion via API
-  };
-
-  // Device configuration (nickname, auto-connect, head names)
-  (window as any).handleDeviceSettings = async (address: string, deviceType: string) => {
-    const { showDeviceConfigModal } = await import('./modals/device-config-modal');
-    showDeviceConfigModal(address, deviceType as 'doser' | 'light');
   };
 
   // Device command settings modal
