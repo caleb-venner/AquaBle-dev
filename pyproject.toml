@@ -1,7 +1,6 @@
 [build-system]
 requires = [
     "setuptools==76.0.0",
-    "setuptools_scm[toml]==8.2.0",
     "wheel==0.45.1",
 ]
 build-backend = "setuptools.build_meta"
@@ -9,72 +8,71 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "aquable"
 version = "3.0.0-dev"
-description = "Home Assistant integration for controlling Chihiros aquarium devices over Bluetooth Low Energy"
+description = "Standalone service for controlling Chihiros aquarium devices over Bluetooth Low Energy"
 readme = "README.md"
 
 requires-python = ">=3.12"
 
 dependencies = [
+    # BLE
     "bleak>=0.21.0",
     "bleak-retry-connector>=3.0.0",
-    "pydantic>=2.0.0",
+    "bleak-esphome>=3.0.0",
+    # API
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.30.0",
+    "python-multipart>=0.0.9",
+    "httpx>=0.27.0",
+    "websockets>=14.0",
+    "jinja2>=3.1.0",
+    "aiohttp>=3.14.0",
 ]
 
 [dependency-groups]
 dev = [
-    "black",
-    "isort",
-    "flake8",
+    "ruff>=0.9.0",
 ]
 test = [
     "pytest>=8.0.0",
     "pytest-asyncio>=0.23.0",
     "pytest-mock>=3.12.0",
-    "homeassistant>=2024.1.0",
-    "aiousbwatcher>=1.1.1",
-    "pyserial>=3.5",
 ]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
-pythonpath = ["."]
+pythonpath = ["src"]
 
 [project.urls]
 "Source Code" = "https://github.com/caleb-venner/AquaBle"
 "Bug Reports" = "https://github.com/caleb-venner/AquaBle/issues"
-"Home Assistant" = "https://www.home-assistant.io/"
 "Original Project" = "https://github.com/TheMicDiet/chihiros-led-control"
 
 [tool.setuptools]
 platforms = ["any"]
 include-package-data = true
+package-dir = {"" = "src"}
 
 [tool.setuptools.packages.find]
 where = [
-  "custom_components",
+  "src",
 ]
 
-[tool.setuptools_scm]
-
-[tool.black]
+[tool.ruff]
 line-length = 100
+target-version = "py312"
 
-[tool.isort]
-profile = "black"
-line_length = 100
+[tool.ruff.lint]
+# D (docstring) rules omitted for now — add back once new code is being written
+select = ["E", "F", "I", "UP", "B"]
+ignore = ["E501"]
 
-[tool.flake8]
-max-line-length = 100
-extend-ignore = [
-    "E203",
-]
-extend-exclude = [
-    "archive",
-    ".venv",
-    "build",
-    "dist",
-]
+[tool.ruff.lint.isort]
+known-first-party = ["aquable"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
 
 [tool.doc8]
 max-line-length = 100

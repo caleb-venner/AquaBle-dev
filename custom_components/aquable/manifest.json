@@ -1,101 +1,14 @@
 {
   "domain": "aquable",
-  "name": "AquaBle-dev",
+  "name": "AquaBle",
   "version": "3.0.0",
   "codeowners": [
     "@caleb-venner"
   ],
-  "config_flow": true,
-  "dependencies": [
-    "bluetooth"
-  ],
+  "config_flow": false,
   "documentation": "https://github.com/caleb-venner/AquaBle",
   "issue_tracker": "https://github.com/caleb-venner/AquaBle/issues",
   "iot_class": "local_polling",
-  "requirements": [
-    "bleak>=0.21.0",
-    "bleak-retry-connector>=3.0.0"
-  ],
-  "bluetooth": [
-    {
-      "local_name": "DYNA2*",
-      "connectable": true
-    },
-    {
-      "local_name": "DYNC2N*",
-      "connectable": true
-    },
-    {
-      "local_name": "DYNCRGP*",
-      "connectable": true
-    },
-    {
-      "local_name": "DYCOM*",
-      "connectable": true
-    },
-    {
-      "local_name": "DYLED*",
-      "connectable": true
-    },
-    {
-      "local_name": "DYDD*",
-      "connectable": true
-    },
-    {
-      "local_name": "DYU*",
-      "connectable": true
-    },
-    {
-      "local_name": "DYWPRO*",
-      "connectable": true
-    },
-    {
-      "local_name": "DYWPR*",
-      "connectable": true
-    },
-    {
-      "local_name": "DYSILN*",
-      "connectable": true
-    },
-    {
-      "local_name": "DYNWRGB*",
-      "connectable": true
-    },
-    {
-      "local_name": "DYNW30*",
-      "connectable": true
-    },
-    {
-      "local_name": "DYNW45*",
-      "connectable": true
-    },
-    {
-      "local_name": "DYNW60*",
-      "connectable": true
-    },
-    {
-      "local_name": "DYNW90*",
-      "connectable": true
-    },
-    {
-      "local_name": "DYNW12P*",
-      "connectable": true
-    },
-    {
-      "local_name": "DYSSD*",
-      "connectable": true
-    },
-    {
-      "local_name": "DYZSD*",
-      "connectable": true
-    },
-    {
-      "local_name": "DYDOSE*",
-      "connectable": true
-    },
-    {
-      "service_uuid": "6e400001-b5a3-f393-e0a9-e50e24dcca9e",
-      "connectable": true
-    }
-  ]
+  "requirements": [],
+  "dependencies": []
 }

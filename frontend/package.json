@@ -1,0 +1,19 @@
+{
+  "name": "aquable-frontend",
+  "version": "1.2.3",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build && cp tests/*.html dist/",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "zustand": "^5.0.8"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.20",
+    "typescript": "^5.4.2",
+    "vite": "^5.4.21"
+  }
+}

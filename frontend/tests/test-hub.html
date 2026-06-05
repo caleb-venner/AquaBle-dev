@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WRGB Pro II Test Hub</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        body {
+            font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f8fafc;
+            color: #0f172a;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 24px;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+        .header h1 {
+            margin: 0 0 8px 0;
+            font-size: 2rem;
+            color: #0f172a;
+        }
+        .header p {
+            margin: 0;
+            color: #64748b;
+            font-size: 1.1rem;
+        }
+        .tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 24px;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 0;
+        }
+        .tab-button {
+            padding: 12px 24px;
+            background: transparent;
+            border: none;
+            border-bottom: 3px solid transparent;
+            color: #64748b;
+            font-weight: 600;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            position: relative;
+            bottom: -2px;
+        }
+        .tab-button:hover {
+            color: #3b82f6;
+            background: #f1f5f9;
+        }
+        .tab-button.active {
+            color: #3b82f6;
+            border-bottom-color: #3b82f6;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        iframe {
+            width: 100%;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            background: white;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        }
+        #wattage-frame {
+            height: 900px;
+        }
+        #percentages-frame {
+            height: 1200px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>WRGB Pro II Test Hub</h1>
+        </div>
+
+        <div class="tabs">
+            <button class="tab-button active" onclick="switchTab('wattage')">
+                Wattage Calculator
+            </button>
+            <button class="tab-button" onclick="switchTab('percentages')">
+                Percentages Test Suite
+            </button>
+        </div>
+
+        <div id="wattage" class="tab-content active">
+            <iframe id="wattage-frame" src="/tests/wattage-test.html" title="Wattage Calculator"></iframe>
+        </div>
+
+        <div id="percentages" class="tab-content">
+            <iframe id="percentages-frame" src="/tests/percentages-test.html" title="Percentages Test Suite"></iframe>
+        </div>
+    </div>
+
+    <script>
+        function switchTab(tabName) {
+            // Remove active class from all tabs and content
+            document.querySelectorAll('.tab-button').forEach(button => {
+                button.classList.remove('active');
+            });
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+
+            // Add active class to selected tab and content
+            event.target.classList.add('active');
+            document.getElementById(tabName).classList.add('active');
+
+            // Store active tab in localStorage
+            localStorage.setItem('activeTestTab', tabName);
+        }
+
+        // Restore last active tab on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            const lastActiveTab = localStorage.getItem('activeTestTab');
+            if (lastActiveTab && lastActiveTab !== 'wattage') {
+                // Find and click the button for the last active tab
+                const tabButtons = document.querySelectorAll('.tab-button');
+                tabButtons.forEach(button => {
+                    if (button.textContent.includes('Percentages') && lastActiveTab === 'percentages') {
+                        button.click();
+                    }
+                });
+            }
+        });
+
+        // Add embedded class to iframe contents
+        window.addEventListener('load', () => {
+            try {
+                const wattageFrame = document.getElementById('wattage-frame');
+                const percentagesFrame = document.getElementById('percentages-frame');
+
+                wattageFrame.contentWindow.document.body.classList.add('embedded');
+                percentagesFrame.contentWindow.document.body.classList.add('embedded');
+            } catch (e) {
+                // CORS restriction, ignore
+                console.log('Unable to access iframe content (expected for dev mode)');
+            }
+        });
+    </script>
+</body>
+</html>

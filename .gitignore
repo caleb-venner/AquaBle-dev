@@ -18,6 +18,8 @@ build/
 dist/
 *.egg-info/
 *.egg
+node_modules
+.direnv
 
 # Testing and coverage
 .pytest_cache/
@@ -53,3 +55,5 @@ dmypy.json
 home-assistant_v2.db
 home-assistant.log
 ha-config/
+.log/
+packet-logs
