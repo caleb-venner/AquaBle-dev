@@ -1,55 +1,17 @@
-# macOS
 .DS_Store
-
-# Backup and temporary files
-*.bak
-*.backup
-*.tmp
-*~
-
-# Python
 __pycache__/
-*.py[cod]
-*$py.class
-*.so
-
-# Distribution / packaging
 build/
 dist/
 *.egg-info/
 *.egg
-
-# Testing and coverage
 .pytest_cache/
 .coverage
 .coverage.*
 coverage.xml
 htmlcov/
 *.cover
-
-# Virtual environments
 .env
-.venv
-env/
-venv/
-ENV/
-
-# Type checking and linting
-.mypy_cache/
-.dmypy.json
-dmypy.json
-.pytype/
-.ruff_cache/
-
-# IDEs
-.vscode/settings.json
-.idea/
-
-# Logs
-*.log
-
-# Home Assistant specific
-.storage/
-home-assistant_v2.db
-home-assistant.log
-ha-config/
+node_modules
+.direnv
+.log/
+.vite/
