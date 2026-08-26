@@ -1,5 +1,5 @@
-doser_set_head_schedule:
-  name: Set doser head schedule
+doser_set_daily_dose_sequence:
+  name: Set doser daily schedule
   description: Configure complete schedule for a single doser head
   fields:
     device_id:
@@ -13,12 +13,12 @@ doser_set_head_schedule:
             domain: sensor
     head_index:
       name: Head index
-      description: Head number (0-3)
+      description: Head number (1-4)
       required: true
       selector:
         number:
-          min: 0
-          max: 3
+          min: 1
+          max: 4
           mode: box
     volume_ml:
       name: Volume (mL)
@@ -27,7 +27,7 @@ doser_set_head_schedule:
       selector:
         number:
           min: 0
-          max: 100
+          max: 1000
           step: 0.1
           unit_of_measurement: mL
           mode: box
@@ -57,37 +57,54 @@ doser_set_head_schedule:
         select:
           options:
             - label: Monday
-              value: mon
+              value: monday
             - label: Tuesday
-              value: tue
+              value: tuesday
             - label: Wednesday
-              value: wed
+              value: wednesday
             - label: Thursday
-              value: thu
+              value: thursday
             - label: Friday
-              value: fri
+              value: friday
             - label: Saturday
-              value: sat
+              value: saturday
             - label: Sunday
-              value: sun
+              value: sunday
           multiple: true
-    mode:
-      name: Dosing mode
-      description: Operating mode for this head
+
+doser_manual_dose:
+  name: Manual Dose
+  description: Trigger a pump head to dose a specific amount immediately
+  fields:
+    device_id:
+      name: Device
+      description: Target doser device
       required: true
       selector:
-        select:
-          options:
-            - label: Daily
-              value: daily
-            - label: 24 Hour
-              value: 24h
-            - label: Custom
-              value: custom
-            - label: Timer
-              value: timer
-            - label: Disabled
-              value: disabled
+        device:
+          integration: aquable
+          entity:
+            domain: sensor
+    head_index:
+      name: Head index
+      description: Head number (1-4)
+      required: true
+      selector:
+        number:
+          min: 1
+          max: 4
+          mode: box
+    volume_ml:
+      name: Volume (mL)
+      description: Dose volume in milliliters
+      required: true
+      selector:
+        number:
+          min: 0
+          max: 1000
+          step: 0.1
+          unit_of_measurement: mL
+          mode: box
 
 light_set_manual_mode:
   name: Set light manual mode
@@ -145,7 +162,7 @@ light_set_manual_mode:
 
 light_set_auto_schedule:
   name: Set light auto schedule
-  description: Add an automatic lighting schedule (up to 24 schedules total)
+  description: Add an automatic lighting schedule
   fields:
     device_id:
       name: Device
@@ -156,12 +173,6 @@ light_set_auto_schedule:
           integration: aquable
           entity:
             domain: sensor
-    name:
-      name: Schedule name
-      description: Descriptive name for this schedule (not sent to device)
-      required: false
-      selector:
-        text:
     sunrise_hour:
       name: Sunrise hour
       description: Hour when schedule starts (0-23)
@@ -198,9 +209,18 @@ light_set_auto_schedule:
           min: 0
           max: 59
           mode: box
+    ramp_up_minutes:
+      name: Ramp up time (minutes)
+      description: Duration to fade from 0 to target brightness
+      required: false
+      selector:
+        number:
+          min: 0
+          max: 180
+          mode: box
     white:
       name: White brightness
-      description: White channel brightness during schedule (0-100%)
+      description: Target white brightness (0-100%)
       required: false
       selector:
         number:
@@ -210,7 +230,7 @@ light_set_auto_schedule:
           mode: box
     red:
       name: Red brightness
-      description: Red channel brightness during schedule (0-100%)
+      description: Target red brightness (0-100%)
       required: false
       selector:
         number:
@@ -220,7 +240,7 @@ light_set_auto_schedule:
           mode: box
     green:
       name: Green brightness
-      description: Green channel brightness during schedule (0-100%)
+      description: Target green brightness (0-100%)
       required: false
       selector:
         number:
@@ -230,7 +250,7 @@ light_set_auto_schedule:
           mode: box
     blue:
       name: Blue brightness
-      description: Blue channel brightness during schedule (0-100%)
+      description: Target blue brightness (0-100%)
       required: false
       selector:
         number:

@@ -284,6 +284,22 @@ def create_head_select_command(
     return _encode_uart_command(0xA5, 0x20, msg_id, [head_index, flag1, flag2])
 
 
+def create_manual_dose_command(
+    msg_id: tuple[int, int],
+    head_index: int,
+    volume_tenths_ml: int,
+) -> bytearray:
+    """Create a manual dosing command for one pump.
+
+    Command: 0xA5 (165), Sub: 0x1B (27)
+    Volume is encoded as 16-bit split across two bytes (high and low),
+    representing tenths of a milliliter.
+    """
+    high = volume_tenths_ml // 256
+    low = volume_tenths_ml % 256
+    return _encode_uart_command(165, 27, msg_id, [head_index, 0, 0, high, low])
+
+
 def create_head_dose_command(
     msg_id: tuple[int, int],
     head_index: int,
