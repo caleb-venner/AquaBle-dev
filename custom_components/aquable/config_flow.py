@@ -11,7 +11,12 @@ from homeassistant.components.bluetooth import (
     BluetoothServiceInfoBleak,
     async_discovered_service_info,
 )
-from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
+from homeassistant.config_entries import ConfigFlow
+
+try:
+    from homeassistant.config_entries import ConfigFlowResult
+except ImportError:
+    from homeassistant.data_entry_flow import FlowResult as ConfigFlowResult
 from homeassistant.const import CONF_ADDRESS, CONF_NAME
 
 from .const import CONF_DEVICE_TYPE, DEVICE_REGISTRY, DOMAIN, DeviceModelInfo

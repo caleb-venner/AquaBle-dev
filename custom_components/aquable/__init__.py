@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import CONF_ADDRESS, Platform
+from homeassistant.const import CONF_ADDRESS, CONF_NAME, Platform
 from homeassistant.core import HomeAssistant
 
 from .const import CONF_DEVICE_TYPE, DOMAIN
@@ -25,10 +25,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     address = entry.data[CONF_ADDRESS]
     device_type = entry.data[CONF_DEVICE_TYPE]
+    device_name: str | None = entry.data.get(CONF_NAME)
 
     _LOGGER.debug("Setting up AquaBle device: %s (%s)", address, device_type)
 
-    coordinator = AquaBleCoordinator(hass, address, device_type)
+    coordinator = AquaBleCoordinator(hass, address, device_type, device_name=device_name)
 
     # Perform the first fetch to ensure the device is online and we get its state
     await coordinator.async_config_entry_first_refresh()

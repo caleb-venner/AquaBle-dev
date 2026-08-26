@@ -3,7 +3,7 @@
 This package provides pure functional models for dosers and lights.
 """
 
-from . import storage, validation
+from . import validation
 from .doser import (
     Calibration,
     ConfigurationRevision,
@@ -40,7 +40,6 @@ from .light import (
 )
 
 __all__ = [
-    "storage",
     "validation",
     # Doser
     "Calibration",

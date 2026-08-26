@@ -168,9 +168,37 @@ def generate_light_enable_auto_mode_sequence(
 def generate_handshake_sequence(
     start_msg_id: tuple[int, int],
 ) -> tuple[tuple[int, int], list[bytearray]]:
-    """Generate a single handshake request (used for status retrieval)."""
+    """Generate a single handshake request (used for light status retrieval)."""
     msg_id = encoder.next_message_id(start_msg_id)
     return msg_id, [encoder.create_handshake_command(msg_id)]
+
+
+def generate_doser_status_sequence(
+    start_msg_id: tuple[int, int],
+) -> tuple[tuple[int, int], list[bytearray]]:
+    """Generate full sequence to query complete doser status including lifetime totals.
+
+    Triggers all 3 response packets from the doser:
+    - 0x0A: Handshake ACK
+    - 0xFE: Head schedule and daily dosed amounts
+    - 0x1E: Lifetime total volume dosed for all 4 heads
+    """
+    msg_id = start_msg_id
+    commands = []
+
+    # 1. Handshake
+    msg_id = encoder.next_message_id(msg_id)
+    commands.append(encoder.create_handshake_command(msg_id))
+
+    # 2. Time sync
+    msg_id = encoder.next_message_id(msg_id)
+    commands.append(encoder.create_set_time_command(msg_id))
+
+    # 3. Prepare stage 0x04 (triggers 0x1E lifetime totals response)
+    msg_id = encoder.next_message_id(msg_id)
+    commands.append(encoder.create_prepare_command(msg_id, 0x04))
+
+    return msg_id, commands
 
 
 def generate_light_clear_schedules_sequence(
