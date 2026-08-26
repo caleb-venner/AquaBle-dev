@@ -159,3 +159,10 @@ def generate_handshake_sequence(
     """Generate a single handshake request (used for status retrieval)."""
     msg_id = encoder.next_message_id(start_msg_id)
     return msg_id, [encoder.create_handshake_command(msg_id)]
+
+def generate_light_clear_schedules_sequence(
+    start_msg_id: tuple[int, int]
+) -> tuple[tuple[int, int], list[bytearray]]:
+    """Generate sequence to clear all auto schedules."""
+    msg_id = encoder.next_message_id(start_msg_id)
+    return msg_id, [encoder.create_reset_auto_settings_command(msg_id)]

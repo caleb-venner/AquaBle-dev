@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import datetime
 import logging
 from typing import Any
 
@@ -17,23 +18,53 @@ from homeassistant.helpers import device_registry as dr
 
 from .const import DOMAIN
 from .coordinator import AquaBleCoordinator, UART_TX_UUID
-from .commands.generators import generate_doser_set_daily_dose_sequence
+from .commands import generators
 
 _LOGGER = logging.getLogger(__name__)
 
 SERVICE_SET_DOSER_SCHEDULE = "doser_set_daily_dose_sequence"
+SERVICE_SET_LIGHT_MANUAL = "light_set_manual_mode"
+SERVICE_SET_LIGHT_AUTO = "light_set_auto_schedule"
+SERVICE_ENABLE_LIGHT_AUTO = "light_set_mode"
+SERVICE_CLEAR_LIGHT_SCHEDULES = "light_clear_schedules"
 
-# Schema matches our pure generator: generate_doser_set_daily_dose_sequence
-DOSER_SCHEDULE_SCHEMA = vol.Schema(
-    {
-        vol.Required("device_id"): cv.string,
-        vol.Required("head_index"): vol.All(vol.Coerce(int), vol.Range(min=1, max=4)),
-        vol.Required("volume_ml"): vol.All(vol.Coerce(float), vol.Range(min=0.0)),
-        vol.Required("hour"): vol.All(vol.Coerce(int), vol.Range(min=0, max=23)),
-        vol.Required("minute"): vol.All(vol.Coerce(int), vol.Range(min=0, max=59)),
-        vol.Optional("weekdays"): cv.ensure_list,
-    }
-)
+DOSER_SCHEDULE_SCHEMA = vol.Schema({
+    vol.Required("device_id"): cv.string,
+    vol.Required("head_index"): vol.All(vol.Coerce(int), vol.Range(min=1, max=4)),
+    vol.Required("volume_ml"): vol.All(vol.Coerce(float), vol.Range(min=0.0)),
+    vol.Required("hour"): vol.All(vol.Coerce(int), vol.Range(min=0, max=23)),
+    vol.Required("minute"): vol.All(vol.Coerce(int), vol.Range(min=0, max=59)),
+    vol.Optional("weekdays"): cv.ensure_list,
+})
+
+LIGHT_MANUAL_SCHEMA = vol.Schema({
+    vol.Required("device_id"): cv.string,
+    vol.Optional("white", default=0): vol.All(vol.Coerce(int), vol.Range(min=0, max=100)),
+    vol.Optional("red", default=0): vol.All(vol.Coerce(int), vol.Range(min=0, max=100)),
+    vol.Optional("green", default=0): vol.All(vol.Coerce(int), vol.Range(min=0, max=100)),
+    vol.Optional("blue", default=0): vol.All(vol.Coerce(int), vol.Range(min=0, max=100)),
+})
+
+LIGHT_AUTO_SCHEMA = vol.Schema({
+    vol.Required("device_id"): cv.string,
+    vol.Required("sunrise_hour"): vol.All(vol.Coerce(int), vol.Range(min=0, max=23)),
+    vol.Required("sunrise_minute"): vol.All(vol.Coerce(int), vol.Range(min=0, max=59)),
+    vol.Required("sunset_hour"): vol.All(vol.Coerce(int), vol.Range(min=0, max=23)),
+    vol.Required("sunset_minute"): vol.All(vol.Coerce(int), vol.Range(min=0, max=59)),
+    vol.Optional("white", default=0): vol.All(vol.Coerce(int), vol.Range(min=0, max=100)),
+    vol.Optional("red", default=0): vol.All(vol.Coerce(int), vol.Range(min=0, max=100)),
+    vol.Optional("green", default=0): vol.All(vol.Coerce(int), vol.Range(min=0, max=100)),
+    vol.Optional("blue", default=0): vol.All(vol.Coerce(int), vol.Range(min=0, max=100)),
+})
+
+LIGHT_MODE_SCHEMA = vol.Schema({
+    vol.Required("device_id"): cv.string,
+    vol.Required("mode"): vol.In(["auto", "manual", "off"]),
+})
+
+LIGHT_CLEAR_SCHEMA = vol.Schema({
+    vol.Required("device_id"): cv.string,
+})
 
 
 async def _async_execute_commands(hass: HomeAssistant, address: str, commands: list[bytearray]) -> None:
@@ -59,7 +90,6 @@ async def _async_execute_commands(hass: HomeAssistant, address: str, commands: l
         for i, cmd in enumerate(commands):
             _LOGGER.debug("Writing command %d/%d: %s", i + 1, len(commands), cmd.hex())
             await client.write_gatt_char(UART_TX_UUID, cmd, response=False)
-            # Small buffer to prevent overwhelming the ESPHome proxy or device UART
             await asyncio.sleep(0.1)
 
         _LOGGER.info("Successfully pushed configuration to %s", address)
@@ -71,6 +101,23 @@ async def _async_execute_commands(hass: HomeAssistant, address: str, commands: l
             await client.disconnect()
 
 
+def _get_coordinator(hass: HomeAssistant, device_id: str) -> AquaBleCoordinator:
+    """Resolve a HA device_id to its AquaBleCoordinator."""
+    dev_reg = dr.async_get(hass)
+    device = dev_reg.async_get(device_id)
+    if not device:
+        raise HomeAssistantError(f"Device {device_id} not found in registry")
+
+    for identifier in device.identifiers:
+        if identifier[0] == DOMAIN:
+            mac_address = identifier[1]
+            for coord in hass.data[DOMAIN].values():
+                if coord.address == mac_address:
+                    return coord
+                    
+    raise HomeAssistantError(f"Active coordinator not found for device {device_id}")
+
+
 async def async_setup_services(hass: HomeAssistant) -> None:
     """Register custom services for AquaBle."""
     
@@ -79,54 +126,76 @@ async def async_setup_services(hass: HomeAssistant) -> None:
     hass.data[f"{DOMAIN}_services_registered"] = True
 
     async def handle_set_doser_schedule(call: ServiceCall) -> None:
-        """Handle the service call to set a doser schedule."""
-        device_id = call.data["device_id"]
-        
-        dev_reg = dr.async_get(hass)
-        device = dev_reg.async_get(device_id)
-        if not device:
-            raise HomeAssistantError(f"Device {device_id} not found in registry")
-
-        coordinator: AquaBleCoordinator | None = None
-        for identifier in device.identifiers:
-            if identifier[0] == DOMAIN:
-                mac_address = identifier[1]
-                for coord in hass.data[DOMAIN].values():
-                    if coord.address == mac_address:
-                        coordinator = coord
-                        break
-                
-        if not coordinator:
-            raise HomeAssistantError(f"Active coordinator not found for device {device_id}")
-
-        # 1. Extract and convert arguments
-        head_index = call.data["head_index"]
+        coord = _get_coordinator(hass, call.data["device_id"])
         volume_tenths_ml = int(call.data["volume_ml"] * 10)
-        hour = call.data["hour"]
-        minute = call.data["minute"]
-        weekdays = call.data.get("weekdays")
-
-        # 2. Call the pure functional generator to get the exact bytes
-        # We start with msg_id (0, 0) as it's a fresh stateless connection
-        _, commands = generate_doser_set_daily_dose_sequence(
-            start_msg_id=(0, 0),
-            head_index=head_index,
-            volume_tenths_ml=volume_tenths_ml,
-            hour=hour,
-            minute=minute,
-            weekdays=weekdays,
-        )
-
-        # 3. Connect and execute
-        await _async_execute_commands(hass, coordinator.address, commands)
         
-        # 4. Trigger an immediate poll so the Dashboard updates to reflect the new schedule
-        await coordinator.async_request_refresh()
+        _, commands = generators.generate_doser_set_daily_dose_sequence(
+            start_msg_id=(0, 0),
+            head_index=call.data["head_index"],
+            volume_tenths_ml=volume_tenths_ml,
+            hour=call.data["hour"],
+            minute=call.data["minute"],
+            weekdays=call.data.get("weekdays"),
+        )
+        await _async_execute_commands(hass, coord.address, commands)
+        await coord.async_request_refresh()
+
+    async def handle_light_manual_mode(call: ServiceCall) -> None:
+        coord = _get_coordinator(hass, call.data["device_id"])
+        # Map kwargs to channel indices based on domain models (White:0, Red:0, Green:1, Blue:2 depending on light)
+        # Using a unified map for WRGB for now:
+        colors = {
+            0: call.data["red"] or call.data["white"], 
+            1: call.data["green"], 
+            2: call.data["blue"],
+            3: call.data["white"]
+        }
+        _, commands = generators.generate_light_set_brightness_sequence((0, 0), colors)
+        await _async_execute_commands(hass, coord.address, commands)
+        await coord.async_request_refresh()
+
+    async def handle_light_auto_schedule(call: ServiceCall) -> None:
+        coord = _get_coordinator(hass, call.data["device_id"])
+        sunrise = datetime.time(call.data["sunrise_hour"], call.data["sunrise_minute"])
+        sunset = datetime.time(call.data["sunset_hour"], call.data["sunset_minute"])
+        brightness = (
+            call.data["red"] or call.data["white"],
+            call.data["green"],
+            call.data["blue"],
+            call.data["white"]
+        )
+        
+        _, commands = generators.generate_light_add_auto_setting_sequence(
+            (0, 0), sunrise, sunset, brightness
+        )
+        await _async_execute_commands(hass, coord.address, commands)
+        await coord.async_request_refresh()
+
+    async def handle_light_set_mode(call: ServiceCall) -> None:
+        coord = _get_coordinator(hass, call.data["device_id"])
+        mode = call.data["mode"]
+        if mode == "auto":
+            _, commands = generators.generate_light_enable_auto_mode_sequence((0, 0))
+        elif mode == "off":
+            _, commands = generators.generate_light_set_brightness_sequence((0, 0), {0:0, 1:0, 2:0, 3:0})
+        else: # Manual
+            # We don't have a specific "enable manual" command other than setting a color, 
+            # so we just let light_set_manual_mode handle actual manual setting.
+            return
+            
+        await _async_execute_commands(hass, coord.address, commands)
+        await coord.async_request_refresh()
+
+    async def handle_light_clear_schedules(call: ServiceCall) -> None:
+        coord = _get_coordinator(hass, call.data["device_id"])
+        _, commands = generators.generate_light_clear_schedules_sequence((0, 0))
+        await _async_execute_commands(hass, coord.address, commands)
+        await coord.async_request_refresh()
 
 
-    hass.services.async_register(
-        DOMAIN,
-        SERVICE_SET_DOSER_SCHEDULE,
-        handle_set_doser_schedule,
-        schema=DOSER_SCHEDULE_SCHEMA,
-    )
+    # Register all services
+    hass.services.async_register(DOMAIN, SERVICE_SET_DOSER_SCHEDULE, handle_set_doser_schedule, schema=DOSER_SCHEDULE_SCHEMA)
+    hass.services.async_register(DOMAIN, SERVICE_SET_LIGHT_MANUAL, handle_light_manual_mode, schema=LIGHT_MANUAL_SCHEMA)
+    hass.services.async_register(DOMAIN, SERVICE_SET_LIGHT_AUTO, handle_light_auto_schedule, schema=LIGHT_AUTO_SCHEMA)
+    hass.services.async_register(DOMAIN, SERVICE_ENABLE_LIGHT_AUTO, handle_light_set_mode, schema=LIGHT_MODE_SCHEMA)
+    hass.services.async_register(DOMAIN, SERVICE_CLEAR_LIGHT_SCHEDULES, handle_light_clear_schedules, schema=LIGHT_CLEAR_SCHEMA)
