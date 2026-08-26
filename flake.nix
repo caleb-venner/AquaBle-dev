@@ -7,11 +7,16 @@
 
   outputs = { self, nixpkgs }:
     let
-      system = "x86_64-linux";
-      pkgs = nixpkgs.legacyPackages.${system};
+      supportedSystems = [ "x86_64-linux" "aarch64-linux" "x86_64-darwin" "aarch64-darwin" ];
+      forAllSystems = nixpkgs.lib.genAttrs supportedSystems;
     in
     {
-      devShells.${system}.default = pkgs.mkShell {
+      devShells = forAllSystems (system:
+        let
+          pkgs = nixpkgs.legacyPackages.${system};
+        in
+        {
+          default = pkgs.mkShell {
         packages = with pkgs; [
           # Backend dependencies
           python313
@@ -37,6 +42,8 @@
           echo "- Node.js: $(node --version)"
           echo "- npm: $(npm --version)"
         '';
-      };
+          };
+        }
+      );
     };
 }
