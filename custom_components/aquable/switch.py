@@ -1,9 +1,10 @@
-"""Sensor platform for AquaBle."""
+"""Switch platform for AquaBle."""
 from __future__ import annotations
 
 import logging
+from typing import Any
 
-from homeassistant.components.sensor import SensorEntity
+from homeassistant.components.switch import SwitchEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -18,6 +19,6 @@ async def async_setup_entry(
     entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """Set up AquaBle sensors."""
-    # TODO: Fetch coordinator from hass.data and set up relevant sensor entities
+    """Set up AquaBle switches."""
+    # TODO: Fetch coordinator from hass.data and set up Switch entities (e.g. doser pumps)
     pass

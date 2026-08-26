@@ -1,7 +1,7 @@
 """Command encoders and related helpers for Chihiros devices."""
 
 import datetime
-from typing import Iterable, Sequence
+from collections.abc import Iterable, Sequence
 
 
 def _calculate_checksum(input_bytes: bytes) -> int:
@@ -68,6 +68,7 @@ def next_message_id(current_msg_id: tuple[int, int] = (0, 0)) -> tuple[int, int]
 
     Raises:
         ValueError: If current_msg_id contains invalid values
+
     """
     msg_id_higher_byte, msg_id_lower_byte = current_msg_id
 
@@ -105,6 +106,7 @@ def reset_message_id() -> tuple[int, int]:
 
     Returns:
         Initial message ID for a new session
+
     """
     return (0, 1)
 
@@ -120,6 +122,7 @@ def is_message_id_exhausted(current_msg_id: tuple[int, int]) -> bool:
 
     Returns:
         True if message ID is in the last 10% of available values
+
     """
     higher, lower = current_msg_id
     # Total possible values: 256 * 256 = 65536, minus skipped values
@@ -164,6 +167,7 @@ def encode_weekdays(weekdays: Sequence[str] | None) -> int:
     Examples:
         encode_weekdays(["monday", "wednesday"]) -> 84 (64 | 16)
         encode_weekdays(None) -> 127 (everyday)
+
     """
     if weekdays is None or not weekdays:
         return 127  # Default to everyday (all days)
