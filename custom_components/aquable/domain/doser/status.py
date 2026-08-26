@@ -8,6 +8,7 @@ MODE_NAMES = {
     0x04: "disabled",
 }
 
+
 @dataclass(slots=True)
 class HeadSnapshot:
     mode: int
@@ -21,6 +22,7 @@ class HeadSnapshot:
 
     def dosed_ml(self) -> float:
         return self.dosed_tenths_ml / 10
+
 
 @dataclass(slots=True)
 class DoserStatus:
@@ -39,7 +41,7 @@ class DoserStatus:
     def lifetime_totals_ml(self) -> list[float]:
         return [total / 10.0 for total in self.lifetime_totals_tenths_ml]
 
-    def update_from(self, other: 'DoserStatus') -> None:
+    def update_from(self, other: "DoserStatus") -> None:
         if other.heads:
             self.heads = other.heads
         if other.tail_targets:

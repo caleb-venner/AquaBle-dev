@@ -6,6 +6,7 @@ from ..validation import ensure_unique_values
 Weekday = Literal["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
 ModeKind = Literal["single", "every_hour", "custom_periods", "timer"]
 
+
 @dataclass(slots=True)
 class Recurrence:
     days: list[str]
@@ -15,11 +16,13 @@ class Recurrence:
             raise ValueError("Recurrence must include at least one day")
         ensure_unique_values(self.days, "weekday")
 
+
 @dataclass(slots=True)
 class SingleSchedule:
     dailyDoseMl: float
     startTime: str
     mode: str = "single"
+
 
 @dataclass(slots=True)
 class EveryHourSchedule:
@@ -27,11 +30,13 @@ class EveryHourSchedule:
     startTime: str
     mode: str = "every_hour"
 
+
 @dataclass(slots=True)
 class CustomPeriod:
     startTime: str
     endTime: str
     doses: int
+
 
 @dataclass(slots=True)
 class CustomPeriodsSchedule:
@@ -46,10 +51,12 @@ class CustomPeriodsSchedule:
         if total_doses > 24:
             raise ValueError("Custom periods schedule cannot exceed 24 doses in total")
 
+
 @dataclass(slots=True)
 class TimerDose:
     time: str
     quantityMl: float
+
 
 @dataclass(slots=True)
 class TimerSchedule:
@@ -63,6 +70,7 @@ class TimerSchedule:
             raise ValueError("Timer schedule requires at least one dose")
         if len(self.doses) > 24:
             raise ValueError("Timer schedule cannot include more than 24 doses")
+
 
 def parse_schedule(data: dict) -> Any:
     mode = data.get("mode")
@@ -78,6 +86,6 @@ def parse_schedule(data: dict) -> Any:
         return TimerSchedule(
             doses=doses,
             defaultDoseQuantityMl=data.get("defaultDoseQuantityMl"),
-            dailyDoseMl=data.get("dailyDoseMl")
+            dailyDoseMl=data.get("dailyDoseMl"),
         )
     raise ValueError(f"Unknown schedule mode: {mode}")

@@ -4,13 +4,11 @@ import datetime
 from collections.abc import Iterable, Sequence
 
 
-def _calculate_checksum(input_bytes: bytes) -> int:
-    """Calculate XOR-based checksum used by the light command encoder.
+def _calculate_checksum(input_bytes: bytes | bytearray) -> int:
+    """Calculate the verification byte for an encoded command.
 
-    This checksum starts with the second byte and XORs all subsequent
-    bytes. The function name was previously `_calculate_light_checksum` but
-    is generalized now since it is the canonical checksum for the encoder
-    command framing.
+    The checksum is an XOR of all bytes from index 1 (length byte)
+    to the end of the payload.
     """
     assert len(input_bytes) >= 7  # commands are always at least 7 bytes long
     checksum = input_bytes[1]

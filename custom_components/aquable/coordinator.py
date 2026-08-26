@@ -1,4 +1,5 @@
 """DataUpdateCoordinator for AquaBle devices."""
+
 from __future__ import annotations
 
 import asyncio
@@ -8,14 +9,13 @@ from typing import Any
 
 from bleak import BleakClient, BleakError
 from bleak_retry_connector import establish_connection
-
 from homeassistant.components import bluetooth
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
-from .const import DOMAIN, DEVICE_TYPE_DOSER
 from .commands.generators import generate_handshake_sequence
 from .commands.parsers import parse_doser_payload, parse_light_payload
+from .const import DEVICE_TYPE_DOSER, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -63,20 +63,20 @@ class AquaBleCoordinator(DataUpdateCoordinator):
 
             # Prepare to capture the notification
             response_future = asyncio.get_running_loop().create_future()
-            
+
             # Simple notification handler. In a robust setup with fragmented payloads,
             # we might accumulate bytes. Chihiros statuses often fit in one MTU or are sent rapidly.
             def notification_handler(sender, data: bytearray):
                 if not response_future.done():
                     response_future.set_result(data)
-                    
+
             await client.start_notify(UART_RX_UUID, notification_handler)
-            
+
             # Generate and send the handshake command
             self._msg_id, commands = generate_handshake_sequence(self._msg_id)
             for cmd in commands:
                 await client.write_gatt_char(UART_TX_UUID, cmd, response=False)
-                
+
             # Wait for response (with timeout)
             try:
                 payload = await asyncio.wait_for(response_future, timeout=5.0)
@@ -84,16 +84,16 @@ class AquaBleCoordinator(DataUpdateCoordinator):
                 raise UpdateFailed("Timeout waiting for response from device")
             finally:
                 await client.stop_notify(UART_RX_UUID)
-                
+
             # Parse the response using our functional parsers
             if self.device_type == DEVICE_TYPE_DOSER:
                 status = parse_doser_payload(bytes(payload))
             else:
                 status = parse_light_payload(bytes(payload))
-                
+
             if not status:
                 raise UpdateFailed("Failed to parse status payload")
-                
+
             return status
 
         except BleakError as err:

@@ -13,6 +13,7 @@ class ChannelDef:
     step: int
     color: str | None = None
 
+
 @dataclass(slots=True)
 class LightProfileRevision:
     revision: int
@@ -22,11 +23,12 @@ class LightProfileRevision:
     savedBy: str | None = None
 
     @classmethod
-    def from_dict(cls, data: dict) -> 'LightProfileRevision':
+    def from_dict(cls, data: dict) -> "LightProfileRevision":
         data = data.copy()
         if "profile" in data and isinstance(data["profile"], dict):
             data["profile"] = parse_profile(data["profile"])
         return cls(**data)
+
 
 @dataclass(slots=True)
 class LightConfiguration:
@@ -49,8 +51,11 @@ class LightConfiguration:
         return self.revisions[-1]
 
     @classmethod
-    def from_dict(cls, data: dict) -> 'LightConfiguration':
+    def from_dict(cls, data: dict) -> "LightConfiguration":
         data = data.copy()
         if "revisions" in data:
-            data["revisions"] = [LightProfileRevision.from_dict(r) if isinstance(r, dict) else r for r in data["revisions"]]
+            data["revisions"] = [
+                LightProfileRevision.from_dict(r) if isinstance(r, dict) else r
+                for r in data["revisions"]
+            ]
         return cls(**data)

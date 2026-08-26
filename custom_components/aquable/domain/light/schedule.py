@@ -7,15 +7,18 @@ class ManualProfile:
     levels: dict[str, int]
     mode: str = "manual"
 
+
 @dataclass(slots=True)
 class CustomKeyframe:
     time: str
     levels: dict[str, int]
 
+
 @dataclass(slots=True)
 class CustomProfile:
     points: list[CustomKeyframe]
     mode: str = "custom"
+
 
 @dataclass(slots=True)
 class AutoProgram:
@@ -25,10 +28,12 @@ class AutoProgram:
     rampDownMinutes: int
     levels: dict[str, int]
 
+
 @dataclass(slots=True)
 class AutoProfile:
     programs: list[AutoProgram]
     mode: str = "auto"
+
 
 def parse_profile(data: dict) -> Any:
     mode = data.get("mode")

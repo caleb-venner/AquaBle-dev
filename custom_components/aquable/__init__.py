@@ -1,4 +1,5 @@
 """The AquaBle integration."""
+
 from __future__ import annotations
 
 import logging
@@ -17,13 +18,14 @@ PLATFORMS: list[Platform] = [
     Platform.SENSOR,
 ]
 
+
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up AquaBle from a config entry."""
     hass.data.setdefault(DOMAIN, {})
-    
+
     address = entry.data[CONF_ADDRESS]
     device_type = entry.data[CONF_DEVICE_TYPE]
-    
+
     _LOGGER.debug("Setting up AquaBle device: %s (%s)", address, device_type)
 
     coordinator = AquaBleCoordinator(hass, address, device_type)
@@ -32,12 +34,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     await coordinator.async_config_entry_first_refresh()
 
     hass.data[DOMAIN][entry.entry_id] = coordinator
-    
+
     # Register our custom configuration services (Actions)
     await async_setup_services(hass)
-    
+
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True
+
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""

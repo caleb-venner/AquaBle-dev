@@ -10,6 +10,7 @@ class LightKeyframe:
     def as_time(self) -> str:
         return f"{self.hour:02d}:{self.minute:02d}"
 
+
 @dataclass(slots=True)
 class LightStatus:
     message_id: tuple[int, int] | None

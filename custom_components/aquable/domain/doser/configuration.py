@@ -13,6 +13,7 @@ class VolumeTracking:
     lowThresholdMl: float | None = None
     updatedAt: str | None = None
 
+
 @dataclass(slots=True)
 class Calibration:
     mlPerSecond: float
@@ -22,10 +23,12 @@ class Calibration:
         if self.mlPerSecond <= 0:
             raise ValueError("mlPerSecond must be > 0")
 
+
 @dataclass(slots=True)
 class DoserHeadStats:
     dosesToday: int | None = None
     mlDispensedToday: float | None = None
+
 
 @dataclass(slots=True)
 class DoserHead:
@@ -40,7 +43,7 @@ class DoserHead:
     stats: DoserHeadStats | None = None
 
     @classmethod
-    def from_dict(cls, data: dict) -> 'DoserHead':
+    def from_dict(cls, data: dict) -> "DoserHead":
         data = data.copy()
         if "schedule" in data and isinstance(data["schedule"], dict):
             data["schedule"] = parse_schedule(data["schedule"])
@@ -53,6 +56,7 @@ class DoserHead:
         if "stats" in data and isinstance(data["stats"], dict):
             data["stats"] = DoserHeadStats(**data["stats"])
         return cls(**data)
+
 
 @dataclass(slots=True)
 class ConfigurationRevision:
@@ -70,11 +74,14 @@ class ConfigurationRevision:
         ensure_unique_values([str(head.index) for head in self.heads], "head index")
 
     @classmethod
-    def from_dict(cls, data: dict) -> 'ConfigurationRevision':
+    def from_dict(cls, data: dict) -> "ConfigurationRevision":
         data = data.copy()
         if "heads" in data:
-            data["heads"] = [DoserHead.from_dict(h) if isinstance(h, dict) else h for h in data["heads"]]
+            data["heads"] = [
+                DoserHead.from_dict(h) if isinstance(h, dict) else h for h in data["heads"]
+            ]
         return cls(**data)
+
 
 @dataclass(slots=True)
 class DeviceConfiguration:
@@ -102,8 +109,11 @@ class DeviceConfiguration:
         return self.revisions[-1]
 
     @classmethod
-    def from_dict(cls, data: dict) -> 'DeviceConfiguration':
+    def from_dict(cls, data: dict) -> "DeviceConfiguration":
         data = data.copy()
         if "revisions" in data:
-            data["revisions"] = [ConfigurationRevision.from_dict(r) if isinstance(r, dict) else r for r in data["revisions"]]
+            data["revisions"] = [
+                ConfigurationRevision.from_dict(r) if isinstance(r, dict) else r
+                for r in data["revisions"]
+            ]
         return cls(**data)

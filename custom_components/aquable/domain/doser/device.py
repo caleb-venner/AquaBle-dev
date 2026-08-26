@@ -13,6 +13,7 @@ class DoserMetadata:
     createdAt: str | None = None
     updatedAt: str | None = None
 
+
 @dataclass(slots=True)
 class DoserDevice:
     id: str
@@ -47,10 +48,13 @@ class DoserDevice:
         return self.get_configuration(self.activeConfigurationId)
 
     @classmethod
-    def from_dict(cls, data: dict) -> 'DoserDevice':
+    def from_dict(cls, data: dict) -> "DoserDevice":
         data = data.copy()
         if "configurations" in data:
-            data["configurations"] = [DeviceConfiguration.from_dict(c) if isinstance(c, dict) else c for c in data["configurations"]]
+            data["configurations"] = [
+                DeviceConfiguration.from_dict(c) if isinstance(c, dict) else c
+                for c in data["configurations"]
+            ]
         if "headNames" in data and isinstance(data["headNames"], dict):
             data["headNames"] = {int(k): v for k, v in data["headNames"].items()}
         return cls(**data)

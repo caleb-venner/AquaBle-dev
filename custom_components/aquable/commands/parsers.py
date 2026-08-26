@@ -150,7 +150,7 @@ def _split_body(
 
 def parse_light_payload(payload: bytes) -> LightStatus | None:
     """Decode a WRGB status payload into keyframes and markers.
-    
+
     Includes safety checks previously housed in the LightDevice class.
     """
     if not payload or len(payload) < 6 or payload[0] != 0x5B:

@@ -6,7 +6,9 @@ from .configuration import ChannelDef, LightConfiguration
 from .schedule import AutoProfile, CustomProfile, ManualProfile
 
 
-def _validate_levels_for_channels(levels: dict[str, int], channel_map: dict[str, ChannelDef]) -> None:
+def _validate_levels_for_channels(
+    levels: dict[str, int], channel_map: dict[str, ChannelDef]
+) -> None:
     expected = set(channel_map)
     provided = set(levels)
     missing = expected - provided
@@ -23,6 +25,7 @@ def _validate_levels_for_channels(levels: dict[str, int], channel_map: dict[str,
         if (val - cdef.min) % cdef.step != 0:
             raise ValueError(f"Level {val} must align with step {cdef.step}")
 
+
 def _validate_profile_for_channels(profile: Any, channel_map: dict[str, ChannelDef]) -> None:
     if isinstance(profile, ManualProfile):
         _validate_levels_for_channels(profile.levels, channel_map)
@@ -32,6 +35,7 @@ def _validate_profile_for_channels(profile: Any, channel_map: dict[str, ChannelD
     elif isinstance(profile, AutoProfile):
         for p in profile.programs:
             _validate_levels_for_channels(p.levels, channel_map)
+
 
 @dataclass(slots=True)
 class LightDevice:
@@ -79,10 +83,15 @@ class LightDevice:
         return self.get_configuration(self.activeConfigurationId)
 
     @classmethod
-    def from_dict(cls, data: dict) -> 'LightDevice':
+    def from_dict(cls, data: dict) -> "LightDevice":
         data = data.copy()
         if "channels" in data:
-            data["channels"] = [ChannelDef(**c) if isinstance(c, dict) else c for c in data["channels"]]
+            data["channels"] = [
+                ChannelDef(**c) if isinstance(c, dict) else c for c in data["channels"]
+            ]
         if "configurations" in data:
-            data["configurations"] = [LightConfiguration.from_dict(c) if isinstance(c, dict) else c for c in data["configurations"]]
+            data["configurations"] = [
+                LightConfiguration.from_dict(c) if isinstance(c, dict) else c
+                for c in data["configurations"]
+            ]
         return cls(**data)

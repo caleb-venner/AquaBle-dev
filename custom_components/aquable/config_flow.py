@@ -1,4 +1,5 @@
 """Config flow for AquaBle integration."""
+
 from __future__ import annotations
 
 import logging
@@ -6,7 +7,6 @@ import re
 from typing import Any
 
 import voluptuous as vol
-
 from homeassistant import config_entries
 from homeassistant.components.bluetooth import (
     BluetoothServiceInfoBleak,
@@ -49,9 +49,7 @@ class AquaBleConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self._discovered_model_info: DeviceModelInfo | None = None
         self._discovered_devices: dict[str, BluetoothServiceInfoBleak] = {}
 
-    async def async_step_bluetooth(
-        self, discovery_info: BluetoothServiceInfoBleak
-    ) -> FlowResult:
+    async def async_step_bluetooth(self, discovery_info: BluetoothServiceInfoBleak) -> FlowResult:
         """Handle the bluetooth discovery step."""
         await self.async_set_unique_id(discovery_info.address)
         self._abort_if_unique_id_configured()
@@ -90,9 +88,7 @@ class AquaBleConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             description_placeholders={"name": self._discovered_device_name},
         )
 
-    async def async_step_user(
-        self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
+    async def async_step_user(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         """Handle the user step to manually pick a discovered device."""
         if user_input is not None:
             address = user_input[CONF_ADDRESS]

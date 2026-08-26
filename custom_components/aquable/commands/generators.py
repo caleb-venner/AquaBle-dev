@@ -80,15 +80,15 @@ def generate_doser_set_daily_dose_sequence(
 
     # 7. Head dose (volume & days)
     msg_id = encoder.next_message_id(msg_id)
-    commands.append(encoder.create_head_dose_command(
-        msg_id, ble_head_index, volume_tenths_ml, weekday_mask=weekday_mask
-    ))
+    commands.append(
+        encoder.create_head_dose_command(
+            msg_id, ble_head_index, volume_tenths_ml, weekday_mask=weekday_mask
+        )
+    )
 
     # 8. Head schedule (time)
     msg_id = encoder.next_message_id(msg_id)
-    commands.append(encoder.create_head_schedule_command(
-        msg_id, ble_head_index, hour, minute
-    ))
+    commands.append(encoder.create_head_schedule_command(msg_id, ble_head_index, hour, minute))
 
     return msg_id, commands
 
@@ -121,9 +121,7 @@ def generate_light_set_brightness_sequence(
     for channel_id in sorted(colors.keys()):
         brightness_value = colors[channel_id]
         msg_id = encoder.next_message_id(msg_id)
-        commands.append(encoder.create_manual_setting_command(
-            msg_id, channel_id, brightness_value
-        ))
+        commands.append(encoder.create_manual_setting_command(msg_id, channel_id, brightness_value))
 
     return msg_id, commands
 
@@ -150,8 +148,9 @@ def generate_light_add_auto_setting_sequence(
     )
     return msg_id, [cmd]
 
+
 def generate_light_enable_auto_mode_sequence(
-    start_msg_id: tuple[int, int]
+    start_msg_id: tuple[int, int],
 ) -> tuple[tuple[int, int], list[bytearray]]:
     """Generate sequence to switch light to auto mode and sync time."""
     msg_id = start_msg_id
@@ -165,15 +164,17 @@ def generate_light_enable_auto_mode_sequence(
 
     return msg_id, commands
 
+
 def generate_handshake_sequence(
-    start_msg_id: tuple[int, int]
+    start_msg_id: tuple[int, int],
 ) -> tuple[tuple[int, int], list[bytearray]]:
     """Generate a single handshake request (used for status retrieval)."""
     msg_id = encoder.next_message_id(start_msg_id)
     return msg_id, [encoder.create_handshake_command(msg_id)]
 
+
 def generate_light_clear_schedules_sequence(
-    start_msg_id: tuple[int, int]
+    start_msg_id: tuple[int, int],
 ) -> tuple[tuple[int, int], list[bytearray]]:
     """Generate sequence to clear all auto schedules."""
     msg_id = encoder.next_message_id(start_msg_id)
