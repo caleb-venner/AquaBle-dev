@@ -7,13 +7,12 @@ import re
 from typing import Any
 
 import voluptuous as vol
-from homeassistant import config_entries
 from homeassistant.components.bluetooth import (
     BluetoothServiceInfoBleak,
     async_discovered_service_info,
 )
+from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
 from homeassistant.const import CONF_ADDRESS, CONF_NAME
-from homeassistant.data_entry_flow import FlowResult
 
 from .const import CONF_DEVICE_TYPE, DEVICE_REGISTRY, DOMAIN, DeviceModelInfo
 
@@ -37,7 +36,7 @@ def match_device_model(device_name: str | None) -> tuple[str, DeviceModelInfo] |
     return None
 
 
-class AquaBleConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
+class AquaBleConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle a config flow for AquaBle."""
 
     VERSION = 1
@@ -49,7 +48,9 @@ class AquaBleConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self._discovered_model_info: DeviceModelInfo | None = None
         self._discovered_devices: dict[str, BluetoothServiceInfoBleak] = {}
 
-    async def async_step_bluetooth(self, discovery_info: BluetoothServiceInfoBleak) -> FlowResult:
+    async def async_step_bluetooth(
+        self, discovery_info: BluetoothServiceInfoBleak
+    ) -> ConfigFlowResult:
         """Handle the bluetooth discovery step."""
         await self.async_set_unique_id(discovery_info.address)
         self._abort_if_unique_id_configured()
@@ -70,8 +71,11 @@ class AquaBleConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     async def async_step_bluetooth_confirm(
         self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
+    ) -> ConfigFlowResult:
         """Confirm discovery."""
+        if self._discovery_info is None or self._discovered_model_info is None:
+            return self.async_abort(reason="not_supported")
+
         if user_input is not None:
             return self.async_create_entry(
                 title=self._discovered_device_name or self._discovery_info.address,
@@ -85,10 +89,12 @@ class AquaBleConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self._set_confirm_only()
         return self.async_show_form(
             step_id="bluetooth_confirm",
-            description_placeholders={"name": self._discovered_device_name},
+            description_placeholders={
+                "name": self._discovered_device_name or self._discovery_info.address
+            },
         )
 
-    async def async_step_user(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+    async def async_step_user(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         """Handle the user step to manually pick a discovered device."""
         if user_input is not None:
             address = user_input[CONF_ADDRESS]

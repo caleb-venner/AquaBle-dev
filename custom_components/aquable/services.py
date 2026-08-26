@@ -7,7 +7,8 @@ import datetime
 import logging
 
 import voluptuous as vol
-from bleak import BleakClient, BleakError
+from bleak import BleakClient
+from bleak.exc import BleakError
 from bleak_retry_connector import establish_connection
 from homeassistant.components import bluetooth
 from homeassistant.core import HomeAssistant, ServiceCall
@@ -177,7 +178,8 @@ async def async_setup_services(hass: HomeAssistant) -> None:
 
     async def handle_light_manual_mode(call: ServiceCall) -> None:
         coord = _get_coordinator(hass, call.data["device_id"])
-        # Map kwargs to channel indices based on domain models (White:0, Red:0, Green:1, Blue:2 depending on light)
+        # Map kwargs to channel indices based on domain models
+        # (White:0, Red:0, Green:1, Blue:2 depending on light)
         # Using a unified map for WRGB for now:
         colors = {
             0: call.data["red"] or call.data["white"],

@@ -7,7 +7,8 @@ import logging
 from datetime import timedelta
 from typing import Any
 
-from bleak import BleakClient, BleakError
+from bleak import BleakClient
+from bleak.exc import BleakError
 from bleak_retry_connector import establish_connection
 from homeassistant.components import bluetooth
 from homeassistant.core import HomeAssistant
@@ -16,6 +17,8 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 from .commands.generators import generate_handshake_sequence
 from .commands.parsers import parse_doser_payload, parse_light_payload
 from .const import DEVICE_TYPE_DOSER, DOMAIN
+from .domain.doser.status import DoserStatus
+from .domain.light.status import LightStatus
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -25,7 +28,7 @@ UART_TX_UUID = "6e400002-b5a3-f393-e0a9-e50e24dcca9e"  # We write to this (RX on
 UART_RX_UUID = "6e400003-b5a3-f393-e0a9-e50e24dcca9e"  # We read from this (TX on device)
 
 
-class AquaBleCoordinator(DataUpdateCoordinator):
+class AquaBleCoordinator(DataUpdateCoordinator[DoserStatus | LightStatus]):
     """Coordinator to manage data updates from AquaBle devices."""
 
     def __init__(self, hass: HomeAssistant, address: str, device_type: str) -> None:

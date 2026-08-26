@@ -12,6 +12,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import DEVICE_TYPE_DOSER, DEVICE_TYPE_LIGHT, DOMAIN
 from .coordinator import AquaBleCoordinator
+from .domain.doser.status import DoserStatus
 from .entity import AquaBleEntity
 
 _LOGGER = logging.getLogger(__name__)
@@ -39,7 +40,7 @@ async def async_setup_entry(
     async_add_entities(entities)
 
 
-class DoserDailyTotalSensor(AquaBleEntity, SensorEntity):
+class DoserDailyTotalSensor(AquaBleEntity, SensorEntity):  # pyright: ignore[reportIncompatibleVariableOverride]
     """Sensor tracking the daily dosed volume for a specific pump head."""
 
     _attr_device_class = SensorDeviceClass.VOLUME
@@ -52,21 +53,31 @@ class DoserDailyTotalSensor(AquaBleEntity, SensorEntity):
         self.head_idx = head_idx
         self._attr_unique_id = f"{coordinator.address}_head_{head_idx}_daily_total"
         self._attr_name = f"Pump {head_idx} Daily Total"
+        self._update_native_value()
 
-    @property
-    def native_value(self) -> float | None:
-        """Return the daily total from the DoserStatus dataclass."""
-        if not self.coordinator.data:
-            return None
+    def _update_native_value(self) -> None:
+        """Update the daily total from the DoserStatus dataclass."""
+        data = self.coordinator.data
+        if not isinstance(data, DoserStatus):
+            self._attr_native_value = None
+            return
 
-        # self.coordinator.data is our pure DoserStatus dataclass from domain/doser/status.py
-        for head in self.coordinator.data.heads:
-            if head.index == self.head_idx:
-                return head.dosed_today_ml
-        return None
+        self._attr_native_value = next(
+            (
+                head.dosed_tenths_ml / 10
+                for index, head in enumerate(data.heads, start=1)
+                if index == self.head_idx
+            ),
+            None,
+        )
+
+    def _handle_coordinator_update(self) -> None:
+        """Handle coordinator updates."""
+        self._update_native_value()
+        super()._handle_coordinator_update()
 
 
-class LightModeSensor(AquaBleEntity, SensorEntity):
+class LightModeSensor(AquaBleEntity, SensorEntity):  # pyright: ignore[reportIncompatibleVariableOverride]
     """Sensor tracking the current mode of the light (Auto/Manual)."""
 
     def __init__(self, coordinator: AquaBleCoordinator) -> None:
@@ -74,12 +85,14 @@ class LightModeSensor(AquaBleEntity, SensorEntity):
         super().__init__(coordinator)
         self._attr_unique_id = f"{coordinator.address}_current_mode"
         self._attr_name = "Current Mode"
+        self._update_native_value()
 
-    @property
-    def native_value(self) -> str | None:
-        """Return the current mode from the LightStatus dataclass."""
-        if not self.coordinator.data:
-            return None
+    def _update_native_value(self) -> None:
+        """Update the current mode from the LightStatus dataclass."""
+        # LightStatus currently does not expose an Auto/Manual mode field.
+        self._attr_native_value = None
 
-        # self.coordinator.data is our pure LightStatus dataclass
-        return self.coordinator.data.mode.value if self.coordinator.data.mode else None
+    def _handle_coordinator_update(self) -> None:
+        """Handle coordinator updates."""
+        self._update_native_value()
+        super()._handle_coordinator_update()
