@@ -76,24 +76,11 @@ AquaBle integrates Chihiros aquarium equipment into Home Assistant over Bluetoot
 
 AquaBle includes two purpose-built Lovelace dashboard cards designed to replace the official app experience.
 
-<p align="center">
-  <img src="./assets/overview.png" width="75%" alt="AquaBle Device Cards - Overview">
-</p>
+| Overview | Edit Dose-head |
+| --- | --- |
+| ![AquaBle Device Cards - Overview](./assets/overview.png) | ![AquaBle Doser Card - Head Monitoring & Control](./assets/doser_head.png) | 
 
-### 1. Light Schedule & Control Card (`aquable-light-card`)
-
-A comprehensive 24-hour lighting controller featuring:
-- **Interactive 24-Hour Ramp Profile**: Dynamic SVG curve rendering real-time brightness curves across all colour channels (Red, Green, Blue, White) with an animated time-of-day indicator marker line.
-- **Configured Schedule Manager**: Visual list of active schedule slots displaying start/end times, ramp-up durations, active weekdays, and channel percentage pills.
-- **Click-to-Edit & Delete**: Click any configured schedule card to enter edit mode, modify parameters, or delete individual schedule slots from hardware memory.
-- **Schedule Timing & Peak Sliders**: Configure dawn/dusk hours, ramp duration (0–120 min), active weekday pills, and per-channel peak intensity sliders (0–100%).
-- **Manual Mode & Power Control**: Instant manual channel brightness sliders and one-touch mode switching (Auto, Manual, Off).
-
-| Add Schedule | Edit Schedule | Manual Control |
-| --- | --- | --- | 
-| ![AquaBle Light Card - Add Schedule](./assets/light_add-schedule.png) | ![AquaBle Light Card - Edit Schedule](./assets/light_edit-schedule.png) | ![AquaBle Light Card - Manual Control](./assets/light_manual-control.png)|
-
-### 2. Dosing Pump Card (`aquable-doser-card`)
+### 1. Dosing Pump Card (`aquable-doser-card`)
 
 A 4-head peristaltic pump dashboard featuring:
 - **Live Progress Grid**: 4-head monitoring grid displaying daily dosed volume vs target volume with animated progress bars and percentage completion badges.
@@ -101,9 +88,18 @@ A 4-head peristaltic pump dashboard featuring:
 - **Instant Manual Dosing**: One-tap quick dosing triggers (`+1.0 mL`, `+5.0 mL`, or custom volume inputs) with confirmation feedback.
 - **Head Schedule Configuration**: Tabbed configuration editor for daily dose volume targets, schedule run times (`HH:MM`), and active weekday filters.
 
-<p align="center">
-  <img src="./assets/doser_head.png" width="50%" alt="AquaBle Doser Card - Head Monitoring & Control">
-</p>
+| Add Schedule | Edit Schedule | Manual Control |
+| --- | --- | --- | 
+| ![AquaBle Light Card - Add Schedule](./assets/light_add-schedule.png) | ![AquaBle Light Card - Edit Schedule](./assets/light_edit-schedule.png) | ![AquaBle Light Card - Manual Control](./assets/light_manual-control.png)|
+
+### 2. Light Schedule & Control Card (`aquable-light-card`)
+
+A comprehensive 24-hour lighting controller featuring:
+- **Interactive 24-Hour Ramp Profile**: Dynamic SVG curve rendering real-time brightness curves across all colour channels (Red, Green, Blue, White) with an animated time-of-day indicator marker line.
+- **Configured Schedule Manager**: Visual list of active schedule slots displaying start/end times, ramp-up durations, active weekdays, and channel percentage pills.
+- **Click-to-Edit & Delete**: Click any configured schedule card to enter edit mode, modify parameters, or delete individual schedule slots from hardware memory.
+- **Schedule Timing & Peak Sliders**: Configure dawn/dusk hours, ramp duration (0–120 min), active weekday pills, and per-channel peak intensity sliders (0–100%).
+- **Manual Mode & Power Control**: Instant manual channel brightness sliders and one-touch mode switching (Auto, Manual, Off).
 
 ---
 
