@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import datetime
 import logging
+from typing import Any
 
 import voluptuous as vol
 from bleak import BleakClient
@@ -18,7 +19,7 @@ from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 
 from .commands import encoder, generators
-from .const import DOMAIN
+from .const import DOMAIN, DeviceModelInfo
 from .coordinator import UART_TX_UUID, AquaBleCoordinator
 from .domain.light.status import LightSchedule
 
@@ -178,6 +179,36 @@ def _get_coordinator(hass: HomeAssistant, device_id: str) -> AquaBleCoordinator:
     raise HomeAssistantError(f"Active coordinator not found for device or entity {device_id}")
 
 
+def _extract_channel_levels(
+    model_info: DeviceModelInfo | None, num_channels: int, data: dict[str, Any]
+) -> list[int]:
+    """Extract ordered channel brightness levels (0-100) from service call data."""
+    red = data.get("red", 0)
+    green = data.get("green", 0)
+    blue = data.get("blue", 0)
+    white = data.get("white", 0)
+
+    if model_info and model_info.colors:
+        num_ch = len(set(model_info.colors.values()))
+        levels = [0] * num_ch
+        for color_name, ch_idx in model_info.colors.items():
+            if ch_idx < num_ch and color_name in data:
+                levels[ch_idx] = data[color_name]
+        # For single-channel white fixtures if red was passed or vice versa
+        if num_ch == 1 and 0 in model_info.colors.values() and not levels[0]:
+            levels[0] = white if "white" in data and data["white"] != 0 else red
+        return levels
+
+    # Fallback if model info is unavailable
+    if num_channels == 1:
+        return [white if "white" in data and data["white"] != 0 else red]
+    if num_channels == 2:
+        return [red, green]
+    if num_channels == 3:
+        return [red, green, blue]
+    return [red, green, blue, white]
+
+
 async def async_setup_services(hass: HomeAssistant) -> None:
     """Register custom services for AquaBle."""
 
@@ -214,15 +245,10 @@ async def async_setup_services(hass: HomeAssistant) -> None:
 
     async def handle_light_manual_mode(call: ServiceCall) -> None:
         coord = _get_coordinator(hass, call.data["device_id"])
-        # Map kwargs to channel indices based on domain models
-        # (White:0, Red:0, Green:1, Blue:2 depending on light)
-        # Using a unified map for WRGB for now:
-        colors = {
-            0: call.data["red"] or call.data["white"],
-            1: call.data["green"],
-            2: call.data["blue"],
-            3: call.data["white"],
-        }
+        channel_levels = _extract_channel_levels(
+            coord.model_info, coord.num_channels, call.data
+        )
+        colors = {ch_idx: val for ch_idx, val in enumerate(channel_levels)}
         _, commands = generators.generate_light_set_brightness_sequence((0, 0), colors)
         await _async_execute_commands(hass, coord.address, commands)
         await coord.async_request_refresh()
@@ -232,12 +258,10 @@ async def async_setup_services(hass: HomeAssistant) -> None:
         schedule_index = call.data.get("schedule_index")
         sunrise = datetime.time(call.data["sunrise_hour"], call.data["sunrise_minute"])
         sunset = datetime.time(call.data["sunset_hour"], call.data["sunset_minute"])
-        brightness = (
-            call.data["red"] or call.data["white"],
-            call.data["green"],
-            call.data["blue"],
-            call.data["white"],
+        channel_levels = _extract_channel_levels(
+            coord.model_info, coord.num_channels, call.data
         )
+        brightness = tuple(channel_levels)
         ramp_up_minutes = call.data["ramp_up_minutes"]
         weekdays = call.data.get("weekdays")
 
@@ -253,7 +277,7 @@ async def async_setup_services(hass: HomeAssistant) -> None:
                 sunset_minute=call.data["sunset_minute"],
                 ramp_up_minutes=ramp_up_minutes,
                 weekday_mask=encoder.encode_weekdays(weekdays),
-                channel_brightness=list(brightness[: coord.num_channels or 4]),
+                channel_brightness=list(channel_levels),
             )
 
             # If modifying an existing schedule, check if old hardware slot needs deletion

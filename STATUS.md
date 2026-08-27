@@ -5,7 +5,7 @@
 - [ ] Give feedback / toast notification on push schedule to device
 - [ ] Investigate schedule collisions (what occurs when writing a schedule overlapping an existing timeframe)
 - [x] Feature: Implement deletion / editing of individual schedule slots in the UI card
-- [ ] BUG: When pushing 0;0;0;7 to device (just 7% white light) the schedule saved shows 7;0;0;7 
+- [x] BUG: When pushing 0;0;0;7 to device (just 7% white light) the schedule saved shows 7;0;0;7 
 
 ## Open Requests
 
