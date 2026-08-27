@@ -56,6 +56,7 @@ DEVICE_REGISTRY: dict[str, DeviceModelInfo] = {
     "DYNW60": DeviceModelInfo("WRGB II", DEVICE_TYPE_LIGHT, {"red": 0, "green": 1, "blue": 2}),
     "DYNW90": DeviceModelInfo("WRGB II", DEVICE_TYPE_LIGHT, {"red": 0, "green": 1, "blue": 2}),
     "DYNW12P": DeviceModelInfo("WRGB II", DEVICE_TYPE_LIGHT, {"red": 0, "green": 1, "blue": 2}),
+    "DYNT90": DeviceModelInfo("WRGB II", DEVICE_TYPE_LIGHT, {"red": 0, "green": 1, "blue": 2}),
     "DYU550": DeviceModelInfo(
         "Universal WRGB", DEVICE_TYPE_LIGHT, {"red": 0, "green": 1, "blue": 2, "white": 3}
     ),

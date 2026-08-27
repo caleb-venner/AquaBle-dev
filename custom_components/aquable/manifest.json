@@ -82,6 +82,10 @@
       "connectable": true
     },
     {
+      "local_name": "DYNT90*",
+      "connectable": true
+    },
+    {
       "local_name": "DYSSD*",
       "connectable": true
     },
