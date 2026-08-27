@@ -21,7 +21,7 @@ from .commands.generators import (
 )
 from .commands.parsers import parse_doser_payload, parse_light_payload
 from .config_flow import match_device_model
-from .const import DEVICE_TYPE_DOSER, DOMAIN
+from .const import DEVICE_TYPE_DOSER, DOMAIN, DeviceModelInfo
 from .domain.doser.status import DoserStatus
 from .domain.light.status import LightSchedule, LightStatus
 
@@ -102,9 +102,11 @@ class AquaBleCoordinator(DataUpdateCoordinator[DoserStatus | LightStatus]):
         # Resolve channel count from DEVICE_REGISTRY using the BLE advertisement name.
         # Used by parse_light_payload to decode schedule blocks correctly.
         self.num_channels: int = 0
+        self.model_info: DeviceModelInfo | None = None
         match = match_device_model(device_name)
         if match:
             _, model_info = match
+            self.model_info = model_info
             if model_info.colors:
                 # Unique channel indices (some devices share an index between keys)
                 self.num_channels = len(set(model_info.colors.values()))

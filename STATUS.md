@@ -9,32 +9,7 @@
 
 ## Open Requests
 
-### PR Merged to main, implement in this refactored version.
-
-- Requested device code support: `"DYNT90"`.
-- Investigate model details.
-
-### Add DYSL as Chihiros WRGB II Slim model code.
-
-- Open issue to add device support.
-- Investigate model details.
-
-```json
-{
-   "name":"DYSL45FEA227799939",
-   "address":"FE:A2:27:79:99:39",
-   "rssi":-78,"manufacturer_data":{},
-   "service_data":{},
-   "service_uuids":[
-      "6e400001-b5a3-f393-e0a9-e50e24dcca9e"
-      ],
-   "source":"00:1A:7D:DA:71:04",
-   "connectable":true,
-   "time":1787772618.0087836,
-   "tx_power":-127,
-   "raw":"02010613094459534c3435464541323237373939393339"
-}
-```
+*None currently pending.*
 
 
 ## Planned Features

@@ -351,7 +351,14 @@ class LightLiveChannelSensor(AquaBleEntity, SensorEntity):  # pyright: ignore[re
     def __init__(self, coordinator: AquaBleCoordinator, ch_idx: int) -> None:
         super().__init__(coordinator)
         self.ch_idx = ch_idx
-        ch_label = _CHANNEL_LABELS.get(ch_idx, f"Channel {ch_idx}")
+        ch_label = None
+        if coordinator.model_info and coordinator.model_info.colors:
+            for name, idx in coordinator.model_info.colors.items():
+                if idx == ch_idx:
+                    ch_label = name.replace("_", " ").title()
+                    break
+        if not ch_label:
+            ch_label = _CHANNEL_LABELS.get(ch_idx, f"Channel {ch_idx}")
         self._attr_unique_id = f"{coordinator.address}_channel_{ch_idx}_live_brightness"
         self._attr_name = f"{ch_label} Brightness"
         self._update_state()

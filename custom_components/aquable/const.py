@@ -22,8 +22,10 @@ class DeviceModelInfo:
 
 
 DEVICE_REGISTRY: dict[str, DeviceModelInfo] = {
+    # Dosing pumps
     "DYDOS": DeviceModelInfo("Dosing Pump", DEVICE_TYPE_DOSER),
     "DYDOSE": DeviceModelInfo("Dosing Pump", DEVICE_TYPE_DOSER),
+    # WRGB II Pro (4 channels)
     "DYWPRO30": DeviceModelInfo(
         "WRGB II Pro", DEVICE_TYPE_LIGHT, {"red": 0, "green": 1, "blue": 2, "white": 3}
     ),
@@ -42,14 +44,32 @@ DEVICE_REGISTRY: dict[str, DeviceModelInfo] = {
     "DYWPR120": DeviceModelInfo(
         "WRGB II Pro", DEVICE_TYPE_LIGHT, {"red": 0, "green": 1, "blue": 2, "white": 3}
     ),
+    "DYWPR": DeviceModelInfo(
+        "WRGB II Pro", DEVICE_TYPE_LIGHT, {"red": 0, "green": 1, "blue": 2, "white": 3}
+    ),
+    # WRGB VIVID III (4 channels)
+    "DYVVD3": DeviceModelInfo(
+        "WRGB VIVID III", DEVICE_TYPE_LIGHT, {"red": 0, "green": 1, "blue": 2, "white": 3}
+    ),
+    # A II Series (1 channel)
     "DYNA2": DeviceModelInfo("A II", DEVICE_TYPE_LIGHT, {"white": 0}),
     "DYNA2N": DeviceModelInfo("A II", DEVICE_TYPE_LIGHT, {"white": 0}),
+    "DYNA": DeviceModelInfo("A II", DEVICE_TYPE_LIGHT, {"white": 0}),
+    # WRGB II Slim (3 channels)
     "DYSILN": DeviceModelInfo("WRGB II Slim", DEVICE_TYPE_LIGHT, {"red": 0, "green": 1, "blue": 2}),
-    "DYSSD": DeviceModelInfo("Z Light TINY", DEVICE_TYPE_LIGHT, {"white": 0, "warm": 1}),
-    "DYZSD": DeviceModelInfo("Z Light TINY", DEVICE_TYPE_LIGHT, {"white": 0, "warm": 1}),
+    "DYSIL": DeviceModelInfo("WRGB II Slim", DEVICE_TYPE_LIGHT, {"red": 0, "green": 1, "blue": 2}),
+    "DYSL": DeviceModelInfo("WRGB II Slim", DEVICE_TYPE_LIGHT, {"red": 0, "green": 1, "blue": 2}),
+    # Z Light TINY (2 channels)
+    "DYSSD": DeviceModelInfo("Z Light TINY", DEVICE_TYPE_LIGHT, {"white": 0, "warm_white": 1}),
+    "DYZSD": DeviceModelInfo("Z Light TINY", DEVICE_TYPE_LIGHT, {"white": 0, "warm_white": 1}),
+    # C II RGB (3 channels)
     "DYNCRGP": DeviceModelInfo("C II RGB", DEVICE_TYPE_LIGHT, {"red": 0, "green": 1, "blue": 2}),
+    # C II (1 channel)
     "DYNC2N": DeviceModelInfo("C II", DEVICE_TYPE_LIGHT, {"white": 0}),
+    "DYNC2": DeviceModelInfo("C II", DEVICE_TYPE_LIGHT, {"white": 0}),
+    # Tiny Terrarium Egg (2 channels)
     "DYDD": DeviceModelInfo("Tiny Terrarium Egg", DEVICE_TYPE_LIGHT, {"red": 0, "green": 1}),
+    # WRGB II (3 channels)
     "DYNWRGB": DeviceModelInfo("WRGB II", DEVICE_TYPE_LIGHT, {"red": 0, "green": 1, "blue": 2}),
     "DYNW30": DeviceModelInfo("WRGB II", DEVICE_TYPE_LIGHT, {"red": 0, "green": 1, "blue": 2}),
     "DYNW45": DeviceModelInfo("WRGB II", DEVICE_TYPE_LIGHT, {"red": 0, "green": 1, "blue": 2}),
@@ -57,6 +77,8 @@ DEVICE_REGISTRY: dict[str, DeviceModelInfo] = {
     "DYNW90": DeviceModelInfo("WRGB II", DEVICE_TYPE_LIGHT, {"red": 0, "green": 1, "blue": 2}),
     "DYNW12P": DeviceModelInfo("WRGB II", DEVICE_TYPE_LIGHT, {"red": 0, "green": 1, "blue": 2}),
     "DYNT90": DeviceModelInfo("WRGB II", DEVICE_TYPE_LIGHT, {"red": 0, "green": 1, "blue": 2}),
+    "DYNW": DeviceModelInfo("WRGB II", DEVICE_TYPE_LIGHT, {"red": 0, "green": 1, "blue": 2}),
+    # Universal WRGB (4 channels)
     "DYU550": DeviceModelInfo(
         "Universal WRGB", DEVICE_TYPE_LIGHT, {"red": 0, "green": 1, "blue": 2, "white": 3}
     ),
@@ -81,10 +103,12 @@ DEVICE_REGISTRY: dict[str, DeviceModelInfo] = {
     "DYU1500": DeviceModelInfo(
         "Universal WRGB", DEVICE_TYPE_LIGHT, {"red": 0, "green": 1, "blue": 2, "white": 3}
     ),
+    "DYU": DeviceModelInfo(
+        "Universal WRGB", DEVICE_TYPE_LIGHT, {"red": 0, "green": 1, "blue": 2, "white": 3}
+    ),
+    # Commander series
     "DYLED": DeviceModelInfo(
-        "Commander 4", DEVICE_TYPE_LIGHT, {"white": 0, "red": 0, "green": 1, "blue": 2}
+        "Commander 4", DEVICE_TYPE_LIGHT, {"red": 0, "green": 1, "blue": 2, "white": 0}
     ),
-    "DYCOM": DeviceModelInfo(
-        "Commander 1", DEVICE_TYPE_LIGHT, {"white": 0, "red": 0, "green": 1, "blue": 2}
-    ),
+    "DYCOM": DeviceModelInfo("Commander 1", DEVICE_TYPE_LIGHT, {"white": 0}),
 }

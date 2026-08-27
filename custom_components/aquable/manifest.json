@@ -18,31 +18,11 @@
   ],
   "bluetooth": [
     {
-      "local_name": "DYNA2*",
+      "local_name": "DYDOS*",
       "connectable": true
     },
     {
-      "local_name": "DYNC2N*",
-      "connectable": true
-    },
-    {
-      "local_name": "DYNCRGP*",
-      "connectable": true
-    },
-    {
-      "local_name": "DYCOM*",
-      "connectable": true
-    },
-    {
-      "local_name": "DYLED*",
-      "connectable": true
-    },
-    {
-      "local_name": "DYDD*",
-      "connectable": true
-    },
-    {
-      "local_name": "DYU*",
+      "local_name": "DYDOSE*",
       "connectable": true
     },
     {
@@ -54,11 +34,59 @@
       "connectable": true
     },
     {
+      "local_name": "DYVVD3*",
+      "connectable": true
+    },
+    {
+      "local_name": "DYNA*",
+      "connectable": true
+    },
+    {
+      "local_name": "DYNA2*",
+      "connectable": true
+    },
+    {
+      "local_name": "DYSIL*",
+      "connectable": true
+    },
+    {
       "local_name": "DYSILN*",
       "connectable": true
     },
     {
+      "local_name": "DYSL*",
+      "connectable": true
+    },
+    {
+      "local_name": "DYSSD*",
+      "connectable": true
+    },
+    {
+      "local_name": "DYZSD*",
+      "connectable": true
+    },
+    {
+      "local_name": "DYNCRGP*",
+      "connectable": true
+    },
+    {
+      "local_name": "DYNC2*",
+      "connectable": true
+    },
+    {
+      "local_name": "DYNC2N*",
+      "connectable": true
+    },
+    {
+      "local_name": "DYDD*",
+      "connectable": true
+    },
+    {
       "local_name": "DYNWRGB*",
+      "connectable": true
+    },
+    {
+      "local_name": "DYNW*",
       "connectable": true
     },
     {
@@ -86,15 +114,15 @@
       "connectable": true
     },
     {
-      "local_name": "DYSSD*",
+      "local_name": "DYU*",
       "connectable": true
     },
     {
-      "local_name": "DYZSD*",
+      "local_name": "DYLED*",
       "connectable": true
     },
     {
-      "local_name": "DYDOSE*",
+      "local_name": "DYCOM*",
       "connectable": true
     },
     {
