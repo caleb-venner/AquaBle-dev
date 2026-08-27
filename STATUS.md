@@ -1,10 +1,45 @@
-# AquaBle Features & Protocol Encodings
+# AquaBle Integration Status
 
-This document serves as a reference to planned feature implementations.
+## TODO
 
----
+- [ ] Give feedback / toast notification on push schedule to device
+- [ ] Investigate schedule collisions (what occurs when writing a schedule overlapping an existing timeframe)
+- [x] Feature: Implement deletion / editing of individual schedule slots in the UI card
+- [ ] BUG: When pushing 0;0;0;7 to device (just 7% white light) the schedule saved shows 7;0;0;7 
 
-## Doser: Calibration
+## Open Requests
+
+### PR Merged to main, implement in this refactored version.
+
+- Requested device code support: `"DYNT90"`.
+- Investigate model details.
+
+### Add DYSL as Chihiros WRGB II Slim model code.
+
+- Open issue to add device support.
+- Investigate model details.
+
+```json
+{
+   "name":"DYSL45FEA227799939",
+   "address":"FE:A2:27:79:99:39",
+   "rssi":-78,"manufacturer_data":{},
+   "service_data":{},
+   "service_uuids":[
+      "6e400001-b5a3-f393-e0a9-e50e24dcca9e"
+      ],
+   "source":"00:1A:7D:DA:71:04",
+   "connectable":true,
+   "time":1787772618.0087836,
+   "tx_power":-127,
+   "raw":"02010613094459534c3435464541323237373939393339"
+}
+```
+
+
+## Planned Features
+
+### Doser: Calibration
 
 **Concept:** When silicone tubes wear out, a pump that is supposed to dose 10ml might only dose 9ml. Calibration involves telling the pump to run for a set time, measuring the actual liquid dispensed, and reporting that value back to the pump so it can adjust its flow-rate multiplier. This is currently a feature within the Chihiros app, BLE communications not yet captured or decoded.
 
@@ -24,22 +59,3 @@ To implement this correctly, we will need to perform a BLE packet sniff from the
 - The service will translate this into the calibration bytes, pushing the new multiplier directly to the device.
 
 ---
-
-## Sensors: Read-only
-
-### Light Devices
-
-**Exposed sensors for each light device:**
-
-- Current Schedule (Danw/Dusk/Ramp/Peak Brightness; etc.)
-- Upcoming Schedule(s)
-- LED Channel Value Current
-
-### Doser Heads
-
-**Exposed sensors for each individual dose-head on dosing pump device:**
-
-- Configured Schedule
-- Dosed Today
-- Dosed Lifetime
-- Name
