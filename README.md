@@ -10,44 +10,6 @@ AquaBle is built on a robust, **stateless functional architecture**. Rather than
 
 ---
 
-## Architecture Overview
-
-AquaBle integrates Chihiros aquarium equipment into Home Assistant over Bluetooth Low Energy (BLE) using Nordic UART Service (NUS).
-
-```text
-┌──────────────────────────────────────────────────────────────────────────────┐
-│                        Home Assistant (Source of Truth)                      │
-│                                                                              │
-│  1. Configuration Storage (ConfigEntry Options):                             │
-│     - Stores full light auto-schedule definitions (Sunrise, Sunset, Ramp,    │
-│       Weekdays, Channel levels: R, G, B, W).                                 │
-│                                                                              │
-│  2. Real-Time Software Interpolation Engine:                                 │
-│     - Computes instantaneous brightness (0–100%) per channel locally every   │
-│       second without continuous BLE polling.                                 │
-│                                                                              │
-│  3. Custom Dashboard Cards (Lovelace):                                       │
-│     - aquable-light-card: 24h interactive ramp curve visualiser & editor.    │
-│     - aquable-doser-card: 4-head doser progress, targets, & manual dosing.   │
-│                                                                              │
-│  4. Hardware Command Dispatch & Telemetry Verification (5-Min Poll):         │
-│     - Sends binary UART frames (auto-schedules, manual levels, manual dose). │
-│     - Verifies device clock and hardware curve synchronisation (0xFE / 0x1E).│
-└──────────────────────────────────────┬───────────────────────────────────────┘
-                                       │
-                                   BLE / NUS
-                                       ▼
-┌──────────────────────────────────────────────────────────────────────────────┐
-│                            Device Hardware (Microcontroller)                 │
-│  - Light: Executes compiled keyframe ramp points via PWM.                    │
-│  - Doser: Tracks daily volume dispensed, schedule times, and lifetime totals.│
-└──────────────────────────────────────────────────────────────────────────────┘
-```
-
-> **Protocol Details:** For low-level binary UART framing, command mode tables, XOR checksum algorithms, and packet captures, refer to [BLE_Protocol.md](BLE_Protocol.md).
-
----
-
 ## Features
 
 - **Native HA Bluetooth**: Utilises Home Assistant's native Bluetooth stack, ESPHome Bluetooth Proxies, and local Bluetooth adapters with automated reconnects.
@@ -217,6 +179,43 @@ Detailed reverse-engineering documentation for Chihiros BLE devices is maintaine
 - XOR checksum computation.
 - Dosing pump 8-step configuration workflows and 1-byte / 2-byte volume encodings.
 - Full annotated telemetry packet trace tables.
+
+---
+## Architecture Overview
+
+AquaBle integrates Chihiros aquarium equipment into Home Assistant over Bluetooth Low Energy (BLE) using Nordic UART Service (NUS).
+
+```text
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                        Home Assistant (Source of Truth)                      │
+│                                                                              │
+│  1. Configuration Storage (ConfigEntry Options):                             │
+│     - Stores full light auto-schedule definitions (Sunrise, Sunset, Ramp,    │
+│       Weekdays, Channel levels: R, G, B, W).                                 │
+│                                                                              │
+│  2. Real-Time Software Interpolation Engine:                                 │
+│     - Computes instantaneous brightness (0–100%) per channel locally every   │
+│       second without continuous BLE polling.                                 │
+│                                                                              │
+│  3. Custom Dashboard Cards (Lovelace):                                       │
+│     - aquable-light-card: 24h interactive ramp curve visualiser & editor.    │
+│     - aquable-doser-card: 4-head doser progress, targets, & manual dosing.   │
+│                                                                              │
+│  4. Hardware Command Dispatch & Telemetry Verification (5-Min Poll):         │
+│     - Sends binary UART frames (auto-schedules, manual levels, manual dose). │
+│     - Verifies device clock and hardware curve synchronisation (0xFE / 0x1E).│
+└──────────────────────────────────────┬───────────────────────────────────────┘
+                                       │
+                                   BLE / NUS
+                                       ▼
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                            Device Hardware (Microcontroller)                 │
+│  - Light: Executes compiled keyframe ramp points via PWM.                    │
+│  - Doser: Tracks daily volume dispensed, schedule times, and lifetime totals.│
+└──────────────────────────────────────────────────────────────────────────────┘
+```
+
+> **Protocol Details:** For low-level binary UART framing, command mode tables, XOR checksum algorithms, and packet captures, refer to [BLE_Protocol.md](BLE_Protocol.md).
 
 ---
 

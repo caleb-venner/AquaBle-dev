@@ -2,6 +2,12 @@
 
 ## TODO
 
+- [ ] Implement, or make note of not-supporting, 100+ brightness on supported models.
+- [ ] Align Light and Doser device card styles:
+    - Status indicators
+    - Tighten 4 head doser 2x2 grid
+    - Doser: Size change between card views too large.
+    - Light: Size change between card views equalised.
 - [ ] Give feedback / toast notification on push schedule to device
 - [ ] Investigate schedule collisions (what occurs when writing a schedule overlapping an existing timeframe)
 - [x] Feature: Implement deletion / editing of individual schedule slots in the UI card
@@ -10,7 +16,6 @@
 ## Open Requests
 
 *None currently pending.*
-
 
 ## Planned Features
 
