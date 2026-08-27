@@ -149,6 +149,27 @@ def generate_light_add_auto_setting_sequence(
     return msg_id, [cmd]
 
 
+def generate_light_delete_auto_setting_sequence(
+    start_msg_id: tuple[int, int],
+    sunrise: datetime.time,
+    sunset: datetime.time,
+    ramp_up_minutes: int = 0,
+    weekdays: Sequence[str] | None = None,
+) -> tuple[tuple[int, int], list[bytearray]]:
+    """Generate sequence to delete an individual auto schedule setting from hardware."""
+    msg_id = encoder.next_message_id(start_msg_id)
+    weekday_mask = encoder.encode_weekdays(weekdays or ["everyday"])
+
+    cmd = encoder.create_delete_auto_setting_command(
+        msg_id,
+        sunrise,
+        sunset,
+        ramp_up_minutes,
+        weekday_mask,
+    )
+    return msg_id, [cmd]
+
+
 def generate_light_enable_auto_mode_sequence(
     start_msg_id: tuple[int, int],
 ) -> tuple[tuple[int, int], list[bytearray]]:

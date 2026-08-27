@@ -1,7 +1,7 @@
 {
   "domain": "aquable",
-  "name": "AquaBle-dev",
-  "version": "3.0.0",
+  "name": "AquaBle",
+  "version": "4.0.0",
   "codeowners": [
     "@caleb-venner"
   ],

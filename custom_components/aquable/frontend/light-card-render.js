@@ -72,7 +72,7 @@ export function renderCard(card) {
           class="tab ${card._activeTab === 'add' ? 'active' : ''}"
           @click=${() => card._setTab('add')}
         >
-          Add Schedule
+          ${card._editingIndex !== null ? `Edit Slot #${card._editingIndex + 1}` : 'Add Schedule'}
         </div>
         <div
           class="tab ${card._activeTab === 'manual' ? 'active' : ''}"
@@ -145,14 +145,40 @@ function renderSchedulesTab(card) {
             <div class="schedule-list">
               ${schedules.map(
                 (sched, idx) => html`
-                  <div class="schedule-item">
+                  <div
+                    class="schedule-item clickable"
+                    @click=${() => card._startEditSchedule(idx)}
+                    title="Click to edit schedule"
+                  >
                     <div class="schedule-item-header">
                       <div class="schedule-times">
                         <span>${sched.sunrise}</span>
                         <ha-icon icon="mdi:arrow-right-thin"></ha-icon>
                         <span>${sched.sunset}</span>
                       </div>
-                      <span class="sync-badge synced">Slot #${sched.slot || idx + 1}</span>
+                      <div class="schedule-actions">
+                        <span class="sync-badge synced">Slot #${sched.slot || idx + 1}</span>
+                        <button
+                          class="icon-btn edit-btn"
+                          title="Edit Schedule"
+                          @click=${(e) => {
+                            e.stopPropagation();
+                            card._startEditSchedule(idx);
+                          }}
+                        >
+                          <ha-icon icon="mdi:pencil-outline"></ha-icon>
+                        </button>
+                        <button
+                          class="icon-btn delete-btn"
+                          title="Delete Schedule"
+                          @click=${(e) => {
+                            e.stopPropagation();
+                            card._deleteSchedule(idx);
+                          }}
+                        >
+                          <ha-icon icon="mdi:delete-outline"></ha-icon>
+                        </button>
+                      </div>
                     </div>
                     <div class="schedule-meta">
                       <span><strong>Ramp:</strong> ${sched.ramp_up_minutes} min</span>
@@ -189,11 +215,13 @@ function renderSchedulesTab(card) {
 }
 
 function renderAddTab(card) {
+  const isEditing = card._editingIndex !== null;
+
   return html`
     <div class="section">
       <div class="section-title">
-        <ha-icon icon="mdi:clock-outline"></ha-icon>
-        Schedule Timing
+        <ha-icon icon="${isEditing ? 'mdi:calendar-edit' : 'mdi:clock-outline'}"></ha-icon>
+        ${isEditing ? `Edit Schedule (Slot #${card._editingIndex + 1})` : 'Schedule Timing'}
       </div>
       <div class="form-grid">
         <div class="time-input-group">
@@ -290,14 +318,44 @@ function renderAddTab(card) {
       )}
 
       <div class="button-row">
-        <mwc-button
-          raised
-          @click=${() => card._saveSchedule()}
-          ?disabled=${card._loading}
-        >
-          <ha-icon icon="mdi:content-save-check" slot="icon"></ha-icon>
-          Push Schedule to Light
-        </mwc-button>
+        ${isEditing
+          ? html`
+              <mwc-button
+                class="danger-btn"
+                outlined
+                @click=${() => card._deleteSchedule(card._editingIndex)}
+                ?disabled=${card._loading}
+              >
+                <ha-icon icon="mdi:trash-can-outline" slot="icon"></ha-icon>
+                Delete Slot
+              </mwc-button>
+              <mwc-button
+                outlined
+                @click=${() => card._cancelEdit()}
+                ?disabled=${card._loading}
+              >
+                <ha-icon icon="mdi:close" slot="icon"></ha-icon>
+                Cancel
+              </mwc-button>
+              <mwc-button
+                raised
+                @click=${() => card._saveSchedule()}
+                ?disabled=${card._loading}
+              >
+                <ha-icon icon="mdi:content-save-check" slot="icon"></ha-icon>
+                Update Schedule
+              </mwc-button>
+            `
+          : html`
+              <mwc-button
+                raised
+                @click=${() => card._saveSchedule()}
+                ?disabled=${card._loading}
+              >
+                <ha-icon icon="mdi:content-save-check" slot="icon"></ha-icon>
+                Push Schedule to Light
+              </mwc-button>
+            `}
       </div>
     </div>
   `;

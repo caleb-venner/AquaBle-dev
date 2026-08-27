@@ -122,6 +122,17 @@ export const cardStyles = css`
     display: flex;
     flex-direction: column;
     gap: 8px;
+    transition: all 0.2s ease;
+  }
+
+  .schedule-item.clickable {
+    cursor: pointer;
+  }
+
+  .schedule-item.clickable:hover {
+    background: var(--secondary-background-color, rgba(255, 255, 255, 0.08));
+    border-color: var(--primary-color, #03a9f4);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
   }
 
   .schedule-item-header {
@@ -129,6 +140,42 @@ export const cardStyles = css`
     justify-content: space-between;
     align-items: center;
     font-weight: 500;
+  }
+
+  .schedule-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .icon-btn {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--secondary-text-color);
+    transition: background-color 0.2s ease, color 0.2s ease;
+  }
+
+  .icon-btn ha-icon {
+    --mdc-icon-size: 18px;
+  }
+
+  .icon-btn:hover {
+    background-color: var(--secondary-background-color, rgba(255, 255, 255, 0.1));
+    color: var(--primary-text-color);
+  }
+
+  .icon-btn.edit-btn:hover {
+    color: var(--primary-color, #03a9f4);
+  }
+
+  .icon-btn.delete-btn:hover {
+    color: var(--error-color, #f44336);
   }
 
   .schedule-times {

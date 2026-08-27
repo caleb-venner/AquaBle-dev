@@ -5,6 +5,7 @@ export const SERVICES = {
   SET_LIGHT_AUTO: "light_set_auto_schedule",
   ENABLE_LIGHT_AUTO: "light_set_mode",
   CLEAR_LIGHT_SCHEDULES: "light_clear_schedules",
+  DELETE_LIGHT_AUTO: "light_delete_auto_schedule",
 };
 
 export const WEEKDAYS = [

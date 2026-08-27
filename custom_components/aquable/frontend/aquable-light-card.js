@@ -19,6 +19,7 @@ class AquaBleLightCard extends LitElement {
       _loading: { type: Boolean },
       _newSchedule: { type: Object },
       _manualLevels: { type: Object },
+      _editingIndex: { type: Number },
     };
   }
 
@@ -26,6 +27,7 @@ class AquaBleLightCard extends LitElement {
     super();
     this._activeTab = "schedules";
     this._loading = false;
+    this._editingIndex = null;
     this._newSchedule = {
       sunriseHour: 8,
       sunriseMinute: 0,
@@ -107,7 +109,54 @@ class AquaBleLightCard extends LitElement {
   // --- UI Event Handlers ---
 
   _setTab(tab) {
+    if (tab !== "add" && this._editingIndex !== null) {
+      this._editingIndex = null;
+      this._resetNewSchedule();
+    }
     this._activeTab = tab;
+  }
+
+  _resetNewSchedule() {
+    this._newSchedule = {
+      sunriseHour: 8,
+      sunriseMinute: 0,
+      sunsetHour: 18,
+      sunsetMinute: 0,
+      rampMinutes: 30,
+      weekdays: ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"],
+      channels: [50, 50, 50, 50],
+    };
+  }
+
+  _startEditSchedule(index) {
+    const schedules = this._schedules;
+    if (index < 0 || index >= schedules.length) return;
+    const sched = schedules[index];
+
+    const partsSunrise = (sched.sunrise || "08:00").split(":").map(Number);
+    const partsSunset = (sched.sunset || "18:00").split(":").map(Number);
+    const channels = sched.channels || sched.channel_brightness || [50, 50, 50, 50];
+    const weekdays = Array.isArray(sched.weekdays)
+      ? [...sched.weekdays]
+      : ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
+
+    this._editingIndex = index;
+    this._newSchedule = {
+      sunriseHour: partsSunrise[0] ?? 8,
+      sunriseMinute: partsSunrise[1] ?? 0,
+      sunsetHour: partsSunset[0] ?? 18,
+      sunsetMinute: partsSunset[1] ?? 0,
+      rampMinutes: sched.ramp_up_minutes ?? 30,
+      weekdays: weekdays,
+      channels: [...channels],
+    };
+    this._activeTab = "add";
+  }
+
+  _cancelEdit() {
+    this._editingIndex = null;
+    this._resetNewSchedule();
+    this._activeTab = "schedules";
   }
 
   _updateNewSchedule(key, value) {
@@ -155,7 +204,7 @@ class AquaBleLightCard extends LitElement {
       const active = this._activeSchedulesEntity;
       const deviceId = this._config?.device_id || active?.entity_id;
 
-      await this.hass.callService(DOMAIN, SERVICES.SET_LIGHT_AUTO, {
+      const payload = {
         device_id: deviceId,
         sunrise_hour: this._newSchedule.sunriseHour,
         sunrise_minute: this._newSchedule.sunriseMinute,
@@ -167,10 +216,48 @@ class AquaBleLightCard extends LitElement {
         blue: this._newSchedule.channels[2],
         white: this._newSchedule.channels[3],
         weekdays: this._newSchedule.weekdays,
-      });
+      };
+
+      if (this._editingIndex !== null) {
+        payload.schedule_index = this._editingIndex;
+      }
+
+      await this.hass.callService(DOMAIN, SERVICES.SET_LIGHT_AUTO, payload);
+      this._editingIndex = null;
+      this._resetNewSchedule();
       this._activeTab = "schedules";
     } catch (err) {
       console.error("Failed to push auto schedule:", err);
+    } finally {
+      this._loading = false;
+    }
+  }
+
+  async _deleteSchedule(index) {
+    if (!this.hass) return;
+    const schedules = this._schedules;
+    if (index < 0 || index >= schedules.length) return;
+    const sched = schedules[index];
+    const label = `Slot #${sched.slot || index + 1} (${sched.sunrise} - ${sched.sunset})`;
+    if (!confirm(`Are you sure you want to delete ${label}?`)) {
+      return;
+    }
+    this._loading = true;
+    try {
+      const active = this._activeSchedulesEntity;
+      const deviceId = this._config?.device_id || active?.entity_id;
+
+      await this.hass.callService(DOMAIN, SERVICES.DELETE_LIGHT_AUTO, {
+        device_id: deviceId,
+        schedule_index: index,
+      });
+      if (this._editingIndex === index) {
+        this._editingIndex = null;
+        this._resetNewSchedule();
+        this._activeTab = "schedules";
+      }
+    } catch (err) {
+      console.error("Failed to delete auto schedule:", err);
     } finally {
       this._loading = false;
     }

@@ -30,6 +30,7 @@ SERVICE_SET_LIGHT_MANUAL = "light_set_manual_mode"
 SERVICE_SET_LIGHT_AUTO = "light_set_auto_schedule"
 SERVICE_ENABLE_LIGHT_AUTO = "light_set_mode"
 SERVICE_CLEAR_LIGHT_SCHEDULES = "light_clear_schedules"
+SERVICE_DELETE_LIGHT_AUTO = "light_delete_auto_schedule"
 
 DOSER_SCHEDULE_SCHEMA = vol.Schema(
     {
@@ -63,6 +64,7 @@ LIGHT_MANUAL_SCHEMA = vol.Schema(
 LIGHT_AUTO_SCHEMA = vol.Schema(
     {
         vol.Required("device_id"): cv.string,
+        vol.Optional("schedule_index"): vol.All(vol.Coerce(int), vol.Range(min=0)),
         vol.Required("sunrise_hour"): vol.All(vol.Coerce(int), vol.Range(min=0, max=23)),
         vol.Required("sunrise_minute"): vol.All(vol.Coerce(int), vol.Range(min=0, max=59)),
         vol.Required("sunset_hour"): vol.All(vol.Coerce(int), vol.Range(min=0, max=23)),
@@ -74,6 +76,21 @@ LIGHT_AUTO_SCHEMA = vol.Schema(
         vol.Optional("red", default=0): vol.All(vol.Coerce(int), vol.Range(min=0, max=100)),
         vol.Optional("green", default=0): vol.All(vol.Coerce(int), vol.Range(min=0, max=100)),
         vol.Optional("blue", default=0): vol.All(vol.Coerce(int), vol.Range(min=0, max=100)),
+        vol.Optional("weekdays"): cv.ensure_list,
+    }
+)
+
+LIGHT_DELETE_AUTO_SCHEMA = vol.Schema(
+    {
+        vol.Required("device_id"): cv.string,
+        vol.Optional("schedule_index"): vol.All(vol.Coerce(int), vol.Range(min=0)),
+        vol.Optional("sunrise_hour"): vol.All(vol.Coerce(int), vol.Range(min=0, max=23)),
+        vol.Optional("sunrise_minute"): vol.All(vol.Coerce(int), vol.Range(min=0, max=59)),
+        vol.Optional("sunset_hour"): vol.All(vol.Coerce(int), vol.Range(min=0, max=23)),
+        vol.Optional("sunset_minute"): vol.All(vol.Coerce(int), vol.Range(min=0, max=59)),
+        vol.Optional("ramp_up_minutes", default=0): vol.All(
+            vol.Coerce(int), vol.Range(min=0, max=180)
+        ),
         vol.Optional("weekdays"): cv.ensure_list,
     }
 )
@@ -212,6 +229,7 @@ async def async_setup_services(hass: HomeAssistant) -> None:
 
     async def handle_light_auto_schedule(call: ServiceCall) -> None:
         coord = _get_coordinator(hass, call.data["device_id"])
+        schedule_index = call.data.get("schedule_index")
         sunrise = datetime.time(call.data["sunrise_hour"], call.data["sunrise_minute"])
         sunset = datetime.time(call.data["sunset_hour"], call.data["sunset_minute"])
         brightness = (
@@ -222,6 +240,8 @@ async def async_setup_services(hass: HomeAssistant) -> None:
         )
         ramp_up_minutes = call.data["ramp_up_minutes"]
         weekdays = call.data.get("weekdays")
+
+        commands_to_send: list[bytearray] = []
 
         # 1. Update persisted schedules in ConfigEntry options (primary source of truth)
         if coord.entry:
@@ -235,16 +255,96 @@ async def async_setup_services(hass: HomeAssistant) -> None:
                 weekday_mask=encoder.encode_weekdays(weekdays),
                 channel_brightness=list(brightness[: coord.num_channels or 4]),
             )
-            existing.append(new_sched.to_dict())
+
+            # If modifying an existing schedule, check if old hardware slot needs deletion
+            if schedule_index is not None and 0 <= schedule_index < len(existing):
+                old_sched = existing[schedule_index]
+                old_sunrise_str = old_sched.get("sunrise", "08:00")
+                old_sunset_str = old_sched.get("sunset", "18:00")
+                old_sunrise_parts = [int(p) for p in old_sunrise_str.split(":")]
+                old_sunset_parts = [int(p) for p in old_sunset_str.split(":")]
+                old_sunrise = datetime.time(old_sunrise_parts[0], old_sunrise_parts[1])
+                old_sunset = datetime.time(old_sunset_parts[0], old_sunset_parts[1])
+                old_ramp = old_sched.get("ramp_up_minutes", 0)
+                old_weekdays = old_sched.get("weekdays")
+
+                # If timing/weekdays changed, delete the old slot on device hardware
+                if (
+                    old_sunrise != sunrise
+                    or old_sunset != sunset
+                    or old_ramp != ramp_up_minutes
+                    or old_weekdays != weekdays
+                ):
+                    _, del_cmds = generators.generate_light_delete_auto_setting_sequence(
+                        (0, 0), old_sunrise, old_sunset, old_ramp, weekdays=old_weekdays
+                    )
+                    commands_to_send.extend(del_cmds)
+
+                existing[schedule_index] = new_sched.to_dict()
+            else:
+                existing.append(new_sched.to_dict())
+
             new_options = dict(coord.entry.options)
             new_options["schedules"] = existing
             hass.config_entries.async_update_entry(coord.entry, options=new_options)
 
-        # 2. Push BLE commands to light hardware
-        _, commands = generators.generate_light_add_auto_setting_sequence(
-            (0, 0), sunrise, sunset, brightness, ramp_up_minutes, weekdays=weekdays
+        # 2. Push BLE add/update commands to light hardware
+        start_id = (0, len(commands_to_send))
+        _, add_cmds = generators.generate_light_add_auto_setting_sequence(
+            start_id, sunrise, sunset, brightness, ramp_up_minutes, weekdays=weekdays
         )
-        await _async_execute_commands(hass, coord.address, commands)
+        commands_to_send.extend(add_cmds)
+
+        await _async_execute_commands(hass, coord.address, commands_to_send)
+        await coord.async_request_refresh()
+
+    async def handle_light_delete_auto_schedule(call: ServiceCall) -> None:
+        coord = _get_coordinator(hass, call.data["device_id"])
+        schedule_index = call.data.get("schedule_index")
+
+        sunrise_h = call.data.get("sunrise_hour")
+        sunrise_m = call.data.get("sunrise_minute")
+        sunset_h = call.data.get("sunset_hour")
+        sunset_m = call.data.get("sunset_minute")
+        ramp_up_minutes = call.data.get("ramp_up_minutes", 0)
+        weekdays = call.data.get("weekdays")
+
+        if coord.entry:
+            existing = list(coord.entry.options.get("schedules", []))
+            if schedule_index is not None and 0 <= schedule_index < len(existing):
+                target_sched = existing.pop(schedule_index)
+                if sunrise_h is None:
+                    sunrise_parts = [
+                        int(p) for p in target_sched.get("sunrise", "08:00").split(":")
+                    ]
+                    sunrise_h, sunrise_m = sunrise_parts[0], sunrise_parts[1]
+                if sunset_h is None:
+                    sunset_parts = [
+                        int(p) for p in target_sched.get("sunset", "18:00").split(":")
+                    ]
+                    sunset_h, sunset_m = sunset_parts[0], sunset_parts[1]
+                if ramp_up_minutes == 0 and "ramp_up_minutes" in target_sched:
+                    ramp_up_minutes = target_sched["ramp_up_minutes"]
+                if weekdays is None and "weekdays" in target_sched:
+                    weekdays = target_sched["weekdays"]
+
+                new_options = dict(coord.entry.options)
+                new_options["schedules"] = existing
+                hass.config_entries.async_update_entry(coord.entry, options=new_options)
+
+        if (
+            sunrise_h is not None
+            and sunrise_m is not None
+            and sunset_h is not None
+            and sunset_m is not None
+        ):
+            sunrise = datetime.time(sunrise_h, sunrise_m)
+            sunset = datetime.time(sunset_h, sunset_m)
+            _, commands = generators.generate_light_delete_auto_setting_sequence(
+                (0, 0), sunrise, sunset, ramp_up_minutes, weekdays=weekdays
+            )
+            await _async_execute_commands(hass, coord.address, commands)
+
         await coord.async_request_refresh()
 
     async def handle_light_set_mode(call: ServiceCall) -> None:
@@ -288,6 +388,12 @@ async def async_setup_services(hass: HomeAssistant) -> None:
     )
     hass.services.async_register(
         DOMAIN, SERVICE_SET_LIGHT_AUTO, handle_light_auto_schedule, schema=LIGHT_AUTO_SCHEMA
+    )
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_DELETE_LIGHT_AUTO,
+        handle_light_delete_auto_schedule,
+        schema=LIGHT_DELETE_AUTO_SCHEMA,
     )
     hass.services.async_register(
         DOMAIN, SERVICE_ENABLE_LIGHT_AUTO, handle_light_set_mode, schema=LIGHT_MODE_SCHEMA

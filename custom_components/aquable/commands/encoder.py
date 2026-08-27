@@ -216,14 +216,15 @@ def create_add_auto_setting_command(
 
     Supports variable numbers of brightness channels (RGB, RGBW, etc.).
     The brightness tuple length determines how many channels are configured.
+    Values must be 0-100 (percentage) or 255 (unused / sentinel / deletion).
     """
     # Validate brightness values
-    if not brightness or len(brightness) > 4:
-        raise ValueError(f"Brightness must contain 1-4 values, got {len(brightness)}")
+    if not brightness or len(brightness) > 8:
+        raise ValueError(f"Brightness must contain 1-8 values, got {len(brightness)}")
 
     for i, val in enumerate(brightness):
-        if not (0 <= val <= 100):
-            raise ValueError(f"Brightness value {i} must be 0-100, got {val}")
+        if not (0 <= val <= 100 or val == 255):
+            raise ValueError(f"Brightness value {i} must be 0-100 or 255, got {val}")
 
     parameters = [
         sunrise.hour,
@@ -235,8 +236,8 @@ def create_add_auto_setting_command(
         *brightness,
     ]
 
-    # Pad with 255s to ensure consistent command length (7 brightness slots total)
-    padding_needed = 7 - len(brightness)
+    # Pad with 255s to ensure consistent 14-byte parameter length (8 brightness slots total)
+    padding_needed = 8 - len(brightness)
     parameters.extend([255] * padding_needed)
 
     return _encode_uart_command(165, 25, msg_id, parameters)
@@ -251,7 +252,7 @@ def create_delete_auto_setting_command(
 ) -> bytearray:
     """Create a delete-auto-setting command (encoded via add with 255s)."""
     return create_add_auto_setting_command(
-        msg_id, sunrise, sunset, (255, 255, 255), ramp_up_minutes, weekdays
+        msg_id, sunrise, sunset, (255, 255, 255, 255), ramp_up_minutes, weekdays
     )
 
 
