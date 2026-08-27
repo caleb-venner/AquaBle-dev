@@ -170,8 +170,12 @@ def _parse_schedule_blocks(body: bytes, num_channels: int) -> list[LightSchedule
         weekday_mask = block[5]
         brightness_bytes = block[6 : 6 + _MAX_CHANNELS]  # always read 4 slots
 
-        # A block of all-0xFF is an empty/deleted schedule slot — skip it.
-        if all(b == 0xFF for b in block):
+        # A block of all-0xFF or all-0x00 is an empty/unpopulated schedule slot — skip it.
+        if (
+            all(b == 0xFF for b in block)
+            or all(b == 0x00 for b in block)
+            or (sunrise_h == 0 and sunrise_m == 0 and sunset_h == 0 and sunset_m == 0)
+        ):
             i += _SCHEDULE_BLOCK_SIZE
             continue
 

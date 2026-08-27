@@ -150,31 +150,39 @@ _WEEKDAY_BITS = {
 }
 
 
-def encode_weekdays(weekdays: Sequence[str] | None) -> int:
+def encode_weekdays(weekdays: Sequence[str] | str | None) -> int:
     """Encode weekday selections into a 7-bit mask for device commands.
 
     Both light and doser devices use identical bit mapping for weekday scheduling.
 
     Args:
-        weekdays: List of lowercase weekday names (e.g., ["monday", "tuesday"])
-                  or None for everyday (all days)
+        weekdays: List of weekday names (e.g., ["monday", "tuesday"]),
+                  "everyday", "daily", or None for all days.
 
     Returns:
-        7-bit integer mask where each bit represents a weekday
+        7-bit integer mask where each bit represents a weekday (127 = everyday).
 
     Examples:
-        encode_weekdays(["monday", "wednesday"]) -> 84 (64 | 16)
-        encode_weekdays(None) -> 127 (everyday)
-
+        encode_weekdays(["monday", "wednesday"]) -> 80 (64 | 16)
+        encode_weekdays("everyday") -> 127
+        encode_weekdays(None) -> 127
     """
     if weekdays is None or not weekdays:
         return 127  # Default to everyday (all days)
 
+    if isinstance(weekdays, str):
+        if weekdays.lower() in ("everyday", "daily", "all"):
+            return 127
+        weekdays = [weekdays]
+
     encoding = 0
     for day in weekdays:
-        if day not in _WEEKDAY_BITS:
+        d = str(day).lower()
+        if d in ("everyday", "daily", "all"):
+            return 127
+        if d not in _WEEKDAY_BITS:
             raise ValueError(f"Invalid weekday: {day}")
-        encoding |= _WEEKDAY_BITS[day]
+        encoding |= _WEEKDAY_BITS[d]
 
     return encoding
 

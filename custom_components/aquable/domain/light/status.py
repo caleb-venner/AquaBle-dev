@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
 
 
@@ -36,6 +38,31 @@ class LightSchedule:
             (1 << 0, "sunday"),
         ]
         return [name for bit, name in _BITS if self.weekday_mask & bit]
+
+    def to_dict(self) -> dict:
+        """Serialise schedule definition to a dictionary for config storage."""
+        return {
+            "sunrise_hour": self.sunrise_hour,
+            "sunrise_minute": self.sunrise_minute,
+            "sunset_hour": self.sunset_hour,
+            "sunset_minute": self.sunset_minute,
+            "ramp_up_minutes": self.ramp_up_minutes,
+            "weekday_mask": self.weekday_mask,
+            "channel_brightness": self.channel_brightness,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict) -> LightSchedule:
+        """Construct a LightSchedule from a serialised dictionary."""
+        return cls(
+            sunrise_hour=int(data.get("sunrise_hour", 0)),
+            sunrise_minute=int(data.get("sunrise_minute", 0)),
+            sunset_hour=int(data.get("sunset_hour", 0)),
+            sunset_minute=int(data.get("sunset_minute", 0)),
+            ramp_up_minutes=int(data.get("ramp_up_minutes", 0)),
+            weekday_mask=int(data.get("weekday_mask", 127)),
+            channel_brightness=list(data.get("channel_brightness", [0, 0, 0, 0])),
+        )
 
 
 @dataclass(slots=True)

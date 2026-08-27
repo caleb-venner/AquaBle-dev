@@ -11,6 +11,7 @@ from bleak import BleakClient
 from bleak.exc import BleakError
 from bleak_retry_connector import establish_connection
 from homeassistant.components import bluetooth
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
@@ -22,7 +23,7 @@ from .commands.parsers import parse_doser_payload, parse_light_payload
 from .config_flow import match_device_model
 from .const import DEVICE_TYPE_DOSER, DOMAIN
 from .domain.doser.status import DoserStatus
-from .domain.light.status import LightStatus
+from .domain.light.status import LightSchedule, LightStatus
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -84,6 +85,7 @@ class AquaBleCoordinator(DataUpdateCoordinator[DoserStatus | LightStatus]):
         address: str,
         device_type: str,
         device_name: str | None = None,
+        entry: ConfigEntry | None = None,
     ) -> None:
         """Initialize the coordinator."""
         super().__init__(
@@ -94,6 +96,7 @@ class AquaBleCoordinator(DataUpdateCoordinator[DoserStatus | LightStatus]):
         )
         self.address = address
         self.device_type = device_type
+        self.entry = entry
         self._msg_id = (0, 0)
 
         # Resolve channel count from DEVICE_REGISTRY using the BLE advertisement name.
@@ -195,6 +198,29 @@ class AquaBleCoordinator(DataUpdateCoordinator[DoserStatus | LightStatus]):
             status = _process_doser_packets(received_packets)
         else:
             status = _process_light_packets(received_packets, num_channels=self.num_channels)
+            stored_schedules: list[LightSchedule] = []
+            if self.entry and "schedules" in self.entry.options:
+                stored_schedules = [
+                    LightSchedule.from_dict(s)
+                    for s in self.entry.options["schedules"]
+                    if isinstance(s, dict)
+                ]
+
+            if status is not None:
+                # Home Assistant is the primary source of truth for schedule definitions.
+                # Hardware 0xFE telemetry confirms device clock and connection.
+                if stored_schedules:
+                    status.schedules = stored_schedules
+            elif stored_schedules:
+                # Fallback to keep stored schedule state if BLE notification was dropped
+                status = LightStatus(
+                    message_id=None,
+                    response_mode=None,
+                    weekday=None,
+                    hour=None,
+                    minute=None,
+                    schedules=stored_schedules,
+                )
 
         if status is None:
             raise UpdateFailed(

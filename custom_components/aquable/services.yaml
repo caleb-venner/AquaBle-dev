@@ -258,6 +258,28 @@ light_set_auto_schedule:
           max: 100
           unit_of_measurement: "%"
           mode: box
+    weekdays:
+      name: Active weekdays
+      description: Days of week when schedule is active
+      required: false
+      selector:
+        select:
+          options:
+            - label: Monday
+              value: monday
+            - label: Tuesday
+              value: tuesday
+            - label: Wednesday
+              value: wednesday
+            - label: Thursday
+              value: thursday
+            - label: Friday
+              value: friday
+            - label: Saturday
+              value: saturday
+            - label: Sunday
+              value: sunday
+          multiple: true
 
 light_set_mode:
   name: Set light mode

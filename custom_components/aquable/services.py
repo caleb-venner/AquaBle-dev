@@ -15,10 +15,12 @@ from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import entity_registry as er
 
-from .commands import generators
+from .commands import encoder, generators
 from .const import DOMAIN
 from .coordinator import UART_TX_UUID, AquaBleCoordinator
+from .domain.light.status import LightSchedule
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -72,6 +74,7 @@ LIGHT_AUTO_SCHEMA = vol.Schema(
         vol.Optional("red", default=0): vol.All(vol.Coerce(int), vol.Range(min=0, max=100)),
         vol.Optional("green", default=0): vol.All(vol.Coerce(int), vol.Range(min=0, max=100)),
         vol.Optional("blue", default=0): vol.All(vol.Coerce(int), vol.Range(min=0, max=100)),
+        vol.Optional("weekdays"): cv.ensure_list,
     }
 )
 
@@ -126,20 +129,36 @@ async def _async_execute_commands(
 
 
 def _get_coordinator(hass: HomeAssistant, device_id: str) -> AquaBleCoordinator:
-    """Resolve a HA device_id to its AquaBleCoordinator."""
+    """Resolve a HA device_id, entity_id, or MAC address to its AquaBleCoordinator."""
+    # 1. Direct MAC match
+    for coord in hass.data.get(DOMAIN, {}).values():
+        if isinstance(coord, AquaBleCoordinator) and coord.address.lower() == device_id.lower():
+            return coord
+
+    # 2. Entity ID match
+    ent_reg = er.async_get(hass)
+    entity = ent_reg.async_get(device_id)
+    resolved_device_id = entity.device_id if entity and entity.device_id else device_id
+
+    # 3. Device registry lookup
     dev_reg = dr.async_get(hass)
-    device = dev_reg.async_get(device_id)
-    if not device:
-        raise HomeAssistantError(f"Device {device_id} not found in registry")
+    device = dev_reg.async_get(resolved_device_id)
+    if device:
+        for identifier in device.identifiers:
+            if identifier[0] == DOMAIN:
+                mac_address = identifier[1]
+                for coord in hass.data.get(DOMAIN, {}).values():
+                    if isinstance(coord, AquaBleCoordinator) and coord.address == mac_address:
+                        return coord
 
-    for identifier in device.identifiers:
-        if identifier[0] == DOMAIN:
-            mac_address = identifier[1]
-            for coord in hass.data[DOMAIN].values():
-                if coord.address == mac_address:
-                    return coord
+    # 4. Fallback if single coordinator active
+    active_coords = [
+        c for c in hass.data.get(DOMAIN, {}).values() if isinstance(c, AquaBleCoordinator)
+    ]
+    if len(active_coords) == 1:
+        return active_coords[0]
 
-    raise HomeAssistantError(f"Active coordinator not found for device {device_id}")
+    raise HomeAssistantError(f"Active coordinator not found for device or entity {device_id}")
 
 
 async def async_setup_services(hass: HomeAssistant) -> None:
@@ -202,9 +221,28 @@ async def async_setup_services(hass: HomeAssistant) -> None:
             call.data["white"],
         )
         ramp_up_minutes = call.data["ramp_up_minutes"]
+        weekdays = call.data.get("weekdays")
 
+        # 1. Update persisted schedules in ConfigEntry options (primary source of truth)
+        if coord.entry:
+            existing = list(coord.entry.options.get("schedules", []))
+            new_sched = LightSchedule(
+                sunrise_hour=call.data["sunrise_hour"],
+                sunrise_minute=call.data["sunrise_minute"],
+                sunset_hour=call.data["sunset_hour"],
+                sunset_minute=call.data["sunset_minute"],
+                ramp_up_minutes=ramp_up_minutes,
+                weekday_mask=encoder.encode_weekdays(weekdays),
+                channel_brightness=list(brightness[: coord.num_channels or 4]),
+            )
+            existing.append(new_sched.to_dict())
+            new_options = dict(coord.entry.options)
+            new_options["schedules"] = existing
+            hass.config_entries.async_update_entry(coord.entry, options=new_options)
+
+        # 2. Push BLE commands to light hardware
         _, commands = generators.generate_light_add_auto_setting_sequence(
-            (0, 0), sunrise, sunset, brightness, ramp_up_minutes
+            (0, 0), sunrise, sunset, brightness, ramp_up_minutes, weekdays=weekdays
         )
         await _async_execute_commands(hass, coord.address, commands)
         await coord.async_request_refresh()
@@ -228,6 +266,12 @@ async def async_setup_services(hass: HomeAssistant) -> None:
 
     async def handle_light_clear_schedules(call: ServiceCall) -> None:
         coord = _get_coordinator(hass, call.data["device_id"])
+
+        if coord.entry:
+            new_options = dict(coord.entry.options)
+            new_options["schedules"] = []
+            hass.config_entries.async_update_entry(coord.entry, options=new_options)
+
         _, commands = generators.generate_light_clear_schedules_sequence((0, 0))
         await _async_execute_commands(hass, coord.address, commands)
         await coord.async_request_refresh()
