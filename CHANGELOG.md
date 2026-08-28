@@ -4,6 +4,26 @@ All notable changes to AquaBle are documented here.
 
 ---
 
+## [v4.0.2] — 2026-08-28
+
+**Fix:** 
+- Resolve bug in **Light Device**->*Add Schedule*: If a schedule command was sent with Red = 0 and White > 0 on a 4 channel device, Red would inherit White brightness value; Red = White > 0.
+
+**Feat:** 
+- *Expand supported devices:*
+  - Update prefix mappings for supported devices. 
+  - Implement dynamic sensor labelling in sensor.py
+
+---
+
+## [v4.0.1] — 2026-08-27
+
+**docs**: fix README rendering issue when view in HACS 
+- remove inline html 
+- replace with table formatting
+
+---
+
 ## [v4.0.0] — 2026-08-27
 
 > ⚠️ **Breaking change**: Configuration will need to be re-entered after upgrading. See [README](README.md) for setup instructions.
