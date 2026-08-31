@@ -4,6 +4,19 @@ All notable changes to AquaBle are documented here.
 
 ---
 
+## [v4.0.3] — 2026-08-31
+
+**Improve light device command & control logic.**
+
+**Fix:**
+- Resolve bug in update schedule feature (variable name mismatch)
+
+**Feat:**
+- Prevent schedule collisions by checking for overlaps in the service handler.
+- Manual setting on light device card should persist until altered. (last command sent)
+
+---
+
 ## [v4.0.2] — 2026-08-28
 
 **Fix:** 
