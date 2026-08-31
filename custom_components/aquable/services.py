@@ -267,9 +267,34 @@ async def async_setup_services(hass: HomeAssistant) -> None:
 
         commands_to_send: list[bytearray] = []
 
+        new_start = call.data["sunrise_hour"] * 60 + call.data["sunrise_minute"]
+        new_end = call.data["sunset_hour"] * 60 + call.data["sunset_minute"]
+        new_mask = encoder.encode_weekdays(weekdays)
+
+        if new_start >= new_end:
+            raise HomeAssistantError("Sunrise time must be before sunset time.")
+
         # 1. Update persisted schedules in ConfigEntry options (primary source of truth)
         if coord.entry:
             existing = list(coord.entry.options.get("schedules", []))
+
+            # Check for overlaps
+            for idx, existing_s in enumerate(existing):
+                if schedule_index is not None and idx == schedule_index:
+                    continue
+                old_mask = int(existing_s.get("weekday_mask", 127))
+                if new_mask & old_mask:
+                    old_start = (int(existing_s.get("sunrise_hour", 12)) * 60 +
+                                 int(existing_s.get("sunrise_minute", 0)))
+                    old_end = (int(existing_s.get("sunset_hour", 20)) * 60 +
+                               int(existing_s.get("sunset_minute", 0)))
+
+                    if new_start <= old_end and new_end >= old_start:
+                        raise HomeAssistantError(
+                            f"Schedule overlaps with existing slot #{idx + 1}. "
+                            "Please ensure at least a 1-minute difference between schedules."
+                        )
+
             new_sched = LightSchedule(
                 sunrise_hour=call.data["sunrise_hour"],
                 sunrise_minute=call.data["sunrise_minute"],
@@ -283,14 +308,19 @@ async def async_setup_services(hass: HomeAssistant) -> None:
             # If modifying an existing schedule, check if old hardware slot needs deletion
             if schedule_index is not None and 0 <= schedule_index < len(existing):
                 old_sched = existing[schedule_index]
-                old_sunrise_str = old_sched.get("sunrise", "08:00")
-                old_sunset_str = old_sched.get("sunset", "18:00")
-                old_sunrise_parts = [int(p) for p in old_sunrise_str.split(":")]
-                old_sunset_parts = [int(p) for p in old_sunset_str.split(":")]
-                old_sunrise = datetime.time(old_sunrise_parts[0], old_sunrise_parts[1])
-                old_sunset = datetime.time(old_sunset_parts[0], old_sunset_parts[1])
+                old_sunrise = datetime.time(
+                    old_sched.get("sunrise_hour", 12),
+                    old_sched.get("sunrise_minute", 0)
+                )
+                old_sunset = datetime.time(
+                    old_sched.get("sunset_hour", 20),
+                    old_sched.get("sunset_minute", 0)
+                )
                 old_ramp = old_sched.get("ramp_up_minutes", 0)
-                old_weekdays = old_sched.get("weekdays")
+
+                # Decode weekday_mask to weekdays list for the generator
+                temp_sched = LightSchedule.from_dict(old_sched)
+                old_weekdays = temp_sched.weekdays()
 
                 # If timing/weekdays changed, delete the old slot on device hardware
                 if (
@@ -338,19 +368,17 @@ async def async_setup_services(hass: HomeAssistant) -> None:
             if schedule_index is not None and 0 <= schedule_index < len(existing):
                 target_sched = existing.pop(schedule_index)
                 if sunrise_h is None:
-                    sunrise_parts = [
-                        int(p) for p in target_sched.get("sunrise", "08:00").split(":")
-                    ]
-                    sunrise_h, sunrise_m = sunrise_parts[0], sunrise_parts[1]
+                    sunrise_h = target_sched.get("sunrise_hour", 12)
+                    sunrise_m = target_sched.get("sunrise_minute", 0)
                 if sunset_h is None:
-                    sunset_parts = [
-                        int(p) for p in target_sched.get("sunset", "18:00").split(":")
-                    ]
-                    sunset_h, sunset_m = sunset_parts[0], sunset_parts[1]
+                    sunset_h = target_sched.get("sunset_hour", 20)
+                    sunset_m = target_sched.get("sunset_minute", 0)
                 if ramp_up_minutes == 0 and "ramp_up_minutes" in target_sched:
                     ramp_up_minutes = target_sched["ramp_up_minutes"]
-                if weekdays is None and "weekdays" in target_sched:
-                    weekdays = target_sched["weekdays"]
+                if weekdays is None:
+                    from .domain.light.status import LightSchedule
+                    temp_sched = LightSchedule.from_dict(target_sched)
+                    weekdays = temp_sched.weekdays()
 
                 new_options = dict(coord.entry.options)
                 new_options["schedules"] = existing

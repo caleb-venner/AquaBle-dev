@@ -1,7 +1,13 @@
 # AquaBle Integration Status
 
+## Issues
+
+- [x] Manual setting on light device card should persist until altered. (last command sent)
+- [x] Updating schedules seems partially broken; need to perform analysis of command pipeline and logic.
+
 ## TODO
 
+- [ ] Implement 'saved'/'favourites' for various schedules and modes.
 - [ ] Implement, or make note of not-supporting, 100+ brightness on supported models.
 - [ ] Align Light and Doser device card styles:
     - Status indicators
@@ -9,7 +15,7 @@
     - Doser: Size change between card views too large.
     - Light: Size change between card views equalised.
 - [ ] Give feedback / toast notification on push schedule to device
-- [ ] Investigate schedule collisions (what occurs when writing a schedule overlapping an existing timeframe)
+- [x] Prevent schedule collisions by checking for overlaps in the service handler.
 - [x] Feature: Implement deletion / editing of individual schedule slots in the UI card
 - [x] BUG: When pushing 0;0;0;7 to device (just 7% white light) the schedule saved shows 7;0;0;7 
 

@@ -29,19 +29,38 @@ class AquaBleLightCard extends LitElement {
     this._loading = false;
     this._editingIndex = null;
     this._newSchedule = {
-      sunriseHour: 8,
+      sunriseHour: 12,
       sunriseMinute: 0,
-      sunsetHour: 18,
+      sunsetHour: 20,
       sunsetMinute: 0,
       rampMinutes: 30,
       weekdays: ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"],
       channels: [50, 50, 50, 50],
     };
     this._manualLevels = [0, 0, 0, 0];
+    this._manualLevelsLoaded = false;
   }
 
   setConfig(config) {
     this._config = { ...config };
+  }
+
+  updated(changedProperties) {
+    super.updated(changedProperties);
+    if (changedProperties.has("hass") || changedProperties.has("_config")) {
+      const deviceId = this._deviceId;
+      if (deviceId && !this._manualLevelsLoaded) {
+        const stored = localStorage.getItem(`aquable_manual_${deviceId}`);
+        if (stored) {
+          try {
+            this._manualLevels = JSON.parse(stored);
+          } catch (e) {
+            console.error("Failed to parse stored manual levels", e);
+          }
+        }
+        this._manualLevelsLoaded = true;
+      }
+    }
   }
 
   static get styles() {
@@ -118,9 +137,9 @@ class AquaBleLightCard extends LitElement {
 
   _resetNewSchedule() {
     this._newSchedule = {
-      sunriseHour: 8,
+      sunriseHour: 12,
       sunriseMinute: 0,
-      sunsetHour: 18,
+      sunsetHour: 20,
       sunsetMinute: 0,
       rampMinutes: 30,
       weekdays: ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"],
@@ -133,8 +152,8 @@ class AquaBleLightCard extends LitElement {
     if (index < 0 || index >= schedules.length) return;
     const sched = schedules[index];
 
-    const partsSunrise = (sched.sunrise || "08:00").split(":").map(Number);
-    const partsSunset = (sched.sunset || "18:00").split(":").map(Number);
+    const partsSunrise = (sched.sunrise || "12:00").split(":").map(Number);
+    const partsSunset = (sched.sunset || "20:00").split(":").map(Number);
     const channels = sched.channels || sched.channel_brightness || [50, 50, 50, 50];
     const weekdays = Array.isArray(sched.weekdays)
       ? [...sched.weekdays]
@@ -142,9 +161,9 @@ class AquaBleLightCard extends LitElement {
 
     this._editingIndex = index;
     this._newSchedule = {
-      sunriseHour: partsSunrise[0] ?? 8,
+      sunriseHour: partsSunrise[0] ?? 12,
       sunriseMinute: partsSunrise[1] ?? 0,
-      sunsetHour: partsSunset[0] ?? 18,
+      sunsetHour: partsSunset[0] ?? 20,
       sunsetMinute: partsSunset[1] ?? 0,
       rampMinutes: sched.ramp_up_minutes ?? 30,
       weekdays: weekdays,
@@ -193,6 +212,10 @@ class AquaBleLightCard extends LitElement {
     const updated = [...this._manualLevels];
     updated[index] = value;
     this._manualLevels = updated;
+    const deviceId = this._deviceId;
+    if (deviceId) {
+      localStorage.setItem(`aquable_manual_${deviceId}`, JSON.stringify(updated));
+    }
   }
 
   // --- Service Actions ---
